@@ -6,37 +6,39 @@ product
 
 ## Users
 
-AI developers, power users, and open-source AI practitioners who rely on free NVIDIA NIM API endpoints for coding agents (Claude Code, Cline, Roo, Continue) and LLM tooling. They check NIM Stats to decide which model to hit right now: is it healthy or jammed, fast or congested, reliable enough for a long coding session. They're technical but not design-focused — they want to scan, decide, and move on without friction. Their context is a working session: a problem in front of them, a model call about to fire, and a need for confidence about what's on the other end.
+Developers, AI engineers, and open source enthusiasts who integrate or evaluate NVIDIA NIM models into their stack. They open NIM Stats during a workflow decision: which model to deploy, whether a degradation event is ongoing, or how current load will affect their call latency. These are technical users who read dashboards in a glance, who want the signal without parsing prose. They work across desktop and laptop, often in dark environments or paired terminals.
 
 ## Product Purpose
 
-NIM Stats is a real-time operational intelligence layer over free NVIDIA NIM endpoints. It surfaces throughput, latency, uptime, and congestion across Llama, Mistral, Gemma, Phi, Qwen, DeepSeek, and other models — refreshed every 30 seconds. The purpose is not to inform or explain; it is to help a developer make a fast, correct routing decision before they send a request. Success looks like: open the page, read the signal in under five seconds, pick the right endpoint, and get back to work.
+NIM Stats is an operational intelligence dashboard that monitors the health state of NVIDIA NIM-hosted AI models. It surfaces per-model status (healthy, busy, jammed), fleet-level aggregate health, throughput, congestion, time-to-first-token, and uptime reliability in a single scannable view. It exists so a developer can answer "which model should I call right now" in under five seconds, and diagnose degradation across the fleet without visiting five separate dashboards. Success: a user opens the page and immediately knows both the recommended model and the fleet health picture.
 
 ## Brand Personality
 
-Operational, Premium, Precise. The interface should feel alive but controlled — like a well-run infrastructure control room. Trustworthy and realtime. Calm under pressure. Intelligence-grade: data is presented with surgical clarity, not spectacle. The brand is communicated entirely through the product experience — no tagline-required marketing wrapper. Reference points: Linear's polish, Vercel's density, Cloudflare Radar's data authority.
+Precise, quiet, trustworthy. The interface should feel like a well-instrumented control room, not a marketing page. Three words: **calm, authoritative, technical**.
+
+Voice is declarative and spare. Label with nouns and numbers. Avoid adjectives unless the data demands them. The UI earns trust by showing raw figures cleanly, not by claiming authority through copy.
 
 ## Anti-references
 
-- Cyberpunk or neon-drenched dashboards
-- Noisy, cluttered monitoring UIs with gratuitous decoration
-- Generic AI startup aesthetics (gradient hero feathers, soft rounded cards, cream backgrounds, illustration spot-illustrations)
-- Decorative "futuristic" UI — scan lines, glow effects, particle backgrounds, holographic framing
-- Marketing-voice copy anywhere on the operational surface
-- SaaS hero-metric templates (big number, small label, gradient accent)
+- Warm beige or parchment backgrounds, regardless of how "premium" they read. This is an infrastructure tool in dark mode.
+- SaaS dashboard clichés: hero metric with a big number and soft gradient, how-it-works stepper, identical icon+title+body card grids.
+- Component surfaces that look fine but feel wrong on close inspection: inconsistent borders, shadow-plus-border pairing on the same element, rounded radii above 16px on cards.
+- Section kickers in tiny uppercase tracking-wide type above every heading (the 2023-era "01 / ABOUT" eyebrow).
+- Gradient text, glassmorphism as decoration, or motion that doesn't convey state.
+- Any interface that looks like it was designed for a non-technical executive audience. This tool is built for people who read logs for fun.
 
 ## Design Principles
 
-1. **The product IS the brand.** No marketing wrapper needed. The dashboard's clarity, responsiveness, and polish communicate quality more than any badge or testimonial.
-2. **Signal above all.** Layout, color, and motion exist to make the operational signal legible in under five seconds. If a visual choice doesn't serve scan-ability, remove it.
-3. **Calm confidence.** The interface should feel like a calm operator, not a hype machine. Data breathes; whitespace is intentional; nothing is shouting.
-4. **Precision over decoration.** Every pixel earns its place. Tight alignment, intentional spacing, no filler content. Craft shows in restraint, not density.
-5. **Alive but quiet.** Realtime updates should feel organic — subtle pulse, smooth transitions — never jarring or theatrical. The page is monitoring something real; acknowledge that with gentle motion, not spectacle.
+1. **Signal over space.** Information density is a virtue when the user is technical. Compress what can be compressed; expand only what matters right now. The pick list and key metrics should be readable in a single visual pass.
+2. **One recommendation at a time.** The primary readout is a single model suggestion with its evidence. Everything else supports that headline finding — it does not compete with it.
+3. **State is color, not copy.** Healthy / busy / jammed communicate through hue first, label second. A user scanning a fleet grid should read status at a glance without parsing text.
+4. **Calm under stress.** When the fleet is degraded, the interface should not amplify the alarm. Surfaces dim, indicators shift, numbers go red — the layout does not. Panic is not a product decision.
+5. **Infrastructure-grade craft.** Every border, alignment, and type tier should feel intentional. If a developer fluent in tools like Linear or Datadog pauses at a component as "off", the design has failed.
 
 ## Accessibility & Inclusion
 
-- WCAG 2.1 AA minimum: all text-on-background combinations must meet 4.5:1 contrast (3:1 for large text)
-- Full `prefers-reduced-motion` support: all animations collapse to instant transitions or crossfades
-- Keyboard-navigable: status indicators, sortable controls, and interactive elements must be reachable without a pointer
-- Semantic HTML: proper heading hierarchy, landmark roles, ARIA labels on data-dense tables and charts
-- Color not the sole signal: status indicators pair color with shape/text, not just hue
+- WCAG AA minimum for text contrast on both light and dark themes.
+- Status indicators must convey state without relying on color alone (include shape or label).
+- Light/dark mode toggle with system preference detection as the default.
+- Reduced motion respected on all transitions and reveals.
+- Keyboard-navigable: all interactive controls reachable and operable without a pointer.

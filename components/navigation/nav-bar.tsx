@@ -1,69 +1,103 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 
 interface NavBarProps {
-  lastUpdate: Date;
   className?: string;
 }
 
-export function NavBar({ lastUpdate, className }: NavBarProps) {
-  const timeAgo = formatTimeAgo(lastUpdate);
+export function NavBar({ className }: NavBarProps) {
+  const pathname = usePathname();
+  const isDiscover = pathname === "/discover";
 
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 h-12",
-        "bg-zinc-950/90 backdrop-blur-md",
-        "border-b border-zinc-800/60",
+        "fixed top-0 left-0 right-0 z-50 h-11",
+        "bg-surface-base/90 backdrop-blur-md",
+        "border-b border-border-base",
         className
       )}
+      role="banner"
     >
-      <div className="h-full flex items-center justify-between px-4 lg:px-6">
-        {/* Left: Logo + Live status */}
+      <div className="h-full flex items-center justify-between px-5 lg:px-7">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" style={{ boxShadow: "0 0 8px #10b981" }} />
-            <span className="text-[10px] font-semibold text-emerald-400/80 uppercase tracking-widest">
-              LIVE
+            <span
+              className="relative flex h-1.5 w-1.5 shrink-0"
+              aria-hidden="true"
+            >
+              <span className="absolute inset-0 rounded-full bg-emerald-400" />
+              <span
+                className="absolute inset-0 rounded-full bg-emerald-400"
+                style={{ animation: "pulse-soft 2s ease-in-out infinite" }}
+              />
+            </span>
+            <span
+              className="font-medium uppercase tracking-wider text-emerald-500"
+              style={{
+                fontFamily: '"IBM Plex Mono", ui-monospace, monospace',
+                fontSize: '0.7rem',
+                fontWeight: 500,
+                letterSpacing: '0.08em',
+              }}
+            >
+              Live
             </span>
           </div>
-          <span className="text-sm font-semibold text-zinc-400 tracking-wide">
+          <span
+            className="h-3 w-px bg-border-subtle"
+            aria-hidden="true"
+          />
+          <span
+            className="font-semibold tracking-tight text-text-primary"
+            style={{
+              fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+            }}
+          >
             NIM Stats
-          </span>
-          <span className="text-xs text-zinc-600 font-mono tabular-nums">
-            {timeAgo}
           </span>
         </div>
 
-        {/* Right: View switcher */}
-        <nav className="flex items-center gap-1">
-          <NavItem label="Command" active />
-          <NavItem label="Discover" />
+        <nav className="flex items-center gap-2" aria-label="Primary navigation">
+          <NavLink href="/" label="Command" active={!isDiscover} />
+          <span className="h-3 w-px bg-border-base" aria-hidden="true" />
+          <NavLink href="/discover" label="Discover" active={isDiscover} />
+          <span className="h-3 w-px bg-border-base" aria-hidden="true" />
+          <ThemeToggle />
         </nav>
       </div>
     </header>
   );
 }
 
-function NavItem({ label, active }: { label: string; active?: boolean }) {
+function NavLink({ href, label, active }: { href: string; label: string; active?: boolean }) {
   return (
-    <button
+    <Link
+      href={href}
       className={cn(
-        "px-3 py-1.5 text-xs font-medium transition-colors rounded-md",
-        active
-          ? "text-emerald-400 bg-emerald-500/10"
-          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
+        "relative px-2.5 py-1.5 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-base rounded-sm",
+        active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
       )}
+      style={{
+        fontFamily: '"IBM Plex Mono", ui-monospace, monospace',
+        fontSize: '0.65rem',
+        fontWeight: 500,
+        letterSpacing: '0.08em',
+      }}
     >
       {label}
-    </button>
+      {active && (
+        <span
+          className="absolute -bottom-2px left-2 right-2 h-[2px] rounded-full bg-emerald-500/70"
+          aria-hidden="true"
+        />
+      )}
+    </Link>
   );
-}
-
-function formatTimeAgo(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (seconds < 5) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
-  return `${Math.floor(seconds / 60)}m ago`;
 }

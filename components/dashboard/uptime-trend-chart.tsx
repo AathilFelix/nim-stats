@@ -9,12 +9,12 @@ interface UptimeTrendChartProps {
 
 export function UptimeTrendChart({ className }: UptimeTrendChartProps) {
   return (
-    <Card className={cn("bg-zinc-900/60 border-zinc-800/60 backdrop-blur-sm", className)}>
+    <Card className={cn("bg-surface-card border-border-base", className)}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-sm text-zinc-500 font-medium uppercase tracking-wider">
+        <CardTitle className="text-sm text-text-tertiary font-medium uppercase tracking-wider">
           Global Uptime Trend
         </CardTitle>
-        <p className="text-[11px] text-zinc-600 mt-0.5">
+        <p className="text-[11px] text-text-tertiary mt-0.5">
           Aggregate health of all {LIVE_UPTIME_DATA.length} tracked NIM endpoints
         </p>
       </CardHeader>
@@ -38,7 +38,7 @@ export function UptimeTrendChart({ className }: UptimeTrendChartProps) {
             );
           })}
         </div>
-        <div className="flex justify-between mt-2 text-[10px] text-zinc-600 font-mono">
+        <div className="flex justify-between mt-2 text-[10px] text-text-tertiary font-mono">
           <span>30m ago</span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -46,7 +46,7 @@ export function UptimeTrendChart({ className }: UptimeTrendChartProps) {
           </span>
           <span>now</span>
         </div>
-        <div className="grid grid-cols-3 gap-4 mt-5 pt-4 border-t border-zinc-800/60">
+        <div className="grid grid-cols-3 gap-4 mt-5 pt-4 border-t border-border-subtle">
           <StatRow label="Avg Uptime" value="99.87%" delta="+0.02%" />
           <StatRow label="Outages (24h)" value="0" delta="stable" />
           <StatRow label="Degraded" value="2" delta="of 10" warn />
@@ -59,8 +59,8 @@ export function UptimeTrendChart({ className }: UptimeTrendChartProps) {
 function StatRow({ label, value, delta, warn }: { label: string; value: string; delta: string; warn?: boolean }) {
   return (
     <div>
-      <p className="text-[10px] text-zinc-600 uppercase tracking-widest font-medium">{label}</p>
-      <p className="text-lg font-bold text-zinc-200 tabular-nums mt-0.5">{value}</p>
+      <p className="text-[10px] text-text-tertiary uppercase tracking-widest font-medium">{label}</p>
+      <p className="text-lg font-bold text-text-secondary tabular-nums mt-0.5">{value}</p>
       <p className={cn("text-[11px] mt-0.5 font-medium", warn ? "text-amber-400" : "text-emerald-400")}>
         {delta}
       </p>
