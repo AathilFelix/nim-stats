@@ -3,15 +3,13 @@
 import type { NIMModel } from "../dashboard/mock-data";
 import { getStatusColor } from "../dashboard/mock-data";
 import { HorizontalSparkline } from "./horizontal-sparkline";
-import { StatusDotCircle, MetricPill } from "./discover-primitives";
+import { StatusDotCircle, MetricPill, MiniStatRow } from "./discover-primitives";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface RankCardProps {
   model: NIMModel;
   headlineMetric: { value: string; label: string };
-  secondaryMetrics: { value: string; label: string }[];
-  historyData: number[];
   selected?: boolean;
   onSelect: (model: NIMModel) => void;
 }
@@ -19,13 +17,10 @@ interface RankCardProps {
 export function RankCard({
   model,
   headlineMetric,
-  secondaryMetrics,
-  historyData,
   selected,
   onSelect,
 }: RankCardProps) {
   const statusColor = getStatusColor(model.status);
-  const isHealthy = model.status === "healthy";
 
   return (
     <button
@@ -35,48 +30,58 @@ export function RankCard({
     >
       <Card
         className={cn(
-          "w-[220px] shrink-0 rounded-lg transition-all duration-150",
-          selected ? "border-primary shadow-md" : "shadow-sm",
+          "w-[180px] shrink-0 rounded-md transition-all duration-150",
+          selected ? "border-primary/70" : "",
         )}
       >
-        <CardHeader className="px-4 pt-4 pb-0 space-y-0">
+        <CardHeader className="px-3 pt-3 pb-2 space-y-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <CardTitle className="truncate text-sm">{model.name}</CardTitle>
-              <p className="truncate text-xs text-muted-foreground font-mono mt-0.5">
+              <CardTitle className="truncate text-xs leading-tight">
+                {model.name}
+              </CardTitle>
+              <p className="truncate text-[10px] text-muted-foreground font-mono mt-0.5">
                 {model.provider}
               </p>
             </div>
-            <StatusDotCircle status={model.status} />
+            <StatusDotCircle status={model.status} size={5} />
           </div>
         </CardHeader>
 
-        <CardContent className="px-4 py-3">
-          <div>
-            <p
-              className="tabular-nums tracking-tight leading-none font-mono font-semibold text-foreground"
-              style={{ fontSize: "1.5rem", letterSpacing: "-0.02em" }}
+        <CardContent className="px-3 py-2 space-y-2">
+          <div className="flex items-baseline gap-1.5">
+            <span
+              className="tabular-nums leading-none font-mono font-semibold text-foreground"
+              style={{ fontSize: "1.1rem", letterSpacing: "-0.02em" }}
             >
               {headlineMetric.value}
-            </p>
-            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
+            </span>
+            <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-muted-foreground font-mono">
               {headlineMetric.label}
-            </p>
+            </span>
           </div>
-          <div className="flex items-center gap-2 mt-3">
-            {secondaryMetrics.map((m) => (
-              <MetricPill
-                key={m.label}
-                value={m.value}
-                label={m.label}
-                intent={isHealthy ? "muted" : "default"}
-              />
-            ))}
+
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+            <MiniStatRow label="REL" value={`${model.reliability}%`} />
+            <MiniStatRow label="CONG" value={`${model.congestion}%`} warn={model.congestion > 50} />
+            <MiniStatRow label="TTFT" value={`${model.ttft}ms`} />
+            <MiniStatRow
+              label="T/O"
+              value={`${model.timeoutRate}%`}
+              warn={model.timeoutRate > 3}
+            />
           </div>
         </CardContent>
 
-        <CardFooter className="px-4 pb-4 pt-0">
-          <HorizontalSparkline data={historyData} color={statusColor} width={192} height={24} />
+        <CardFooter className="px-3 pb-3 pt-0">
+          <HorizontalSparkline
+            data={headlineMetric.label === "reliability" || headlineMetric.label === "congestion"
+              ? model.reliabilityHistory.map((p) => p.score)
+              : model.throughputHistory}
+            color={statusColor}
+            width={156}
+            height={20}
+          />
         </CardFooter>
       </Card>
     </button>

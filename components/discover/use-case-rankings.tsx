@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import type { NIMModel } from "../dashboard/mock-data";
-import { GradeBadge } from "./discover-primitives";
-import { SectionLabel, SurfaceCard } from "./discover-primitives";
+import { GradeBadge, SectionLabel } from "./discover-primitives";
+import { SurfaceCard } from "./discover-primitives";
 
 interface UseCaseRankingsProps {
   models: NIMModel[];
@@ -31,26 +31,23 @@ export function UseCaseRankings({ models }: UseCaseRankingsProps) {
   }, [models]);
 
   return (
-    <SurfaceCard>
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+    <SurfaceCard className="p-2">
+      <div className="flex items-center justify-between px-2 py-1.5 border-b border-border">
         <SectionLabel>Use-case Rankings</SectionLabel>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 divide-x divide-border">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-border">
         {blocks.map((block) => (
-          <div key={block.label} className="p-3 border-b border-border last:border-b-0">
-            <SectionLabel className="mb-2">{block.label}</SectionLabel>
-            <div className="space-y-1">
+          <div key={block.label} className="p-2">
+            <SectionLabel className="mb-1">{block.label}</SectionLabel>
+            <div className="space-y-0.5">
               {block.entries.slice(0, 3).map((entry, i) => (
                 <div
                   key={entry.model.id}
-                  className="flex items-center gap-2 py-1"
+                  className="flex items-center gap-1.5 py-0.5"
                 >
                   <GradeBadge grade={["A", "B", "C"][i] ?? "C"} />
-                  <span className="truncate text-xs font-medium text-foreground">
+                  <span className="truncate text-[11px] text-foreground">
                     {entry.model.name}
-                  </span>
-                  <span className="tabular-nums text-[11px] text-muted-foreground font-mono ml-auto">
-                    {entry.score.toFixed(0)}
                   </span>
                 </div>
               ))}

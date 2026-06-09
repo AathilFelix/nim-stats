@@ -5,7 +5,6 @@ import type { NIMModel } from "../dashboard/mock-data";
 import { CATEGORIES, type DiscoverCategory } from "./discover-data";
 import { RankCard } from "./rank-card";
 import { ComparisonPanel } from "./comparison-panel";
-import { SectionLabel } from "./discover-primitives";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -40,8 +39,6 @@ export function DiscoverView({ models }: { models: NIMModel[] }) {
     return reversed ? [...sorted].reverse() : sorted;
   }, [activeCategory, reversed, models, sort]);
 
-  const hasSelection =
-    selectedIds[0] !== null || selectedIds[1] !== null;
   const selectedModels = useMemo<[NIMModel, NIMModel] | "none">(() => {
     if (!selectedIds[0]) return "none";
     const first = models.find((m) => m.id === selectedIds[0]);
@@ -123,12 +120,10 @@ export function DiscoverView({ models }: { models: NIMModel[] }) {
     : categoryLabel;
 
   return (
-    <div className="space-y-5">
-      <div className="space-y-4">
-        <SectionLabel className="pl-0.5">{rankLabel}</SectionLabel>
-
+    <div className="space-y-4">
+      <div className="space-y-2">
         <nav
-          className="flex flex-wrap items-center gap-1.5"
+          className="flex flex-wrap items-center gap-1"
           aria-label="Primary categories"
         >
           {PRIMARY_CATEGORIES.map((cat) => (
@@ -149,7 +144,7 @@ export function DiscoverView({ models }: { models: NIMModel[] }) {
         <Separator className="border-border" />
 
         <nav
-          className="flex flex-wrap items-center gap-1.5"
+          className="flex flex-wrap items-center gap-1"
           aria-label="Secondary categories"
         >
           {SECONDARY_CATEGORIES.map((cat) => (
@@ -168,24 +163,25 @@ export function DiscoverView({ models }: { models: NIMModel[] }) {
         </nav>
       </div>
 
-      <div className="flex items-center justify-between px-1">
-        <SectionLabel className="pl-0.5">
-          {reversed ? "Underperforming" : "Ranking"}
-        </SectionLabel>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-mono uppercase tracking-[0.1em] text-muted-foreground">
+          {reversed ? "Underperforming" : rankLabel}
+        </span>
         <button
           onClick={() => setReversed((v) => !v)}
           className={cn(
-            "text-[10px] font-bold uppercase tracking-[0.08em] font-mono transition-colors duration-150",
-            "text-muted-foreground hover:text-foreground data-[active=true]:text-foreground",
+            "text-[10px] font-bold uppercase tracking-[0.06em] font-mono transition-colors duration-150",
+            reversed
+              ? "text-foreground"
+              : "text-muted-foreground hover:text-foreground",
           )}
-          data-active={reversed}
         >
           {reversed ? "Best first" : "Worst first"}
         </button>
       </div>
 
       <div
-        className="flex gap-3 overflow-x-auto pb-4"
+        className="flex gap-2.5 overflow-x-auto pb-3"
         style={{ scrollbarWidth: "none" }}
       >
         {ranked.map((model) => (
@@ -196,11 +192,6 @@ export function DiscoverView({ models }: { models: NIMModel[] }) {
               value: metric.value(model),
               label: metric.label,
             }}
-            secondaryMetrics={[
-              { value: `${model.reliability}%`, label: "REL" },
-              { value: `${model.congestion}%`, label: "CONG" },
-            ]}
-            historyData={metric.history(model)}
             selected={selectedIds.includes(model.id)}
             onSelect={handleCardSelect}
           />
@@ -229,7 +220,7 @@ function CategoryButton({
       onClick={onClick}
       data-active={active}
       className={cn(
-        "px-3 py-1.5 rounded-md text-xs font-mono transition-colors duration-150 whitespace-nowrap",
+        "px-2.5 py-1 rounded-sm text-[11px] font-mono transition-colors duration-150 whitespace-nowrap",
         "border",
         "data-[active=true]:bg-muted data-[active=true]:text-foreground data-[active=true]:border-border",
         "data-[active=false]:bg-transparent data-[active=false]:border-transparent data-[active=false]:text-muted-foreground",

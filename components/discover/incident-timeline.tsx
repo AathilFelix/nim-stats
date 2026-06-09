@@ -4,7 +4,6 @@ import type { Incident } from "@/lib/operational-types";
 import { StatusDotCircle, SectionLabel } from "./discover-primitives";
 import { SurfaceCard } from "./discover-primitives";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
   incidents: Incident[];
@@ -60,18 +59,12 @@ export function IncidentTimeline({ incidents }: Props) {
                 <p className="text-xs leading-snug font-medium text-foreground">{inc.message}</p>
                 <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{inc.time}</p>
               </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span
-                    className="shrink-0 cursor-help"
-                  >
-                    <Badge variant="outline">{sev.label}</Badge>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.1em]">{inc.severity}: {inc.message}</p>
-                </TooltipContent>
-              </Tooltip>
+              <Badge
+                variant="outline"
+                className="text-[10px] font-bold uppercase tracking-[0.08em]"
+              >
+                {sev.label}
+              </Badge>
             </div>
           );
         })}
