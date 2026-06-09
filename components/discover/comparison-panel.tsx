@@ -6,6 +6,7 @@ import { HorizontalSparkline } from "./horizontal-sparkline";
 import { StatusDotCircle } from "./discover-primitives";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface ComparisonPanelProps {
   models: [NIMModel, NIMModel] | null;
@@ -34,27 +35,27 @@ export function ComparisonPanel({ models, onClear }: ComparisonPanelProps) {
         </Button>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="grid grid-cols-2">
+        <div className="grid grid-cols-2 divide-x divide-border">
           {models.map((model, idx) => {
             const statusColor = getStatusColor(model.status);
             return (
-              <div
-                key={model.id}
-                className="p-4"
-                style={{
-                  borderRight: idx === 0 ? "1px solid var(--border)" : "none",
-                  borderBottom: "1px solid var(--border)",
-                }}
-              >
+              <div key={model.id} className={cn("p-4", idx === 1 && "divide-x-0")}>
                 <div className="flex items-center gap-2 mb-3">
                   <StatusDotCircle status={model.status} />
-                  <p className="font-semibold truncate text-sm text-foreground">{model.name}</p>
+                  <p className="font-semibold truncate text-sm text-foreground">
+                    {model.name}
+                  </p>
                 </div>
-                <p className="mb-4 text-xs text-muted-foreground font-mono">{model.provider}</p>
+                <p className="mb-4 text-xs text-muted-foreground font-mono">
+                  {model.provider}
+                </p>
 
                 <div className="space-y-2">
                   {METRICS.map((metric) => (
-                    <div key={metric.label} className="flex items-baseline justify-between">
+                    <div
+                      key={metric.label}
+                      className="flex items-baseline justify-between"
+                    >
                       <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground font-mono shrink-0">
                         {metric.label}
                       </span>

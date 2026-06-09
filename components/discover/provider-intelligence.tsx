@@ -2,6 +2,13 @@
 
 import { useMemo } from "react";
 import type { NIMModel } from "../dashboard/mock-data";
+import {
+  SurfaceCard,
+  SectionLabel,
+  GradeBadge,
+  MiniStatRow,
+} from "./discover-primitives";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface ProviderRow {
   name: string;
@@ -11,6 +18,13 @@ interface ProviderRow {
   degradedCount: number;
   grade: "A" | "B" | "C" | "D";
 }
+
+const GRADE_PALETTE: Record<string, string> = {
+  A: "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400",
+  B: "bg-sky-500/10 border-sky-500/30 text-sky-600 dark:text-sky-400",
+  C: "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400",
+  D: "bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400",
+};
 
 export function ProviderIntelligence({ models }: { models: NIMModel[] }) {
   const providers = useMemo(() => {
@@ -24,129 +38,123 @@ export function ProviderIntelligence({ models }: { models: NIMModel[] }) {
       .map(([name, group]) => {
         const avgCongestion = Math.round(group.reduce((s, m) => s + m.congestion, 0) / group.length);
         const avgUptime =
-          Math.round((group.reduce((s, m) => s + m.uptime, 0) / group.length) * 100) / 100;
+          Math.round(
+            (group.reduce((s, m) => s + m.uptime, 0) / group.length) * 100,
+          ) / 100;
         const degraded = group.filter((m) => m.status !== "healthy").length;
         let grade: ProviderRow["grade"] = "A";
         if (degraded >= 2 || avgCongestion > 60) grade = "D";
         else if (degraded > 0 || avgCongestion > 45) grade = "C";
         else if (avgCongestion > 30) grade = "B";
-        return { name, count: group.length, avgCongestion, avgUptime, degradedCount: degraded, grade };
+        return {
+          name,
+          count: group.length,
+          avgCongestion,
+          avgUptime,
+          degradedCount: degraded,
+          grade,
+        };
       })
       .sort((a, b) => a.grade.localeCompare(b.grade));
   }, [models]);
 
-  const gradeConfig: Record<string, { color: string; bg: string; border: string }> = {
-    A: { color: "#10b981", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.25)" },
-    B: { color: "#3b82f6", bg: "rgba(59,130,246,0.1)", border: "rgba(59,130,246,0.25)" },
-    C: { color: "#f59e0b", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.25)" },
-    D: { color: "#ef4444", bg: "rgba(239,68,68,0.1)", border: "rgba(239,68,68,0.25)" },
-  };
+  if (!providers.length) {
+    return <span className="text-muted-foreground text-xs">No provider data.</span>;
+  }
 
   return (
-    <div className="space-y-3">
-      <p
-        className="uppercase tracking-wider font-medium"
-        style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: '0.6rem',
-          color: 'var(--text-tertiary)',
-          letterSpacing: '0.12em',
-          fontWeight: 600,
-        }}
-      >
-        Provider Intelligence
-      </p>
-      <div
-        className="grid grid-cols-1 md:grid-cols-2 gap-1.5"
-        style={{ border: '1px solid var(--border-base)', borderRadius: '0.5rem' }}
-      >
-        {providers.map((p, i) => {
-          const gc = gradeConfig[p.grade] ?? gradeConfig.B;
-          return (
-            <div
-              key={p.name}
-              className="flex items-center justify-between p-3"
-              style={{
-                borderBottom: i < providers.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-              }}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="inline-flex items-center justify-center w-6 h-6 rounded-sm text-xs font-bold"
-                    style={{
-                      fontFamily: '"IBM Plex Mono", monospace',
-                      fontSize: '0.65rem',
-                      color: gc.color,
-                      backgroundColor: gc.bg,
-                      border: `1px solid ${gc.border}`,
-                    }}
-                  >
-                    {p.grade}
-                  </span>
-                  <span
-                    className="font-medium truncate"
-                    style={{
-                      fontFamily: '"IBM Plex Sans", sans-serif',
-                      fontSize: '0.85rem',
-                      color: 'var(--text-primary)',
-                    }}
-                  >
-                    {p.name}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 mt-1.5 ml-8">
-                  <MiniStat label="CONG" value={`${p.avgCongestion}%`} warn={p.avgCongestion > 50} />
-                  <MiniStat label="UP" value={`${p.avgUptime}%`} />
-                  <MiniStat
-                    label="DEGR"
-                    value={String(p.degradedCount)}
-                    warn={p.degradedCount > 0}
-                  />
-                </div>
-              </div>
-              <span
-                className="text-text-tertiary tabular-nums ml-3"
-                style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: '0.65rem',
-                }}
-              >
-                {p.count}
-              </span>
-            </div>
-          );
-        })}
+    <SurfaceCard>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <SectionLabel>Provider Intelligence</SectionLabel>
+        <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
+          {providers.length} providers
+        </span>
       </div>
-    </div>
-  );
-}
-
-function MiniStat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <span
-        className="uppercase"
-        style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: '0.55rem',
-          color: 'var(--text-tertiary)',
-          letterSpacing: '0.06em',
-        }}
-      >
-        {label}
-      </span>
-      <span
-        className={`tabular-nums ${warn ? 'text-amber-500' : ''}`}
-        style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: '0.7rem',
-          color: warn ? '#f59e0b' : 'var(--text-secondary)',
-          letterSpacing: '-0.01em',
-        }}
-      >
-        {value}
-      </span>
-    </div>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              <TableHead className="w-10 text-center align-middle">
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
+                  GRD
+                </span>
+              </TableHead>
+              <TableHead className="min-w-[140px]">
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
+                  Provider
+                </span>
+              </TableHead>
+              <TableHead className="text-right w-20">
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
+                  Model
+                </span>
+              </TableHead>
+              <TableHead className="text-right w-20">
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
+                  Cong.
+                </span>
+              </TableHead>
+              <TableHead className="text-right w-20">
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
+                  Uptime
+                </span>
+              </TableHead>
+              <TableHead className="text-right w-16">
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
+                  Deg.
+                </span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {providers.map((p) => {
+              const palette = GRADE_PALETTE[p.grade] ?? GRADE_PALETTE.B;
+              return (
+                <TableRow key={p.name} className="h-12">
+                  <TableCell className="text-center align-middle">
+                    <GradeBadge grade={p.grade} />
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-semibold text-sm text-foreground">
+                      {p.name}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-mono text-sm text-foreground">
+                    {p.count}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-mono text-sm">
+                    <span
+                      className={
+                        p.avgCongestion > 60
+                          ? "text-destructive font-bold"
+                          : p.avgCongestion > 45
+                            ? "text-amber-600 dark:text-amber-400 font-bold"
+                            : "text-foreground"
+                      }
+                    >
+                      {p.avgCongestion}%
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-mono text-sm text-foreground">
+                    {p.avgUptime.toFixed(2)}%
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <span
+                      className={
+                        p.degradedCount > 0
+                          ? "font-bold text-destructive"
+                          : "font-mono text-sm text-foreground"
+                      }
+                    >
+                      {p.degradedCount}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </SurfaceCard>
   );
 }

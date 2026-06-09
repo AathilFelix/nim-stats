@@ -1,6 +1,7 @@
 "use client";
 
 import type { NIMModel } from "../dashboard/mock-data";
+import { SectionLabel, SurfaceCard } from "./discover-primitives";
 
 interface Props {
   models: NIMModel[];
@@ -9,7 +10,7 @@ interface Props {
 interface DeltaProps {
   label: string;
   entries: NIMModel[];
-  accent: string;
+  accent: "emerald" | "amber" | "red";
 }
 
 export function TrendAnalysis({ models }: Props) {
@@ -22,7 +23,8 @@ export function TrendAnalysis({ models }: Props) {
   const rising = models
     .filter(
       (m) =>
-        m.congestionTrend === "worsening" || m.congestionTrend === "rapidly_increasing",
+        m.congestionTrend === "worsening" ||
+        m.congestionTrend === "rapidly_increasing",
     )
     .slice(0, 3);
   const recovering = models
@@ -30,93 +32,51 @@ export function TrendAnalysis({ models }: Props) {
     .slice(0, 3);
 
   return (
-    <div className="space-y-3">
-      <p
-        className="uppercase tracking-wider"
-        style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: '0.6rem',
-          color: 'var(--text-tertiary)',
-          letterSpacing: '0.12em',
-          fontWeight: 600,
-        }}
-      >
-        Trend Analysis
-      </p>
-      <div
-        className="grid grid-cols-2 gap-1.5"
-        style={{ border: '1px solid var(--border-base)', borderRadius: '0.5rem' }}
-      >
+    <SurfaceCard>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <SectionLabel>Trend Analysis</SectionLabel>
+      </div>
+      <div className="grid grid-cols-2 divide-x divide-border">
         <DeltaSection label="Most Improved" entries={improved} accent="emerald" />
         <DeltaSection label="Most Degraded" entries={degraded} accent="red" />
         <DeltaSection label="Rising Congestion" entries={rising} accent="amber" />
         <DeltaSection label="Recovery Leaders" entries={recovering} accent="emerald" />
       </div>
-    </div>
+    </SurfaceCard>
   );
 }
 
 function DeltaSection({ label, entries, accent }: DeltaProps) {
-  const accentColor = accent === "emerald" ? "#10b981" : accent === "amber" ? "#f59e0b" : "#ef4444";
+  const accentToken =
+    accent === "emerald"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : accent === "amber"
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-red-600 dark:text-red-400";
 
   return (
-    <div
-      className="p-3"
-      style={{ borderBottom: undefined, borderRight: undefined }}
-    >
-      <div className="flex items-center gap-1.5 mb-2">
-        <span
-          className="uppercase tracking-wider"
-          style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: '0.55rem',
-            color: accentColor,
-            letterSpacing: '0.1em',
-            fontWeight: 600,
-          }}
-        >
-          {label}
-        </span>
-      </div>
+    <div className="p-3">
+      <span
+        className={cn(
+          "block mb-2 text-[10px] font-bold uppercase tracking-[0.1em] font-mono",
+          accentToken,
+        )}
+      >
+        {label}
+      </span>
       {entries.length === 0 ? (
-        <p
-          className="text-text-tertiary"
-          style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: '0.65rem',
-          }}
-        >
-          No data
-        </p>
+        <p className="text-xs text-muted-foreground font-mono">No data</p>
       ) : (
         <div className="space-y-1">
           {entries.map((m) => (
             <div
               key={m.id}
-              className="flex items-center justify-between py-1 px-2 rounded-sm"
-              style={{
-                backgroundColor: 'var(--surface-recessed)',
-              }}
+              className="flex items-center justify-between py-1 px-2 rounded-md bg-muted"
             >
-              <span
-                className="truncate"
-                style={{
-                  fontFamily: '"IBM Plex Sans", sans-serif',
-                  fontSize: '0.7rem',
-                  color: 'var(--text-primary)',
-                  fontWeight: 500,
-                }}
-              >
+              <span className="truncate text-xs font-medium text-foreground">
                 {m.name}
               </span>
-              <span
-                className="tabular-nums ml-2 shrink-0"
-                style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: '0.6rem',
-                  color: 'var(--text-tertiary)',
-                }}
-              >
+              <span className="tabular-nums text-[11px] text-muted-foreground font-mono ml-2 shrink-0">
                 {m.provider}
               </span>
             </div>
@@ -126,3 +86,5 @@ function DeltaSection({ label, entries, accent }: DeltaProps) {
     </div>
   );
 }
+
+import { cn } from "@/lib/utils";

@@ -1,186 +1,81 @@
 "use client";
 
 import type { Incident } from "@/lib/operational-types";
+import { StatusDotCircle, SectionLabel } from "./discover-primitives";
+import { SurfaceCard } from "./discover-primitives";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
   incidents: Incident[];
 }
 
-const SEVERITY_CONFIG: Record<
-  string,
-  { color: string; bg: string; border: string; label: string }
-> = {
-  critical: {
-    color: "#ef4444",
-    bg: "rgba(239,68,68,0.1)",
-    border: "rgba(239,68,68,0.25)",
-    label: "CRIT",
-  },
-  warning: {
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.1)",
-    border: "rgba(245,158,11,0.25)",
-    label: "WARN",
-  },
-  info: {
-    color: "#10b981",
-    bg: "rgba(16,185,129,0.1)",
-    border: "rgba(16,185,129,0.25)",
-    label: "INFO",
-  },
-};
+const SEVERITY_CONFIG = {
+  critical: { color: "#ef4444", label: "CRIT" },
+  warning: { color: "#f59e0b", label: "WARN" },
+  info: { color: "#10b981", label: "INFO" },
+} as const;
 
-const severityOrder: Record<string, number> = {
+const SEVERITY_ORDER: Record<string, number> = {
   critical: 0,
   warning: 1,
   info: 2,
 };
 
 export function IncidentTimeline({ incidents }: Props) {
-  const sorted = [...incidents].sort(
-    (a, b) =>
-      (severityOrder[a.severity] ?? 2) - (severityOrder[b.severity] ?? 2) ||
-      b.time.localeCompare(a.time),
-  );
-  const display = sorted.slice(0, 12);
+  const sorted = [...incidents]
+    .sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 2) - (SEVERITY_ORDER[b.severity] ?? 2) || b.time.localeCompare(a.time))
+    .slice(0, 12);
 
-  if (display.length === 0) {
+  if (sorted.length === 0) {
     return (
-      <div className="space-y-3">
-        <p
-          className="uppercase tracking-wider"
-          style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: '0.6rem',
-            color: 'var(--text-tertiary)',
-            letterSpacing: '0.12em',
-            fontWeight: 600,
-          }}
-        >
-          Incident Timeline
-        </p>
-        <div
-          className="p-6 text-center"
-          style={{
-            backgroundColor: 'var(--surface-card)',
-            border: '1px solid var(--border-base)',
-            borderRadius: '0.5rem',
-          }}
-        >
-          <span
-            className="inline-block w-1.5 h-1.5 rounded-full"
-            style={{ backgroundColor: '#10b981' }}
-          />
-          <p
-            mt-2
-            className="text-text-tertiary"
-            style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: '0.7rem',
-            }}
-          >
-            No incidents recorded in current window
-          </p>
+      <SurfaceCard>
+        <SectionLabel className="px-4 pt-3">Incident Timeline</SectionLabel>
+        <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
+          <StatusDotCircle status="healthy" />
+          <p className="text-xs font-mono">No incidents recorded in current window</p>
         </div>
-      </div>
+      </SurfaceCard>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <p
-        className="uppercase tracking-wider"
-        style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: '0.6rem',
-          color: 'var(--text-tertiary)',
-          letterSpacing: '0.12em',
-          fontWeight: 600,
-        }}
-      >
-        Incident Timeline
-      </p>
-      <div
-        style={{
-          backgroundColor: 'var(--surface-card)',
-          border: '1px solid var(--border-base)',
-          borderRadius: '0.5rem',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            borderTop: '1px solid var(--border-base)',
-          }}
-        >
-          {display.map((inc, idx) => {
-            const sev = SEVERITY_CONFIG[inc.severity] ?? SEVERITY_CONFIG.info;
-            return (
-              <div
-                key={inc.id}
-                className="flex items-start gap-3 px-4 py-2.5"
-                style={{
-                  borderBottom:
-                    idx < display.length - 1
-                      ? '1px solid var(--border-subtle)'
-                      : 'none',
-                  transitionProperty: 'background-color',
-                  transitionDuration: '150ms',
-                }}
-              >
-                <span
-                  className="mt-1.5 shrink-0"
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    backgroundColor: sev.color,
-                    boxShadow: `0 0 6px ${sev.color}`,
-                  }}
-                />
-                <div className="min-w-0 flex-1">
-                  <p
-                    className="leading-snug"
-                    style={{
-                      fontFamily: '"IBM Plex Sans", sans-serif',
-                      fontSize: '0.75rem',
-                      color: 'var(--text-primary)',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {inc.message}
-                  </p>
-                  <p
-                    className="mt-0.5"
-                    style={{
-                      fontFamily: '"IBM Plex Mono", monospace',
-                      fontSize: '0.65rem',
-                      color: 'var(--text-tertiary)',
-                      letterSpacing: '-0.01em',
-                    }}
-                  >
-                    {inc.time}
-                  </p>
-                </div>
-                <span
-                  className="shrink-0 px-1.5 py-0.5 rounded-sm uppercase"
-                  style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: '0.6rem',
-                    fontWeight: 600,
-                    letterSpacing: '0.08em',
-                    color: sev.color,
-                    backgroundColor: sev.bg,
-                    border: `1px solid ${sev.border}`,
-                  }}
-                >
-                  {sev.label}
-                </span>
+    <SurfaceCard>
+      <SectionLabel className="px-4 pt-3">Incident Timeline</SectionLabel>
+      <div className="divide-y divide-border">
+        {sorted.map((inc) => {
+          const sev = SEVERITY_CONFIG[inc.severity as keyof typeof SEVERITY_CONFIG] ?? SEVERITY_CONFIG.info;
+          return (
+            <div key={inc.id} className="flex items-center gap-3 px-4 py-2.5 transition-colors duration-150 hover:bg-muted/50">
+              <StatusDotCircle
+                status={
+                  inc.severity === "critical"
+                    ? "jammed"
+                    : inc.severity === "warning"
+                      ? "busy"
+                      : "healthy"
+                }
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs leading-snug font-medium text-foreground">{inc.message}</p>
+                <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{inc.time}</p>
               </div>
-            );
-          })}
-        </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="shrink-0 cursor-help"
+                  >
+                    <Badge variant="outline">{sev.label}</Badge>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.1em]">{inc.severity}: {inc.message}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          );
+        })}
       </div>
-    </div>
+    </SurfaceCard>
   );
 }

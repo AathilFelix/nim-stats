@@ -5,39 +5,55 @@ import type { NIMModel } from "../dashboard/mock-data";
 import { CATEGORIES, type DiscoverCategory } from "./discover-data";
 import { RankCard } from "./rank-card";
 import { ComparisonPanel } from "./comparison-panel";
+import { SectionLabel } from "./discover-primitives";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const PRIMARY_CATEGORIES = CATEGORIES.filter((c) =>
   ["fastest", "most-reliable", "least-congested"].includes(c.id),
 );
 const SECONDARY_CATEGORIES = CATEGORIES.filter((c) =>
-  ["best-for-coding", "trending-degradation", "emerging-standouts"].includes(c.id),
+  ["best-for-coding", "trending-degradation", "emerging-standouts"].includes(
+    c.id,
+  ),
 );
 
 export function DiscoverView({ models }: { models: NIMModel[] }) {
-  const [activeCategory, setActiveCategory] = useState<DiscoverCategory>("fastest");
-  const [selectedIds, setSelectedIds] = useState<[string | null, string | null]>([null, null]);
+  const [activeCategory, setActiveCategory] = useState<DiscoverCategory>(
+    "fastest",
+  );
+  const [selectedIds, setSelectedIds] = useState<[string | null, string | null]>([
+    null,
+    null,
+  ]);
   const [reversed, setReversed] = useState(false);
-  const [baseCategory, setBaseCategory] = useState<DiscoverCategory | null>(null);
+  const [baseCategory, setBaseCategory] = useState<DiscoverCategory | null>(
+    null,
+  );
+
+  const activeCategoryObj = CATEGORIES.find((c) => c.id === activeCategory);
+  const sort = activeCategoryObj?.sort ?? ((m: NIMModel[]) => m);
+  const categoryLabel = activeCategoryObj?.label ?? activeCategory;
 
   const ranked = useMemo(() => {
-    const sorted = CATEGORIES.find((c) => c.id === activeCategory)?.sort([...models]) ?? models;
+    const sorted = sort([...models]);
     return reversed ? [...sorted].reverse() : sorted;
-  }, [activeCategory, reversed, models]);
+  }, [activeCategory, reversed, models, sort]);
 
-  const hasSelection = selectedIds[0] !== null || selectedIds[1] !== null;
-
-  const selectedModels = useMemo<[NIMModel, NIMModel] | "clear-selected">(() => {
-    if (!selectedIds[0]) return "clear-selected";
+  const hasSelection =
+    selectedIds[0] !== null || selectedIds[1] !== null;
+  const selectedModels = useMemo<[NIMModel, NIMModel] | "none">(() => {
+    if (!selectedIds[0]) return "none";
     const first = models.find((m) => m.id === selectedIds[0]);
-    if (!first) return "clear-selected";
-    const second = selectedIds[1] ? models.find((m) => m.id === selectedIds[1]) : first;
-    if (!second) return "clear-selected";
-    if (second.id === first.id) return "clear-selected";
+    if (!first) return "none";
+    const second = selectedIds[1]
+      ? models.find((m) => m.id === selectedIds[1])
+      : first;
+    if (!second || second.id === first.id) return "none";
     return [first, second];
   }, [selectedIds, models]);
 
-  const comparisonModels = selectedModels === "clear-selected" ? null : selectedModels;
+  const comparisonModels = selectedModels === "none" ? null : selectedModels;
 
   const handleCardSelect = useCallback(
     (model: NIMModel) => {
@@ -61,11 +77,13 @@ export function DiscoverView({ models }: { models: NIMModel[] }) {
     setBaseCategory(null);
   }, []);
 
-  const categoryLabel = CATEGORIES.find((c) => c.id === activeCategory)?.label ?? activeCategory;
-
-  const headlineMetric: Record<
+  const metricCfg: Record<
     string,
-    { value: (m: NIMModel) => string; label: string; history: (m: NIMModel) => number[] }
+    {
+      value: (m: NIMModel) => string;
+      label: string;
+      history: (m: NIMModel) => number[];
+    }
   > = {
     fastest: {
       value: (m) => `${m.throughput.toFixed(1)}`,
@@ -99,7 +117,7 @@ export function DiscoverView({ models }: { models: NIMModel[] }) {
     },
   };
 
-  const metricCfg = headlineMetric[activeCategory] ?? headlineMetric["fastest"];
+  const metric = metricCfg[activeCategory] ?? metricCfg["fastest"];
   const rankLabel = baseCategory
     ? CATEGORIES.find((c) => c.id === baseCategory)?.label ?? baseCategory
     : categoryLabel;
@@ -107,111 +125,92 @@ export function DiscoverView({ models }: { models: NIMModel[] }) {
   return (
     <div className="space-y-5">
       <div className="space-y-4">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <span
-              className="uppercase tracking-wider font-medium"
-              style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: '0.6rem',
-                color: 'var(--text-tertiary)',
-                letterSpacing: '0.12em',
-                fontWeight: 600,
+        <SectionLabel className="pl-0.5">{rankLabel}</SectionLabel>
+
+        <nav
+          className="flex flex-wrap items-center gap-1.5"
+          aria-label="Primary categories"
+        >
+          {PRIMARY_CATEGORIES.map((cat) => (
+            <CategoryButton
+              key={cat.id}
+              label={cat.label}
+              active={cat.id === activeCategory}
+              onClick={() => {
+                setActiveCategory(cat.id);
+                setReversed(false);
+                setSelectedIds([null, null]);
+                setBaseCategory(null);
               }}
-            >
-              {rankLabel}
-            </span>
-          </div>
-
-          <nav className="flex flex-wrap items-center gap-1.5" aria-label="Primary categories">
-            {PRIMARY_CATEGORIES.map((cat) => (
-              <CategoryButton
-                key={cat.id}
-                label={cat.label}
-                active={cat.id === activeCategory}
-                onClick={() => {
-                  setActiveCategory(cat.id);
-                  setReversed(false);
-                  setSelectedIds([null, null]);
-                  setBaseCategory(null);
-                }}
-              />
-            ))}
-          </nav>
-
-          <div
-            style={{ height: '1px', backgroundColor: 'var(--border-subtle)' }}
-            aria-hidden="true"
-          />
-
-          <nav className="flex flex-wrap items-center gap-1.5" aria-label="Secondary categories">
-            {SECONDARY_CATEGORIES.map((cat) => (
-              <CategoryButton
-                key={cat.id}
-                label={cat.label}
-                active={cat.id === activeCategory}
-                onClick={() => {
-                  setActiveCategory(cat.id);
-                  setReversed(false);
-                  setSelectedIds([null, null]);
-                  setBaseCategory(null);
-                }}
-              />
-            ))}
-          </nav>
-        </div>
-      </div>
-
-      <div className="relative">
-        <div className="flex items-center justify-between mb-3">
-          <span
-            className="uppercase tracking-wider"
-            style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: '0.6rem',
-              color: 'var(--text-tertiary)',
-              letterSpacing: '0.1em',
-              fontWeight: 600,
-            }}
-          >
-            {reversed ? "Underperforming" : "Ranking"}
-          </span>
-          <button
-            onClick={() => setReversed((v) => !v)}
-            className="uppercase tracking-wider transition-colors duration-150 hover:text-text-secondary"
-            style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: '0.6rem',
-              color: 'var(--text-tertiary)',
-              letterSpacing: '0.08em',
-            }}
-          >
-            {reversed ? "Best first" : "Worst first"}
-          </button>
-        </div>
-
-        <div className="flex gap-3 overflow-x-auto pb-4" style={{ scrollbarWidth: "none" }}>
-          {ranked.map((model) => (
-            <RankCard
-              key={model.id}
-              model={model}
-              headlineMetric={{
-                value: metricCfg.value(model),
-                label: metricCfg.label,
-              }}
-              secondaryMetrics={[
-                { value: `${model.reliability}%`, label: "REL" },
-                { value: `${model.congestion}%`, label: "CONG" },
-              ]}
-              historyData={metricCfg.history(model)}
-              selected={selectedIds.includes(model.id)}
-              onSelect={handleCardSelect}
             />
           ))}
-        </div>
+        </nav>
+
+        <Separator className="border-border" />
+
+        <nav
+          className="flex flex-wrap items-center gap-1.5"
+          aria-label="Secondary categories"
+        >
+          {SECONDARY_CATEGORIES.map((cat) => (
+            <CategoryButton
+              key={cat.id}
+              label={cat.label}
+              active={cat.id === activeCategory}
+              onClick={() => {
+                setActiveCategory(cat.id);
+                setReversed(false);
+                setSelectedIds([null, null]);
+                setBaseCategory(null);
+              }}
+            />
+          ))}
+        </nav>
       </div>
 
-      <ComparisonPanel models={comparisonModels} onClear={handleClearComparison} />
+      <div className="flex items-center justify-between px-1">
+        <SectionLabel className="pl-0.5">
+          {reversed ? "Underperforming" : "Ranking"}
+        </SectionLabel>
+        <button
+          onClick={() => setReversed((v) => !v)}
+          className={cn(
+            "text-[10px] font-bold uppercase tracking-[0.08em] font-mono transition-colors duration-150",
+            "text-muted-foreground hover:text-foreground data-[active=true]:text-foreground",
+          )}
+          data-active={reversed}
+        >
+          {reversed ? "Best first" : "Worst first"}
+        </button>
+      </div>
+
+      <div
+        className="flex gap-3 overflow-x-auto pb-4"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {ranked.map((model) => (
+          <RankCard
+            key={model.id}
+            model={model}
+            headlineMetric={{
+              value: metric.value(model),
+              label: metric.label,
+            }}
+            secondaryMetrics={[
+              { value: `${model.reliability}%`, label: "REL" },
+              { value: `${model.congestion}%`, label: "CONG" },
+            ]}
+            historyData={metric.history(model)}
+            selected={selectedIds.includes(model.id)}
+            onSelect={handleCardSelect}
+          />
+        ))}
+      </div>
+
+      <ComparisonPanel
+        models={comparisonModels}
+        onClear={handleClearComparison}
+      />
     </div>
   );
 }
@@ -228,19 +227,14 @@ function CategoryButton({
   return (
     <button
       onClick={onClick}
+      data-active={active}
       className={cn(
-        "px-3 py-1.5 rounded-sm text-xs transition-colors duration-150 whitespace-nowrap",
-        active
-          ? "text-foreground"
-          : "text-muted-foreground hover:text-foreground",
+        "px-3 py-1.5 rounded-md text-xs font-mono transition-colors duration-150 whitespace-nowrap",
+        "border",
+        "data-[active=true]:bg-muted data-[active=true]:text-foreground data-[active=true]:border-border",
+        "data-[active=false]:bg-transparent data-[active=false]:border-transparent data-[active=false]:text-muted-foreground",
+        "hover:data-[active=false]:text-foreground",
       )}
-      style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: '0.7rem',
-        letterSpacing: '-0.01em',
-        backgroundColor: active ? 'var(--surface-elevated)' : undefined,
-        border: active ? '1px solid var(--border-base)' : '1px solid transparent',
-      }}
     >
       {label}
     </button>
