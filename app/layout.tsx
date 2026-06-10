@@ -1,18 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono as JetBrainsMono, Outfit as OutfitSans } from "next/font/google";
+import { Inter, JetBrains_Mono as JetBrainsMono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import "./globals.css";
 
-const outfit = OutfitSans({
-  variable: "--font-outfit-sans",
+const inter = Inter({
+  variable: "--ff-sans",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
 });
 
 const jetbrains = JetBrainsMono({
-  variable: "--font-jetbrains-mono",
+  variable: "--ff-mono",
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -35,13 +36,19 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${inter.variable} ${jetbrains.variable} dark h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-sans antialiased">
+        {/* Dark-first, no flash: apply the persisted theme before first paint.
+            Defaults to dark unless the visitor explicitly chose light. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('nim-stats-theme');var l=t==='light';var r=document.documentElement;r.classList.remove('dark','light');r.classList.add(l?'light':'dark');}catch(e){}})();",
+          }}
+        />
         <ThemeProvider>{children}</ThemeProvider>
-        {/* impeccable-live-start */}
-        <script src="http://localhost:8400/live.js" />
-        {/* impeccable-live-end */}
       </body>
     </html>
   );

@@ -55,7 +55,7 @@ export function GlobalFleetPulse({ models }: Props) {
         ))}
       </div>
 
-      <div className="flex items-center justify-between mt-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mt-3">
         <p className="metric-sm text-text-tertiary">Total: {total.toFixed(1)} tok/s</p>
         <div className="flex items-center gap-3">
           <Legend color="#10b981" label="Healthy" />

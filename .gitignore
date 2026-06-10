@@ -22,7 +22,7 @@
 
 # misc
 .DS_Store
-*.pem
+Thumbs.db
 
 # debug
 npm-debug.log*
@@ -30,8 +30,42 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# ── Secrets & environment ─────────────────────────────────────────────
+# Real env files hold live credentials (NIM_API_KEY, DATABASE_URL) — never commit.
+.env
+.env.*
+.env.local
+.env.*.local
+*.env.enc
+.envrc
+# ...but keep the safe, key-less templates under version control.
+!.env.sample
+!.env.template
+
+# Keys, certificates & credential bundles
+*.pem
+*.key
+*.crt
+*.cert
+*.cer
+*.der
+*.p12
+*.pfx
+*.keystore
+*.jks
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+
+# Credential files & secret stores
+secrets/
+.secrets/
+secrets.json
+credentials.json
+service-account*.json
+gha-creds-*.json
+*.secret
 
 # vercel
 .vercel

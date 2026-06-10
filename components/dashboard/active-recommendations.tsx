@@ -51,7 +51,7 @@ export function ActiveRecommendations({ models }: Props) {
                   {rec.pick?.name ?? "—"}
                 </p>
               </div>
-              <span className="metric-sm text-text-tertiary shrink-0">{rec.reason}</span>
+              <span className="metric-sm text-text-tertiary shrink-0 hidden sm:inline">{rec.reason}</span>
             </div>
           );
         })}

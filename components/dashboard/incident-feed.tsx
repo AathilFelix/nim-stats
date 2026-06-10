@@ -10,9 +10,9 @@ const SEVERITY_STYLES: Record<
   string,
   { dot: string; label: string }
 > = {
-  critical: { dot: "#ef4444", label: "CRITICAL" },
-  warning: { dot: "#f59e0b", label: "WARN" },
-  info: { dot: "#10b981", label: "INFO" },
+  critical: { dot: "#f0616d", label: "CRITICAL" },
+  warning: { dot: "#f5a623", label: "WARN" },
+  info: { dot: "#3ecf8e", label: "INFO" },
 };
 
 export function IncidentFeed({ incidents }: Props) {
@@ -36,8 +36,8 @@ export function IncidentFeed({ incidents }: Props) {
           <span
             className="inline-flex h-5 min-w-5 items-center justify-center rounded-sm px-1 label-xs"
             style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              color: '#ef4444',
+              backgroundColor: 'rgba(240, 97, 109, 0.12)',
+              color: '#f0616d',
             }}
           >
             {incidents.length}
@@ -61,15 +61,12 @@ export function IncidentFeed({ incidents }: Props) {
                   className="tl-row flex items-start gap-2.5 py-2 px-2 rounded-sm"
                 >
                   <span
-                    className="h-1.5 w-1.5 rounded-full shrink-0 mt-1"
-                    style={{
-                      backgroundColor: sev.dot,
-                      boxShadow: `0 0 4px ${sev.dot}`,
-                    }}
+                    className="h-1.5 w-1.5 rounded-full shrink-0 mt-1.5"
+                    style={{ backgroundColor: sev.dot }}
                     aria-hidden="true"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="body-md leading-snug text-text-primary">{inc.message}</p>
+                    <p className="body-sm leading-snug text-text-primary break-words [overflow-wrap:anywhere]">{inc.message}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <p className="metric-sm text-text-tertiary">{inc.time}</p>
                       <span

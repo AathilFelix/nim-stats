@@ -21,23 +21,15 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const STORAGE_KEY = "nim-stats-theme";
 
-function getSystemTheme(): Theme {
+// Dark-first: default to dark unless the visitor explicitly chose light.
+// (The no-flash script in app/layout.tsx applies this same rule before paint.)
+function getInitialTheme(): Theme {
   if (typeof window === "undefined") return "dark";
-  return window.matchMedia("(prefers-color-scheme: light)").matches
-    ? "light"
-    : "dark";
-}
-
-function getStoredTheme(): Theme | null {
-  if (typeof window === "undefined") return null;
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "dark" || stored === "light") return stored;
-  return null;
+  return window.localStorage.getItem(STORAGE_KEY) === "light" ? "light" : "dark";
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => getStoredTheme() ?? getSystemTheme());
-  const [resolved, setResolved] = useState<Theme>(() => getStoredTheme() ?? getSystemTheme());
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -47,29 +39,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: light)");
-    const handler = (e: MediaQueryListEvent) => {
-      if (getStoredTheme() === null) {
-        setTheme(e.matches ? "light" : "dark");
-      }
-    };
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  useEffect(() => {
-    setResolved(theme);
-  }, [theme]);
-
   const toggle = useMemo(
     () => () => setTheme((t) => (t === "dark" ? "light" : "dark")),
     [],
   );
 
-  const value = useMemo(
-    () => ({ theme, toggle, resolved }),
-    [theme, toggle, resolved],
+  const value = useMemo<ThemeContextValue>(
+    () => ({ theme, toggle, resolved: theme }),
+    [theme, toggle],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

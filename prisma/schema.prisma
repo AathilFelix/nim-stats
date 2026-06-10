@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model NIModel {
+  id        String             @id
+  name      String
+  slug      String             @unique
+  provider  Provider
+  isActive  Boolean            @default(true)
+  raw       Json?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  samples   ModelSample[]
+  latest    ModelSampleLatest?
+
+  @@index([provider])
+  @@index([isActive])
+  @@index([slug])
+}
+
+model ModelSampleLatest {
+  id          String           @id @default(cuid())
+  modelId     String           @unique
+  lastProbeAt DateTime
+  state       OperationalState @default(unknown)
+  ttftMs      Float?
+  latencyMs   Float?
+  throughput  Float?
+  congestion  Float?
+  errorRate   Float?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  model       NIModel          @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@index([state])
+  @@index([updatedAt])
+}
+
+model ModelSample {
+  id               Int              @id @default(autoincrement())
+  modelId          String
+  timestamp        DateTime         @default(now()) @db.Timestamptz(6)
+  ttftMs           Float?
+  latencyMs        Float
+  tokensIn         Int
+  tokensOut        Int
+  throughput       Float?
+  success          Boolean
+  errorCode        ErrorCode        @default(none)
+  errorMessage     String?
+  timeout          Boolean          @default(false)
+  congestion       Float?
+  operationalState OperationalState @default(unknown)
+  model            NIModel          @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@index([modelId, timestamp], map: "idx_model_samples_model_ts")
+  @@index([timestamp])
+}
+
+model Incident {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  severity  String
+  eventType String
+  modelId   String?
+  modelName String?
+  message   String
+  metadata  Json?
+
+  @@index([createdAt])
+  @@index([modelId])
+  @@index([severity])
+}
+
+enum Provider {
+  Meta
+  Google
+  Microsoft
+  Alibaba
+  Mistral
+  DeepSeek
+  NVIDIA
+  Other
+}
+
+enum OperationalState {
+  healthy
+  busy
+  jammed
+  unknown
+}
+
+enum ErrorCode {
+  none
+  RateLimit
+  Server
+  BadGateway
+  ServiceUnavailable
+  GatewayTimeout
+  Network
+  Unknown
+}
