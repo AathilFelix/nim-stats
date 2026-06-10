@@ -1,71 +1,123 @@
 "use client";
 
-import type { Incident } from "@/lib/operational-types";
-import { StatusDotCircle, SectionLabel } from "./discover-primitives";
-import { SurfaceCard } from "./discover-primitives";
-import { Badge } from "@/components/ui/badge";
+import { useMemo } from "react";
+import { AlertOctagon, AlertTriangle, Info, CheckCircle2 } from "lucide-react";
+import type { NIMModel } from "../dashboard/mock-data";
+import { SurfaceCard, SectionLabel, SeverityLine } from "./discover-primitives";
+import { cn } from "@/lib/utils";
 
-interface Props {
-  incidents: Incident[];
+type Severity = "critical" | "warning" | "info";
+
+interface TimelineItem {
+  id: string;
+  severity: Severity;
+  title: string;
+  provider: string;
+  time: string;
+  status: string;
+  message: string;
 }
 
-const SEVERITY_CONFIG = {
-  critical: { color: "#ef4444", label: "CRIT" },
-  warning: { color: "#f59e0b", label: "WARN" },
-  info: { color: "#10b981", label: "INFO" },
-} as const;
+function severityIcon(severity: Severity): React.ElementType {
+  if (severity === "critical") return AlertOctagon;
+  if (severity === "warning") return AlertTriangle;
+  return Info;
+}
 
-const SEVERITY_ORDER: Record<string, number> = {
-  critical: 0,
-  warning: 1,
-  info: 2,
-};
+function severityColor(severity: Severity): string {
+  if (severity === "critical") return "text-[--status-critical]";
+  if (severity === "warning") return "text-[--status-warn]";
+  return "text-[--status-info]";
+}
 
-export function IncidentTimeline({ incidents }: Props) {
-  const sorted = [...incidents]
-    .sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 2) - (SEVERITY_ORDER[b.severity] ?? 2) || b.time.localeCompare(a.time))
-    .slice(0, 12);
+function formatAge(iso: string): string {
+  const age = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(age / 60000);
+  if (mins < 1) return "< 1m ago";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 
-  if (sorted.length === 0) {
+function ageOpacity(iso: string): number {
+  const age = Date.now() - new Date(iso).getTime();
+  const mins = age / 60000;
+  if (mins < 10) return 1;
+  if (mins < 60) return 0.8;
+  if (mins < 240) return 0.6;
+  return 0.4;
+}
+
+export function IncidentTimeline({ models }: { models: NIMModel[] }) {
+  const items: TimelineItem[] = useMemo(() => {
+    const out: TimelineItem[] = [];
+    models.forEach((m) => {
+      const sev: Severity = m.status === "jammed" ? "critical" : m.status === "busy" ? "warning" : "info";
+      if (sev === "info") return;
+      out.push({
+        id: m.id,
+        severity: sev,
+        title: m.name,
+        provider: m.provider,
+        time: new Date(Date.now() - m.lastChecked.getTime()).toISOString(),
+        status: m.status,
+        message: m.status === "jammed"
+          ? "Congestion spike detected — consider failover"
+          : "Throughput degradation on primary endpoint",
+      });
+    });
+    return out.sort((a, b) => {
+      const order: Record<Severity, number> = { critical: 0, warning: 1, info: 2 };
+      return order[a.severity] - order[b.severity];
+    });
+  }, [models]);
+
+  if (!items.length) {
     return (
-      <SurfaceCard>
-        <SectionLabel className="px-4 pt-3">Incident Timeline</SectionLabel>
-        <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
-          <StatusDotCircle status="healthy" />
-          <p className="text-xs font-mono">No incidents recorded in current window</p>
+      <SurfaceCard className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <SectionLabel>Incident Timeline</SectionLabel>
+        </div>
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <CheckCircle2 className="w-8 h-8 text-[--status-healthy] mb-2" />
+          <p className="text-sm font-medium text-[--status-healthy] mb-1">All systems nominal</p>
+          <p className="text-xs font-mono text-[--text-tertiary]">No active incidents detected.</p>
         </div>
       </SurfaceCard>
     );
   }
 
   return (
-    <SurfaceCard>
-      <SectionLabel className="px-4 pt-3">Incident Timeline</SectionLabel>
-      <div className="divide-y divide-border">
-        {sorted.map((inc) => {
-          const sev = SEVERITY_CONFIG[inc.severity as keyof typeof SEVERITY_CONFIG] ?? SEVERITY_CONFIG.info;
+    <SurfaceCard className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <SectionLabel>Incident Timeline</SectionLabel>
+        <span className="text-xs font-bold uppercase tracking-[0.10em] text-[--status-critical] font-mono">
+          {items.length} active
+        </span>
+      </div>
+
+      <div className="space-y-1">
+        {items.map((item) => {
+          const Icon = severityIcon(item.severity);
           return (
-            <div key={inc.id} className="flex items-center gap-3 px-4 py-2.5 transition-colors duration-150 hover:bg-muted/50">
-              <StatusDotCircle
-                status={
-                  inc.severity === "critical"
-                    ? "jammed"
-                    : inc.severity === "warning"
-                      ? "busy"
-                      : "healthy"
-                }
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs leading-snug font-medium text-foreground">{inc.message}</p>
-                <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{inc.time}</p>
-              </div>
-              <Badge
-                variant="outline"
-                className="text-[10px] font-bold uppercase tracking-[0.08em]"
+            <SeverityLine key={item.id} severity={item.severity}>
+              <div
+                className="flex items-center gap-2.5 py-2.5 px-3 transition-colors duration-150 hover:bg-[--surface-recessed] rounded-r-lg"
+                style={{ opacity: ageOpacity(item.time) }}
               >
-                {sev.label}
-              </Badge>
-            </div>
+                <Icon className={cn("w-3.5 h-3.5 shrink-0", severityColor(item.severity))} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-[--text-primary] truncate">{item.message}</div>
+                  <div className="text-[10px] font-mono text-[--text-tertiary] mt-0.5">
+                    {item.title} &middot; {item.provider}
+                  </div>
+                </div>
+                <span className="text-xs font-mono text-[--text-tertiary] shrink-0">
+                  {formatAge(item.time)}
+                </span>
+              </div>
+            </SeverityLine>
           );
         })}
       </div>

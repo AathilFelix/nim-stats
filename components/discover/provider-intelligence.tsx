@@ -3,11 +3,9 @@
 import { useMemo } from "react";
 import type { NIMModel } from "../dashboard/mock-data";
 import {
-  SurfaceCard,
-  SectionLabel,
-  MiniStatRow,
+  SurfaceCard, SectionLabel, GradeBadge, StatusDot,
+  MiniBar, SignalStrength,
 } from "./discover-primitives";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface ProviderRow {
   name: string;
@@ -16,15 +14,27 @@ interface ProviderRow {
   avgUptime: number;
   degradedCount: number;
   grade: "A" | "B" | "C" | "D";
-  routingConfidence: string;
+  routingLevel: 1 | 2 | 3;
   recoveryAvg: string;
 }
 
-const CONFIDENCE_TOKEN: Record<string, string> = {
-  high_confidence: "text-emerald-600 dark:text-emerald-400",
-  moderate_confidence: "text-amber-600 dark:text-amber-400",
-  low_confidence: "text-red-600 dark:text-red-400",
-};
+function confidenceLevel(v: string): 1 | 2 | 3 {
+  if (v === "high_confidence") return 3;
+  if (v === "moderate_confidence") return 2;
+  return 1;
+}
+
+function congColor(v: number): string {
+  if (v > 60) return "var(--status-critical)";
+  if (v > 45) return "var(--status-warn)";
+  return "var(--status-healthy)";
+}
+
+function uptimeColor(v: number): string {
+  if (v < 99.5) return "var(--status-critical)";
+  if (v < 99.9) return "var(--status-warn)";
+  return "var(--status-healthy)";
+}
 
 export function ProviderIntelligence({ models }: { models: NIMModel[] }) {
   const providers = useMemo(() => {
@@ -37,165 +47,84 @@ export function ProviderIntelligence({ models }: { models: NIMModel[] }) {
     return Array.from(map.entries())
       .map(([name, group]) => {
         const avgCongestion = Math.round(group.reduce((s, m) => s + m.congestion, 0) / group.length);
-        const avgUptime = Math.round(
-          (group.reduce((s, m) => s + m.uptime, 0) / group.length) * 100,
-        ) / 100;
+        const avgUptime = group.reduce((s, m) => s + m.uptime, 0) / group.length;
         const degraded = group.filter((m) => m.status !== "healthy").length;
         let grade: ProviderRow["grade"] = "A";
         if (degraded >= 2 || avgCongestion > 60) grade = "D";
         else if (degraded > 0 || avgCongestion > 45) grade = "C";
         else if (avgCongestion > 30) grade = "B";
 
-        const highCount = group.filter(
-          (m) => m.routingConfidence === "high_confidence",
-        ).length;
-        const routingConfidence =
-          highCount === group.length
-            ? "high_confidence"
-            : highCount > 0
-              ? "moderate_confidence"
-              : "low_confidence";
+        const levels = group.map((m) => confidenceLevel(m.routingConfidence));
+        const avgLevel = Math.round(levels.reduce((a, b) => a + b, 0) / levels.length) as 1 | 2 | 3;
 
-        const recovering = group.filter(
-          (m) => m.congestionTrend === "improving" && m.status === "healthy",
-        ).length;
-        const recoveryAvg = `${recovering}/${group.length}`;
-
+        const recovering = group.filter((m) => m.congestionTrend === "improving" && m.status === "healthy").length;
         return {
-          name,
-          count: group.length,
-          avgCongestion,
-          avgUptime,
-          degradedCount: degraded,
-          grade,
-          routingConfidence,
-          recoveryAvg,
+          name, count: group.length, avgCongestion,
+          avgUptime: Math.round(avgUptime * 100) / 100,
+          degradedCount: degraded, grade,
+          routingLevel: avgLevel,
+          recoveryAvg: `${recovering}/${group.length}`,
         };
       })
       .sort((a, b) => a.grade.localeCompare(b.grade));
   }, [models]);
 
+  const totalDegraded = models.filter((m) => m.status !== "healthy").length;
+
   if (!providers.length) {
-    return <span className="text-muted-foreground text-xs">No provider data.</span>;
+    return (
+      <SurfaceCard className="p-4">
+        <SectionLabel>Provider Intelligence</SectionLabel>
+        <div className="py-8 text-center text-[--text-tertiary] text-xs font-mono">No provider data.</div>
+      </SurfaceCard>
+    );
   }
 
   return (
-    <SurfaceCard>
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <SectionLabel className="pl-0.5">Provider Intelligence</SectionLabel>
-        <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
-          {providers.length} providers
+    <SurfaceCard className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <SectionLabel>Provider Intelligence</SectionLabel>
+        <span className="text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">
+          {providers.length} providers &middot; {models.length} models{totalDegraded > 0 ? ` &middot; ${totalDegraded} degraded` : ""}
         </span>
       </div>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="h-8">
-              <TableHead className="w-8 text-center align-middle">
-                <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
-                  GRD
-                </span>
-              </TableHead>
-              <TableHead className="min-w-[130px]">
-                <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
-                  Provider
-                </span>
-              </TableHead>
-              <TableHead className="text-right w-14">
-                <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
-                  M
-                </span>
-              </TableHead>
-              <TableHead className="text-right w-16">
-                <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
-                  Cong.
-                </span>
-              </TableHead>
-              <TableHead className="text-right w-16">
-                <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
-                  Uptime
-                </span>
-              </TableHead>
-              <TableHead className="text-right w-12">
-                <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
-                  Deg.
-                </span>
-              </TableHead>
-              <TableHead className="w-[72px]">
-                <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
-                  Routing Trust
-                </span>
-              </TableHead>
-              <TableHead className="w-[72px]">
-                <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono">
-                  Recovery
-                </span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {providers.map((p) => {
-              const confidenceClass =
-                CONFIDENCE_TOKEN[p.routingConfidence] ?? "text-foreground";
-              return (
-                <TableRow key={p.name} className="h-9">
-                  <TableCell className="text-center align-middle">
-                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm text-[11px] font-bold font-mono border border-border bg-muted">
-                      {p.grade}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-xs font-medium text-foreground truncate block">
-                      {p.name}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-mono text-xs text-foreground">
-                    {p.count}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-mono text-xs">
-                    <span
-                      className={
-                        p.avgCongestion > 60
-                          ? "text-destructive font-bold"
-                          : p.avgCongestion > 45
-                            ? "text-amber-600 dark:text-amber-400 font-bold"
-                            : "text-foreground"
-                      }
-                    >
-                      {p.avgCongestion}%
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-mono text-xs text-foreground">
-                    {p.avgUptime.toFixed(2)}%
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-mono text-xs">
-                    <span
-                      className={
-                        p.degradedCount > 0
-                          ? "font-bold text-destructive"
-                          : "text-foreground"
-                      }
-                    >
-                      {p.degradedCount}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`block text-[10px] font-mono uppercase tracking-[0.06em] ${confidenceClass}`}
-                    >
-                      {p.routingConfidence.replace("_", " ")}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="block text-[11px] font-mono tabular-nums text-foreground">
-                      {p.recoveryAvg}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+
+      {/* Header */}
+      <div className="grid grid-cols-[40px_1fr_40px_72px_72px_36px_48px_64px] gap-2 px-3 py-2 border-b border-[--border-base] bg-[--surface-recessed] rounded-t-lg">
+        <span />
+        <span className="text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Provider</span>
+        <span className="text-right text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">M</span>
+        <span className="text-right text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Congestion</span>
+        <span className="text-right text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Uptime</span>
+        <span className="text-center text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Deg</span>
+        <span className="text-center text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Route</span>
+        <span className="text-right text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Recovery</span>
+      </div>
+
+      {/* Rows */}
+      <div className="divide-y divide-[--border-subtle]">
+        {providers.map((p) => (
+          <div key={p.name} className="grid grid-cols-[40px_1fr_40px_72px_72px_36px_48px_64px] gap-2 items-center px-3 py-2.5 transition-colors duration-150 hover:bg-[--surface-recessed] border-l-2 border-transparent hover:border-l-[--text-accent]">
+            <GradeBadge grade={p.grade} />
+            <span className="text-sm font-medium text-[--text-primary] truncate">{p.name}</span>
+            <span className="text-right text-sm font-mono tabular-nums text-[--text-primary]">{p.count}</span>
+            <div>
+              <span className="text-sm font-mono tabular-nums text-[--text-primary]">{p.avgCongestion}%</span>
+              <MiniBar value={p.avgCongestion} color={congColor(p.avgCongestion)} />
+            </div>
+            <div>
+              <span className="text-sm font-mono tabular-nums text-[--text-primary]">{p.avgUptime.toFixed(2)}%</span>
+              <MiniBar value={p.avgUptime} max={100} color={uptimeColor(p.avgUptime)} />
+            </div>
+            <span className={`text-center text-sm font-mono tabular-nums ${p.degradedCount > 0 ? "text-[--status-critical] font-semibold" : "text-[--text-primary]"}`}>
+              {p.degradedCount}
+            </span>
+            <div className="flex justify-center">
+              <SignalStrength level={p.routingLevel} />
+            </div>
+            <span className="text-right text-sm font-mono tabular-nums text-[--text-primary]">{p.recoveryAvg}</span>
+          </div>
+        ))}
       </div>
     </SurfaceCard>
   );

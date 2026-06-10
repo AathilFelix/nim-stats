@@ -1,9 +1,7 @@
 "use client";
 
 import type { BestModelResult } from "@/lib/operational-types";
-import { statusColor } from "@/lib/status-colors";
-import { cn } from "@/lib/utils";
-import { TYPE_SCALE } from "@/lib/design-tokens";
+import { statusColor } from "@/lib/design-tokens";
 
 interface Props {
   recommendation: BestModelResult | null;
@@ -18,28 +16,8 @@ interface MetricProps {
 function Metric({ label, value }: MetricProps) {
   return (
     <div>
-      <p
-        className="uppercase tracking-wider font-medium mb-0.5"
-        style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: '0.6rem',
-          color: 'var(--text-tertiary)',
-          letterSpacing: '0.08em',
-        }}
-      >
-        {label}
-      </p>
-      <p
-        className="font-semibold"
-        style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: '0.8rem',
-          color: 'var(--text-primary)',
-          letterSpacing: '-0.01em',
-        }}
-      >
-        {value}
-      </p>
+      <p className="label-xs text-text-tertiary mb-0.5">{label}</p>
+      <p className="metric-sm font-semibold text-text-primary">{value}</p>
     </div>
   );
 }
@@ -56,14 +34,7 @@ export function BestModelNow({ recommendation }: Props) {
           borderRadius: '0.5rem',
         }}
       >
-        <p
-          className="text-xs"
-          style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: '0.75rem',
-            color: 'var(--text-tertiary)',
-          }}
-        >
+        <p className="body-sm text-text-tertiary">
           No models currently meet operational thresholds
         </p>
       </div>
@@ -88,48 +59,18 @@ export function BestModelNow({ recommendation }: Props) {
         style={{ borderBottom: '1px solid var(--border-subtle)' }}
       >
         <div>
-          <p
-            className="uppercase tracking-wider font-medium"
-            style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: '0.6rem',
-              color: 'var(--text-tertiary)',
-              letterSpacing: '0.12em',
-              fontWeight: 600,
-            }}
-          >
-            Recommended
-          </p>
-          <h2
-            className="font-semibold tracking-tight mt-1.5"
-            style={{
-              fontFamily: '"IBM Plex Sans", sans-serif',
-              fontSize: '1.125rem',
-              color: 'var(--text-primary)',
-            }}
-          >
+          <p className="label-sm text-text-tertiary">Recommended</p>
+          <h2 className="heading-md mt-1.5 text-text-primary">
             {m.name as string}
           </h2>
-          <p
-            className="mt-1"
-            style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: '0.7rem',
-              color: 'var(--text-tertiary)',
-            }}
-          >
-            {m.provider as string}
-          </p>
+          <p className="metric-sm text-text-tertiary mt-1">{m.provider as string}</p>
         </div>
         <span
-          className="inline-flex items-center px-2 py-0.5 rounded-sm border text-[10px] font-medium uppercase tracking-wider"
+          className="inline-flex items-center px-2 py-0.5 rounded-sm border label-xs"
           style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: '0.6rem',
             borderColor: `${color}40`,
             color,
             backgroundColor: `${color}15`,
-            letterSpacing: '0.08em',
           }}
         >
           {status}
@@ -139,18 +80,7 @@ export function BestModelNow({ recommendation }: Props) {
       <div className="p-4 space-y-3">
         {reasons.length > 0 && (
           <div>
-            <p
-              className="uppercase tracking-wider font-medium mb-2"
-              style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: '0.6rem',
-                color: 'var(--text-tertiary)',
-                letterSpacing: '0.12em',
-                fontWeight: 600,
-              }}
-            >
-              Why this model
-            </p>
+            <p className="label-sm text-text-tertiary mb-2">Why this model</p>
             <div className="grid grid-cols-2 gap-1.5">
               {reasons.map((r, i) => (
                 <div
@@ -161,20 +91,8 @@ export function BestModelNow({ recommendation }: Props) {
                     border: '1px solid var(--border-subtle)',
                   }}
                 >
-                  <span
-                    className="h-1 w-1 rounded-full shrink-0 bg-emerald-500"
-                    aria-hidden="true"
-                  />
-                  <span
-                    className="leading-tight"
-                    style={{
-                      fontFamily: '"IBM Plex Sans", sans-serif',
-                      fontSize: '0.7rem',
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    {r}
-                  </span>
+                  <span className="h-1 w-1 rounded-full shrink-0 bg-emerald-500" aria-hidden="true" />
+                  <span className="body-sm leading-tight text-text-secondary">{r}</span>
                 </div>
               ))}
             </div>

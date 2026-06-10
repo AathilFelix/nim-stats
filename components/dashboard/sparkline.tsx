@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 interface SparklineProps {
   data: number[];
   color?: string;
@@ -7,6 +9,8 @@ interface SparklineProps {
 }
 
 export function Sparkline({ data, color = "#10b981", height = 24 }: SparklineProps) {
+  const uid = useId();
+
   if (data.length < 2) return null;
 
   const width = 80;
@@ -29,12 +33,6 @@ export function Sparkline({ data, color = "#10b981", height = 24 }: SparklinePro
       className="overflow-visible"
       aria-hidden="true"
     >
-      <defs>
-        <linearGradient id={`spark-grad-${color.replace("#", "")}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.4" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
       <polyline
         points={points}
         fill="none"

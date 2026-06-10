@@ -2,7 +2,6 @@
 
 import type { NIMModel } from "./mock-data";
 import { getStatusColor } from "./mock-data";
-import { cn } from "@/lib/utils";
 
 interface Props {
   models: NIMModel[];
@@ -26,22 +25,8 @@ export function ActiveRecommendations({ models }: Props) {
         borderRadius: '0.5rem',
       }}
     >
-      <div
-        className="px-4 py-2.5"
-        style={{ borderBottom: '1px solid var(--border-subtle)' }}
-      >
-        <p
-          className="uppercase tracking-wider font-medium"
-          style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: '0.6rem',
-            color: 'var(--text-tertiary)',
-            letterSpacing: '0.12em',
-            fontWeight: 600,
-          }}
-        >
-          Active Recommendations
-        </p>
+      <div className="px-4 py-2.5" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+        <p className="label-sm text-text-tertiary">Active Recommendations</p>
       </div>
 
       <div className="p-2">
@@ -50,16 +35,7 @@ export function ActiveRecommendations({ models }: Props) {
           return (
             <div
               key={rec.label}
-              className="flex items-center gap-2.5 py-2 px-2 transition-colors duration-150"
-              style={{
-                borderBottom: '1px solid var(--border-subtle)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--surface-recessed)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
+              className="tl-row flex items-center gap-2.5 py-2 px-2"
             >
               <span
                 className="h-1.5 w-1.5 rounded-full shrink-0"
@@ -70,38 +46,12 @@ export function ActiveRecommendations({ models }: Props) {
                 aria-hidden="true"
               />
               <div className="min-w-0 flex-1">
-                <p
-                  className="text-text-tertiary uppercase tracking-wider"
-                  style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: '0.6rem',
-                    letterSpacing: '0.06em',
-                    fontWeight: 500,
-                  }}
-                >
-                  {rec.label}
-                </p>
-                <p
-                  className="font-semibold truncate mt-0.5"
-                  style={{
-                    fontFamily: '"IBM Plex Sans", sans-serif',
-                    fontSize: '0.8rem',
-                    color: 'var(--text-primary)',
-                  }}
-                >
+                <p className="label-xs text-text-tertiary">{rec.label}</p>
+                <p className="body-md font-semibold truncate mt-0.5 text-text-primary">
                   {rec.pick?.name ?? "—"}
                 </p>
               </div>
-              <span
-                className="text-[10px] text-text-tertiary tabular-nums shrink-0"
-                style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: '0.6rem',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                {rec.reason}
-              </span>
+              <span className="metric-sm text-text-tertiary shrink-0">{rec.reason}</span>
             </div>
           );
         })}

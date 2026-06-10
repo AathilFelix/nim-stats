@@ -3,87 +3,81 @@
 import type { NIMModel } from "../dashboard/mock-data";
 import { getStatusColor } from "../dashboard/mock-data";
 import { HorizontalSparkline } from "./horizontal-sparkline";
-import { StatusDotCircle, MetricPill, MiniStatRow } from "./discover-primitives";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { StatusDot, RankBadge } from "./discover-primitives";
 
 interface RankCardProps {
   model: NIMModel;
+  rank: number;
   headlineMetric: { value: string; label: string };
   selected?: boolean;
   onSelect: (model: NIMModel) => void;
 }
 
-export function RankCard({
-  model,
-  headlineMetric,
-  selected,
-  onSelect,
-}: RankCardProps) {
-  const statusColor = getStatusColor(model.status);
+export function RankCard({ model, rank, headlineMetric, selected, onSelect }: RankCardProps) {
+  const flare = getStatusColor(model.status);
 
   return (
     <button
       onClick={() => onSelect(model)}
       aria-pressed={selected}
-      className="w-full text-left"
+      className="rank-card w-full text-left relative"
+      data-selected={selected}
     >
-      <Card
-        className={cn(
-          "w-[180px] shrink-0 rounded-md transition-all duration-150",
-          selected ? "border-primary/70" : "",
-        )}
-      >
-        <CardHeader className="px-3 pt-3 pb-2 space-y-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <CardTitle className="truncate text-xs leading-tight">
-                {model.name}
-              </CardTitle>
-              <p className="truncate text-[10px] text-muted-foreground font-mono mt-0.5">
-                {model.provider}
-              </p>
-            </div>
-            <StatusDotCircle status={model.status} size={5} />
-          </div>
-        </CardHeader>
+      {/* Rank badge */}
+      <div className="absolute top-2.5 right-2.5 z-10">
+        <RankBadge rank={rank} />
+      </div>
 
-        <CardContent className="px-3 py-2 space-y-2">
-          <div className="flex items-baseline gap-1.5">
-            <span
-              className="tabular-nums leading-none font-mono font-semibold text-foreground"
-              style={{ fontSize: "1.1rem", letterSpacing: "-0.02em" }}
-            >
-              {headlineMetric.value}
-            </span>
-            <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-muted-foreground font-mono">
-              {headlineMetric.label}
-            </span>
-          </div>
+      {/* Header */}
+      <div className="flex items-center gap-1.5 mb-2.5 pr-8">
+        <StatusDot status={model.status} size={5} />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-[--text-primary] truncate leading-tight">{model.name}</div>
+          <div className="text-[10px] font-mono text-[--text-tertiary] mt-0.5 tracking-wider uppercase">{model.provider}</div>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-            <MiniStatRow label="REL" value={`${model.reliability}%`} />
-            <MiniStatRow label="CONG" value={`${model.congestion}%`} warn={model.congestion > 50} />
-            <MiniStatRow label="TTFT" value={`${model.ttft}ms`} />
-            <MiniStatRow
-              label="T/O"
-              value={`${model.timeoutRate}%`}
-              warn={model.timeoutRate > 3}
-            />
-          </div>
-        </CardContent>
+      {/* Headline metric */}
+      <div className="flex items-baseline gap-1 mb-2">
+        <span className="metric-xl text-[--text-primary] leading-none">
+          {headlineMetric.value}
+        </span>
+        <span className="text-xs font-bold uppercase tracking-[0.06em] text-[--text-tertiary] font-mono">
+          {headlineMetric.label}
+        </span>
+      </div>
 
-        <CardFooter className="px-3 pb-3 pt-0">
-          <HorizontalSparkline
-            data={headlineMetric.label === "reliability" || headlineMetric.label === "congestion"
+      {/* Sparkline */}
+      <div className="mb-2">
+        <HorizontalSparkline
+          data={
+            headlineMetric.label === "reliability" || headlineMetric.label === "congestion"
               ? model.reliabilityHistory.map((p) => p.score)
-              : model.throughputHistory}
-            color={statusColor}
-            width={156}
-            height={20}
-          />
-        </CardFooter>
-      </Card>
+              : model.throughputHistory
+          }
+          color={flare}
+          width={160}
+          height={20}
+        />
+      </div>
+
+      {/* Mini stats */}
+      <div className="space-y-0.5">
+        <MiniStat label="Rel" value={`${model.reliability}%`} />
+        <MiniStat label="Cong" value={`${model.congestion}%`} warn={model.congestion > 50} />
+        <MiniStat label="TTFT" value={`${model.ttft}ms`} />
+      </div>
     </button>
+  );
+}
+
+function MiniStat({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="text-[10px] uppercase tracking-[0.06em] text-[--text-tertiary] shrink-0">{label}</span>
+      <span className={`text-xs font-mono tabular-nums ${warn ? "text-[--status-critical] font-semibold" : "text-[--text-primary]"}`}>
+        {value}
+      </span>
+    </div>
   );
 }

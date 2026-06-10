@@ -1,8 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
 import type { FleetStateResult } from "@/lib/operational-types";
-import { cn } from "@/lib/utils";
 
 interface Props {
   state: FleetStateResult;
@@ -60,50 +58,17 @@ export function FleetStateBanner({ state }: Props) {
             }}
           />
           <div>
-            <p
-              className="font-semibold tracking-tight"
-              style={{
-                fontFamily: '"IBM Plex Sans", sans-serif',
-                fontSize: '0.875rem',
-                color: meta.color,
-              }}
-            >
+            <p className="heading-md" style={{ color: meta.color }}>
               {meta.label}
             </p>
-            <p
-              className="mt-0.5"
-              style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: '0.7rem',
-                color: 'var(--text-tertiary)',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              {state.detail}
-            </p>
+            <p className="metric-sm text-text-tertiary mt-0.5">{state.detail}</p>
           </div>
         </div>
         <div className="text-right">
+          <p className="label-sm text-text-tertiary mb-0.5">Degraded</p>
           <p
-            className="uppercase tracking-wider mb-0.5"
-            style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: '0.6rem',
-              color: 'var(--text-tertiary)',
-              letterSpacing: '0.1em',
-              fontWeight: 600,
-            }}
-          >
-            Degraded
-          </p>
-          <p
-            className="tabular-nums font-bold"
-            style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: '1.125rem',
-              color: state.degradedCount > 0 ? '#f59e0b' : meta.color,
-              letterSpacing: '-0.01em',
-            }}
+            className="metric-lg"
+            style={{ color: state.degradedCount > 0 ? '#f59e0b' : meta.color }}
           >
             {state.degradedCount}
           </p>

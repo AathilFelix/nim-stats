@@ -2,8 +2,6 @@
 
 import { useMemo } from "react";
 import type { NIMModel } from "./mock-data";
-import { cn } from "@/lib/utils";
-import { TYPE_SCALE } from "@/lib/design-tokens";
 
 interface Props {
   models: NIMModel[];
@@ -35,18 +33,7 @@ export function GlobalFleetPulse({ models }: Props) {
         borderRadius: '0.5rem',
       }}
     >
-      <p
-        className="uppercase tracking-wider font-medium mb-4"
-        style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: '0.6rem',
-          color: 'var(--text-tertiary)',
-          letterSpacing: '0.12em',
-          fontWeight: 600,
-        }}
-      >
-        Fleet Throughput Distribution
-      </p>
+      <p className="label-sm text-text-tertiary mb-4">Fleet Throughput Distribution</p>
 
       <div className="flex h-7 gap-px">
         {segments.map((s) => (
@@ -61,16 +48,7 @@ export function GlobalFleetPulse({ models }: Props) {
           >
             <div className="absolute inset-0 flex items-center justify-center">
               {s.width > 8 && (
-                <span
-                  className="text-white/90 px-1 truncate"
-                  style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: '0.6rem',
-                    fontWeight: 600,
-                  }}
-                >
-                  {s.name}
-                </span>
+                <span className="metric-sm text-white/90 px-1 truncate">{s.name}</span>
               )}
             </div>
           </div>
@@ -78,17 +56,7 @@ export function GlobalFleetPulse({ models }: Props) {
       </div>
 
       <div className="flex items-center justify-between mt-3">
-        <p
-          className="tabular-nums"
-          style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: '0.65rem',
-            color: 'var(--text-tertiary)',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          Total: {total.toFixed(1)} tok/s
-        </p>
+        <p className="metric-sm text-text-tertiary">Total: {total.toFixed(1)} tok/s</p>
         <div className="flex items-center gap-3">
           <Legend color="#10b981" label="Healthy" />
           <Legend color="#f59e0b" label="Busy" />
@@ -103,17 +71,7 @@ function Legend({ color, label }: { color: string; label: string }) {
   return (
     <span className="flex items-center gap-1.5">
       <span className="h-2 w-2 rounded-sm shrink-0" style={{ backgroundColor: color }} />
-      <span
-        className="uppercase tracking-wider"
-        style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: '0.6rem',
-          color: 'var(--text-tertiary)',
-          letterSpacing: '0.06em',
-        }}
-      >
-        {label}
-      </span>
+      <span className="label-xs text-text-tertiary">{label}</span>
     </span>
   );
 }

@@ -3,7 +3,7 @@
 import type { NIMModel } from "../dashboard/mock-data";
 import { getStatusColor } from "../dashboard/mock-data";
 import { HorizontalSparkline } from "./horizontal-sparkline";
-import { Button } from "@/components/ui/button";
+import { StatusDot, SectionLabel, MiniStatRow } from "./discover-primitives";
 
 interface ComparisonPanelProps {
   models: [NIMModel, NIMModel] | null;
@@ -11,72 +11,49 @@ interface ComparisonPanelProps {
 }
 
 const METRICS = [
-  { label: "TTFT", getValue: (m: NIMModel) => `${m.ttft}ms` },
-  { label: "THROUGHPUT", getValue: (m: NIMModel) => `${m.throughput.toFixed(1)} tok/s` },
-  { label: "CONGESTION", getValue: (m: NIMModel) => `${m.congestion}%` },
-  { label: "RELIABILITY", getValue: (m: NIMModel) => `${m.reliability}%` },
-  { label: "UPTIME", getValue: (m: NIMModel) => `${m.uptime.toFixed(2)}%` },
+  { label: "TTFT", getValue: (m: NIMModel) => `${m.ttft}ms`, warn: (m: NIMModel) => m.ttft > 500 },
+  { label: "Throughput", getValue: (m: NIMModel) => `${m.throughput.toFixed(1)} tok/s` },
+  { label: "Congestion", getValue: (m: NIMModel) => `${m.congestion}%`, warn: (m: NIMModel) => m.congestion > 50 },
+  { label: "Reliability", getValue: (m: NIMModel) => `${m.reliability}%` },
+  { label: "Uptime", getValue: (m: NIMModel) => `${m.uptime.toFixed(2)}%` },
 ];
-
-import { StatusDotCircle, SurfaceCard, SectionLabel } from "./discover-primitives";
 
 export function ComparisonPanel({ models, onClear }: ComparisonPanelProps) {
   if (!models) return null;
 
   return (
-    <SurfaceCard className="p-0">
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border">
-        <SectionLabel>Comparison</SectionLabel>
-        <Button variant="ghost" size="xs" onClick={onClear}>
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <SectionLabel>Pair Comparison</SectionLabel>
+        <button
+          onClick={onClear}
+          className="text-xs font-bold uppercase tracking-[0.08em] text-[--text-tertiary] hover:text-[--text-primary] transition-colors"
+        >
           Clear
-        </Button>
+        </button>
       </div>
-      <div className="grid grid-cols-2 divide-x divide-border">
+      <div className="space-y-3">
         {models.map((model) => {
-          const statusColor = getStatusColor(model.status);
+          const flare = getStatusColor(model.status);
           return (
-            <div key={model.id} className="p-3">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <StatusDotCircle size={5} status={model.status} />
-                <p className="truncate text-[11px] font-medium text-foreground">
-                  {model.name}
-                </p>
+            <div key={model.id} className="p-2.5 rounded-lg border border-[--border-subtle] bg-[--surface-recessed]">
+              <div className="flex items-center gap-1.5 mb-2">
+                <StatusDot status={model.status} size={5} />
+                <span className="text-sm font-medium text-[--text-primary] truncate">{model.name}</span>
+                <span className="text-[10px] font-mono text-[--text-tertiary] ml-auto">{model.provider}</span>
               </div>
-              <p className="mb-3 text-[10px] text-muted-foreground font-mono">
-                {model.provider}
-              </p>
-
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {METRICS.map((metric) => (
-                  <div
-                    key={metric.label}
-                    className="flex items-baseline justify-between"
-                  >
-                    <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground font-mono shrink-0">
-                      {metric.label}
-                    </span>
-                    <span className="tabular-nums text-[11px] font-bold text-foreground font-mono tracking-tight ml-3">
-                      {metric.getValue(model)}
-                    </span>
-                  </div>
+                  <MiniStatRow key={metric.label} label={metric.label} value={metric.getValue(model)} warn={metric.warn?.(model)} />
                 ))}
               </div>
-
-              <div className="mt-3 pt-2 border-t border-border">
-                <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground font-mono mb-1">
-                  Throughput History
-                </p>
-                <HorizontalSparkline
-                  data={model.throughputHistory}
-                  color={statusColor}
-                  width={152}
-                  height={24}
-                />
+              <div className="mt-2 pt-1.5 border-t border-[--border-subtle]">
+                <HorizontalSparkline data={model.throughputHistory} color={flare} width={180} height={16} />
               </div>
             </div>
           );
         })}
       </div>
-    </SurfaceCard>
+    </div>
   );
 }

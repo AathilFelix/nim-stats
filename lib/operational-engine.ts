@@ -91,10 +91,24 @@ export function computeRoutingConfidence(model: Record<string, unknown>): Routin
   return "avoid_for_production";
 }
 
-export function computeTimeoutRate(model: NIMModel & { congestion: number; status: string }): number {
+function stableJitter(seed: string, index = 0): number {
+  let h = 2166136261;
+  const s = seed + ":" + index;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 10000) / 10000;
+}
+
+export function computeTimeoutRate(
+  model: NIMModel & { congestion: number; status: string },
+  seed?: string,
+): number {
   const base = model.status === "jammed" ? 12 : model.status === "busy" ? 4 : 1;
   const cf = model.congestion / 100;
-  return Math.round((base + cf * 8 + Math.random() * 2) * 10) / 10;
+  const jitter = seed != null ? stableJitter(seed) : Math.random();
+  return Math.round((base + cf * 8 + jitter * 2) * 10) / 10;
 }
 
 export function computeP95P99(model: NIMModel & { ttft: number; throughput: number }): { p95: number; p99: number } {
@@ -118,24 +132,26 @@ export function computeQueuePressure(model: Record<string, unknown>): QueuePress
 export function generateIncidents(
   model: NIMModel & { status: string; congestion: number; timeoutRate?: number; congestionTrend?: CongestionTrend },
   id: string,
+  seed?: string,
 ): Incident[] {
   const incidents: Incident[] = [];
   const now = Date.now();
   const { status, congestion } = model;
   const tr = model.timeoutRate ?? 1;
   const ct = model.congestionTrend;
+  const j = (index: number) => (seed != null ? stableJitter(seed, index) : Math.random());
 
   if (status === "jammed") {
     incidents.push({
       id: `${id}-cr-1`,
-      time: fmtTime(now - Math.random() * 600000),
+      time: fmtTime(now - j(1) * 600000),
       severity: "critical",
       message: `${model.name} congestion spike detected`,
       modelId: model.id,
     });
     incidents.push({
       id: `${id}-cr-2`,
-      time: fmtTime(now - Math.random() * 1200000),
+      time: fmtTime(now - j(2) * 1200000),
       severity: "critical",
       message: `${model.name} timeout rate elevated`,
       modelId: model.id,
@@ -144,7 +160,7 @@ export function generateIncidents(
   if (congestion > 50 && status !== "jammed") {
     incidents.push({
       id: `${id}-w-1`,
-      time: fmtTime(now - Math.random() * 900000),
+      time: fmtTime(now - j(3) * 900000),
       severity: "warning",
       message: `${model.name} throughput degradation detected`,
       modelId: model.id,
@@ -153,7 +169,7 @@ export function generateIncidents(
   if (tr > 5) {
     incidents.push({
       id: `${id}-w-2`,
-      time: fmtTime(now - Math.random() * 1800000),
+      time: fmtTime(now - j(4) * 1800000),
       severity: "warning",
       message: `${model.name} timeout rate above threshold`,
       modelId: model.id,
@@ -162,16 +178,16 @@ export function generateIncidents(
   if (ct === "improving") {
     incidents.push({
       id: `${id}-i-1`,
-      time: fmtTime(now - Math.random() * 600000),
+      time: fmtTime(now - j(5) * 600000),
       severity: "info",
       message: `${model.name} recovered after instability`,
       modelId: model.id,
     });
   }
-  if (incidents.length === 0 && Math.random() > 0.4) {
+  if (incidents.length === 0 && j(6) > 0.4) {
     incidents.push({
       id: `${id}-i-2`,
-      time: fmtTime(now - Math.random() * 2400000),
+      time: fmtTime(now - j(7) * 2400000),
       severity: "info",
       message: `${model.name} routine health check passed`,
       modelId: model.id,
@@ -180,10 +196,11 @@ export function generateIncidents(
   return incidents.sort((a, b) => b.time.localeCompare(a.time));
 }
 
-export function enrichModel(model: NIMModel): Record<string, unknown> {
+export function enrichModel(model: NIMModel, seed?: string): Record<string, unknown> {
   const sessionRel = computeSessionReliability(model);
   const volatility = computeVolatility(model as NIMModel & { latencyHistory: number[] });
   const congestionTrend = computeCongestionTrend(model);
+  const j = (index: number) => (seed != null ? stableJitter(seed, 100 + index) : Math.random());
   const base: Record<string, unknown> = {
     ...model,
     sessionReliability: sessionRel,
@@ -191,12 +208,12 @@ export function enrichModel(model: NIMModel): Record<string, unknown> {
     recovery: computeRecovery({ ...model, congestionTrend }),
     congestionTrend,
     routingConfidence: computeRoutingConfidence({ ...model, sessionReliability: sessionRel, volatility }),
-    timeoutRate: computeTimeoutRate(model),
+    timeoutRate: computeTimeoutRate(model, seed),
     p95Latency: computeP95P99(model).p95,
     p99Latency: computeP95P99(model).p99,
     queuePressure: computeQueuePressure({ ...model, sessionReliability: sessionRel }),
-    incidents: generateIncidents({ ...model, congestionTrend }, model.id),
-    latencyHistory: Array.from({ length: 20 }, () => Math.round(model.ttft * (0.7 + Math.random() * 0.8))),
+    incidents: generateIncidents({ ...model, congestionTrend }, model.id, seed),
+    latencyHistory: Array.from({ length: 20 }, (_, i) => Math.round(model.ttft * (0.7 + j(i) * 0.8))),
   };
   return base;
 }

@@ -1,0 +1,10 @@
+{
+  "framework": "nextjs",
+  "files": ["app/layout.tsx"],
+  "insertBefore": "</body>",
+  "commentSyntax": {
+    "start": "{/* impeccable-live-start */}",
+    "end": "{/* impeccable-live-end */}"
+  },
+  "cspChecked": true
+}
