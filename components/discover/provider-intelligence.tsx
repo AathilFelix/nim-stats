@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
+import { Server } from "lucide-react";
 import type { NIMModel } from "../dashboard/mock-data";
 import {
-  SurfaceCard, SectionLabel, GradeBadge, StatusDot,
-  MiniBar, SignalStrength,
+  GradeBadge, MiniBar, SignalStrength,
 } from "./discover-primitives";
+import { PanelHeader } from "./ops-primitives";
 
 interface ProviderRow {
   name: string;
@@ -73,24 +74,28 @@ export function ProviderIntelligence({ models }: { models: NIMModel[] }) {
 
   if (!providers.length) {
     return (
-      <SurfaceCard className="p-4">
-        <SectionLabel>Provider Intelligence</SectionLabel>
-        <div className="py-8 text-center text-[--text-tertiary] text-xs font-mono">No provider data.</div>
-      </SurfaceCard>
+      <section className="ops-card">
+        <PanelHeader label="Provider Intelligence" icon={Server} tone="info" />
+        <div className="py-8 text-center text-text-tertiary body-xs">No provider data.</div>
+      </section>
     );
   }
 
   return (
-    <SurfaceCard className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <SectionLabel>Provider Intelligence</SectionLabel>
-        <span className="text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">
-          {providers.length} providers &middot; {models.length} models{totalDegraded > 0 ? ` &middot; ${totalDegraded} degraded` : ""}
-        </span>
-      </div>
+    <section className="ops-card">
+      <PanelHeader
+        label="Provider Intelligence"
+        icon={Server}
+        tone="info"
+        meta={
+          <span className="metric-xs">
+            {providers.length} providers · {models.length} models{totalDegraded > 0 ? ` · ${totalDegraded} degraded` : ""}
+          </span>
+        }
+      />
 
-      {/* Header */}
-      <div className="grid grid-cols-[40px_1fr_40px_72px_72px_36px_48px_64px] gap-2 px-3 py-2 border-b border-[--border-base] bg-[--surface-recessed] rounded-t-lg">
+      {/* Column header */}
+      <div className="grid grid-cols-[40px_1fr_40px_72px_72px_36px_48px_64px] gap-2 px-4 py-2 border-b border-border-subtle bg-surface-recessed">
         <span />
         <span className="text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Provider</span>
         <span className="text-right text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">M</span>
@@ -102,9 +107,9 @@ export function ProviderIntelligence({ models }: { models: NIMModel[] }) {
       </div>
 
       {/* Rows */}
-      <div className="divide-y divide-[--border-subtle]">
+      <div className="divide-y divide-border-subtle">
         {providers.map((p) => (
-          <div key={p.name} className="grid grid-cols-[40px_1fr_40px_72px_72px_36px_48px_64px] gap-2 items-center px-3 py-2.5 transition-colors duration-150 hover:bg-[--surface-recessed] border-l-2 border-transparent hover:border-l-[--text-accent]">
+          <div key={p.name} className="grid grid-cols-[40px_1fr_40px_72px_72px_36px_48px_64px] gap-2 items-center px-4 py-2.5 transition-colors duration-150 hover:bg-surface-recessed border-l-2 border-transparent hover:border-l-[var(--text-accent)]">
             <GradeBadge grade={p.grade} />
             <span className="text-sm font-medium text-[--text-primary] truncate">{p.name}</span>
             <span className="text-right text-sm font-mono tabular-nums text-[--text-primary]">{p.count}</span>
@@ -126,6 +131,6 @@ export function ProviderIntelligence({ models }: { models: NIMModel[] }) {
           </div>
         ))}
       </div>
-    </SurfaceCard>
+    </section>
   );
 }

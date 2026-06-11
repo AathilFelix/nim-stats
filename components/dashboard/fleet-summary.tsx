@@ -32,16 +32,16 @@ export function FleetSummary({
   const pct = (n: number) => (total ? (n / total) * 100 : 0);
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border-base bg-surface-card">
+    <section className="ops-card overflow-hidden">
       <div className="grid gap-px bg-border-subtle md:grid-cols-[1.6fr_1fr_1fr_1fr]">
         {/* Status */}
         <div className="bg-surface-card p-4 sm:p-5">
           <div className="flex items-center gap-2">
             <span className={`status-led status-led--${meta.tone}`} aria-hidden="true" />
-            <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">Fleet status</span>
+            <span className="label-xs text-text-tertiary">Fleet status</span>
           </div>
-          <p className={`mt-2.5 text-2xl font-semibold tracking-tight ${TONE_TEXT[meta.tone]}`}>{meta.label}</p>
-          <p className="mt-1 text-sm text-text-secondary">
+          <p className={`mt-2.5 heading-lg ${TONE_TEXT[meta.tone]}`}>{meta.label}</p>
+          <p className="mt-1 body-sm text-text-secondary">
             {healthy} of {total} endpoints healthy
           </p>
 
@@ -76,14 +76,14 @@ function Tile({
 }: { label: string; value: string; unit: string; tone?: "critical"; sub?: string }) {
   return (
     <div className="flex flex-col justify-center bg-surface-card p-4 sm:p-5">
-      <p className="text-xs font-medium uppercase tracking-wider text-text-tertiary">{label}</p>
-      <p className="mt-1.5 font-mono text-2xl font-semibold tabular-nums text-text-primary">
+      <p className="label-xs text-text-tertiary">{label}</p>
+      <p className="mt-1.5 metric-xl text-text-primary">
         {value}
-        <span className={`ml-1.5 text-xs font-normal ${tone === "critical" ? "text-(--status-critical)" : "text-text-tertiary"}`}>
+        <span className={`ml-1.5 metric-xs font-normal ${tone === "critical" ? "text-(--status-critical)" : "text-text-tertiary"}`}>
           {unit}
         </span>
       </p>
-      {sub && <p className="mt-1 text-xs text-text-tertiary">{sub}</p>}
+      {sub && <p className="mt-1 body-xs text-text-tertiary">{sub}</p>}
     </div>
   );
 }

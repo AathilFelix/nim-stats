@@ -1,8 +1,7 @@
 "use client";
 
 import type { StatusKey } from "@/lib/design-tokens";
-import { statusColor, STATUS_TEXT, STATUS_BG_SUBTLE, STATUS_BORDER_SUBTLE } from "@/lib/design-tokens";
-import { Badge } from "@/components/ui/badge";
+import { STATUS_TEXT } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -109,10 +108,6 @@ export function MetricBlock({
   barFraction?: number;
   className?: string;
 }) {
-  const tc = STATUS_TEXT[status];
-  const tcA = STATUS_TEXT[status.startsWith("healthy") || status === "healthy" ? "healthy" : status];
-  const tcN = status === "healthy" ? "healthy" : status;
-
   return (
     <div className={cn("hud-block", className)}>
       <span

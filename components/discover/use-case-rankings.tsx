@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { Award } from "lucide-react";
+import { Award, Trophy } from "lucide-react";
 import type { NIMModel } from "../dashboard/mock-data";
-import { SurfaceCard, SectionLabel, RankBadge } from "./discover-primitives";
+import { RankBadge } from "./discover-primitives";
+import { PanelHeader } from "./ops-primitives";
 import { cn } from "@/lib/utils";
 
 interface UseCaseRankingsProps {
@@ -39,22 +40,23 @@ export function UseCaseRankings({ models }: UseCaseRankingsProps) {
 
   if (!models.length) {
     return (
-      <SurfaceCard className="p-4">
-        <SectionLabel>Use-Case Rankings</SectionLabel>
-        <div className="py-8 text-center text-[--text-tertiary] text-xs font-mono">No models.</div>
-      </SurfaceCard>
+      <section className="ops-card">
+        <PanelHeader label="Overall Rankings" icon={Trophy} tone="info" />
+        <div className="py-8 text-center text-text-tertiary body-xs">No models.</div>
+      </section>
     );
   }
 
   return (
-    <SurfaceCard className="p-4">
-      <div className="flex items-center justify-between mb-4">
-        <SectionLabel>Use-Case Rankings</SectionLabel>
-        <span className="text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">
-          {ranked.length} models ranked
-        </span>
-      </div>
+    <section className="ops-card">
+      <PanelHeader
+        label="Overall Rankings"
+        icon={Trophy}
+        tone="info"
+        meta={<span className="metric-xs">{ranked.length} ranked · throughput · reliability · congestion</span>}
+      />
 
+      <div className="panel-pad">
       {/* Podium — top 3 */}
       {top3.length >= 1 && (
         <div className="flex items-end justify-center gap-2 mb-4">
@@ -100,7 +102,8 @@ export function UseCaseRankings({ models }: UseCaseRankingsProps) {
           </div>
         ))}
       </div>
-    </SurfaceCard>
+      </div>
+    </section>
   );
 }
 

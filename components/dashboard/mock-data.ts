@@ -190,9 +190,9 @@ export function formatTimeAgo(date: Date): string {
 
 export function getStatusColor(status: ModelStatus): string {
   switch (status) {
-    case "healthy": return "#10b981";
-    case "busy": return "#f59e0b";
-    case "jammed": return "#ef4444";
+    case "healthy": return "#2fd98a";
+    case "busy": return "#f5b13d";
+    case "jammed": return "#fb6a78";
   }
 }
 

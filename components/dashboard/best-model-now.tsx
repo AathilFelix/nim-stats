@@ -30,18 +30,11 @@ export function BestModelNow({ recommendation }: Props) {
   const m = recommendation?.model;
   if (!m) {
     return (
-      <div
-        className="p-5"
-        style={{
-          backgroundColor: 'var(--surface-card)',
-          border: '1px solid var(--border-base)',
-          borderRadius: '0.5rem',
-        }}
-      >
+      <section className="ops-card p-5">
         <p className="body-sm text-text-tertiary">
           No models currently meet operational thresholds
         </p>
-      </div>
+      </section>
     );
   }
 
@@ -50,20 +43,10 @@ export function BestModelNow({ recommendation }: Props) {
   const reasons = recommendation?.reasons ?? [];
 
   return (
-    <div
-      className="overflow-hidden"
-      style={{
-        backgroundColor: 'var(--surface-elevated)',
-        border: '1px solid var(--border-base)',
-        borderRadius: '0.5rem',
-      }}
-    >
-      <div
-        className="flex items-start justify-between p-4"
-        style={{ borderBottom: '1px solid var(--border-subtle)' }}
-      >
+    <section className="ops-card overflow-hidden">
+      <div className="flex items-start justify-between p-4 border-b border-border-subtle">
         <div>
-          <p className="label-sm text-text-tertiary">Recommended</p>
+          <p className="section-label">Recommended Now</p>
           <h2 className="heading-md mt-1.5 text-text-primary">
             {m.name as string}
           </h2>
@@ -95,7 +78,7 @@ export function BestModelNow({ recommendation }: Props) {
                     border: '1px solid var(--border-subtle)',
                   }}
                 >
-                  <span className="h-1 w-1 rounded-full shrink-0 bg-emerald-500" aria-hidden="true" />
+                  <span className="h-1 w-1 rounded-full shrink-0 bg-status-healthy" aria-hidden="true" />
                   <span className="body-sm leading-tight text-text-secondary min-w-0">{r}</span>
                 </div>
               ))}
@@ -115,6 +98,6 @@ export function BestModelNow({ recommendation }: Props) {
           <Metric label="Reliability" value={`${(m.sessionReliability as { score: number })?.score ?? "—"}`} />
         </div>
       </div>
-    </div>
+    </section>
   );
 }

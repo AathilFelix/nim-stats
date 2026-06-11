@@ -39,33 +39,33 @@ export function ModelTable({ models }: ModelTableProps) {
 
   const sRelColor = (s: { state: string } | undefined) => {
     switch (s?.state) {
-      case "stable": return "text-emerald-400";
-      case "moderate_interruption_risk": return "text-amber-400";
-      default: return "text-red-400";
+      case "stable": return "text-status-healthy";
+      case "moderate_interruption_risk": return "text-status-warn";
+      default: return "text-status-critical";
     }
   };
 
   const volColor = (m: string | undefined) => {
     switch (m) {
-      case "stable": return "text-emerald-400";
-      case "fluctuating": return "text-amber-400";
-      default: return "text-red-400";
+      case "stable": return "text-status-healthy";
+      case "fluctuating": return "text-status-warn";
+      default: return "text-status-critical";
     }
   };
 
   const pressureColor = (p: string | undefined) => {
     switch (p) {
-      case "low": return "text-emerald-400";
-      case "elevated": return "text-amber-400";
-      default: return "text-red-400";
+      case "low": return "text-status-healthy";
+      case "elevated": return "text-status-warn";
+      default: return "text-status-critical";
     }
   };
 
   const routingColor = (r: string | undefined) => {
     switch (r) {
-      case "high_confidence": return "text-emerald-400";
-      case "moderate_confidence": return "text-amber-400";
-      default: return "text-red-400";
+      case "high_confidence": return "text-status-healthy";
+      case "moderate_confidence": return "text-status-warn";
+      default: return "text-status-critical";
     }
   };
 
@@ -121,7 +121,7 @@ export function ModelTable({ models }: ModelTableProps) {
                     <StatusPill status={model.status} size="sm" />
                   </TableCell>
                   <TableCell className="px-3 py-2.5">
-                    <span className={`metric-sm ${model.ttft > 1000 ? "text-red-400" : model.ttft > 500 ? "text-amber-400" : "text-text-secondary"}`}>
+                    <span className={`metric-sm ${model.ttft > 1000 ? "text-status-critical" : model.ttft > 500 ? "text-status-warn" : "text-text-secondary"}`}>
                       {model.ttft}<span className="text-text-tertiary metric-xs ml-0.5">ms</span>
                     </span>
                   </TableCell>
@@ -157,17 +157,17 @@ export function ModelTable({ models }: ModelTableProps) {
                     <span className={`body-sm font-medium ${volColor(vol?.measure)}`}>{vol?.measure ?? "—"}</span>
                   </TableCell>
                   <TableCell className="px-3 py-2.5 hidden md:table-cell">
-                    <span className={`metric-sm ${tRate > 5 ? "text-red-400" : tRate > 2 ? "text-amber-400" : "text-text-secondary"}`}>
+                    <span className={`metric-sm ${tRate > 5 ? "text-status-critical" : tRate > 2 ? "text-status-warn" : "text-text-secondary"}`}>
                       {tRate.toFixed(1)}%
                     </span>
                   </TableCell>
                   <TableCell className="px-3 py-2.5 hidden md:table-cell">
-                    <span className={`body-sm ${p95 > 500 ? "text-red-400" : p95 > 300 ? "text-amber-400" : "text-text-secondary"}`}>
+                    <span className={`body-sm ${p95 > 500 ? "text-status-critical" : p95 > 300 ? "text-status-warn" : "text-text-secondary"}`}>
                       {p95}<span className="metric-xs text-text-tertiary ml-0.5">ms</span>
                     </span>
                   </TableCell>
                   <TableCell className="px-3 py-2.5 hidden md:table-cell">
-                    <span className={`body-sm ${p99 > 1000 ? "text-red-400" : "text-text-secondary"}`}>
+                    <span className={`body-sm ${p99 > 1000 ? "text-status-critical" : "text-text-secondary"}`}>
                       {p99}<span className="metric-xs text-text-tertiary ml-0.5">ms</span>
                     </span>
                   </TableCell>

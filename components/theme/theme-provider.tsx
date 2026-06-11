@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { STORAGE_KEY } from "./constants";
 
 type Theme = "dark" | "light";
 
@@ -19,10 +20,8 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-const STORAGE_KEY = "nim-stats-theme";
-
 // Dark-first: default to dark unless the visitor explicitly chose light.
-// (The no-flash script in app/layout.tsx applies this same rule before paint.)
+// (The no-flash ThemeScript applies this same rule before paint.)
 function getInitialTheme(): Theme {
   if (typeof window === "undefined") return "dark";
   return window.localStorage.getItem(STORAGE_KEY) === "light" ? "light" : "dark";

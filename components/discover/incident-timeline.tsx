@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { AlertOctagon, AlertTriangle, Info, CheckCircle2 } from "lucide-react";
+import { AlertOctagon, AlertTriangle, Info, CheckCircle2, Siren } from "lucide-react";
 import type { NIMModel } from "../dashboard/mock-data";
-import { SurfaceCard, SectionLabel, SeverityLine } from "./discover-primitives";
+import { SeverityLine } from "./discover-primitives";
+import { PanelHeader } from "./ops-primitives";
 import { cn } from "@/lib/utils";
 
 type Severity = "critical" | "warning" | "info";
@@ -60,7 +61,7 @@ export function IncidentTimeline({ models }: { models: NIMModel[] }) {
         severity: sev,
         title: m.name,
         provider: m.provider,
-        time: new Date(Date.now() - m.lastChecked.getTime()).toISOString(),
+        time: (m.lastChecked instanceof Date ? m.lastChecked : new Date(m.lastChecked)).toISOString(),
         status: m.status,
         message: m.status === "jammed"
           ? "Congestion spike detected — consider failover"
@@ -75,29 +76,27 @@ export function IncidentTimeline({ models }: { models: NIMModel[] }) {
 
   if (!items.length) {
     return (
-      <SurfaceCard className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <SectionLabel>Incident Timeline</SectionLabel>
+      <section className="ops-card">
+        <PanelHeader label="Incident Timeline" icon={Siren} tone="healthy" />
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <CheckCircle2 className="w-8 h-8 text-status-healthy mb-2" />
+          <p className="body-sm font-medium text-status-healthy mb-1">All systems nominal</p>
+          <p className="body-xs text-text-tertiary">No active incidents detected.</p>
         </div>
-        <div className="flex flex-col items-center justify-center py-8 text-center">
-          <CheckCircle2 className="w-8 h-8 text-[--status-healthy] mb-2" />
-          <p className="text-sm font-medium text-[--status-healthy] mb-1">All systems nominal</p>
-          <p className="text-xs font-mono text-[--text-tertiary]">No active incidents detected.</p>
-        </div>
-      </SurfaceCard>
+      </section>
     );
   }
 
   return (
-    <SurfaceCard className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <SectionLabel>Incident Timeline</SectionLabel>
-        <span className="text-xs font-bold uppercase tracking-[0.10em] text-[--status-critical] font-mono">
-          {items.length} active
-        </span>
-      </div>
+    <section className="ops-card">
+      <PanelHeader
+        label="Incident Timeline"
+        icon={Siren}
+        tone="critical"
+        meta={<span className="status-chip status-chip--critical">{items.length} active</span>}
+      />
 
-      <div className="space-y-1">
+      <div className="panel-pad space-y-1">
         {items.map((item) => {
           const Icon = severityIcon(item.severity);
           return (
@@ -121,6 +120,6 @@ export function IncidentTimeline({ models }: { models: NIMModel[] }) {
           );
         })}
       </div>
-    </SurfaceCard>
+    </section>
   );
 }

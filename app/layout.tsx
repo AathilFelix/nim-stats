@@ -1,14 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono as JetBrainsMono } from "next/font/google";
+import { Geist, JetBrains_Mono as JetBrainsMono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { ThemeScript } from "@/components/theme/theme-script";
 import "./globals.css";
 
-const inter = Inter({
+// Geist — Vercel's technical grotesque, for all UI text. Instrument-grade,
+// engineered feel that suits an AI-infrastructure operations console.
+const geist = Geist({
   variable: "--ff-sans",
   subsets: ["latin"],
   display: "swap",
 });
 
+// JetBrains Mono — every number, code, and machine-readable label. Tabular
+// figures keep metrics aligned column-to-column across the fleet.
 const jetbrains = JetBrainsMono({
   variable: "--ff-mono",
   subsets: ["latin"],
@@ -36,18 +41,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrains.variable} dark h-full antialiased`}
+      className={`${geist.variable} ${jetbrains.variable} dark h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col font-sans antialiased">
-        {/* Dark-first, no flash: apply the persisted theme before first paint.
-            Defaults to dark unless the visitor explicitly chose light. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              "(function(){try{var t=localStorage.getItem('nim-stats-theme');var l=t==='light';var r=document.documentElement;r.classList.remove('dark','light');r.classList.add(l?'light':'dark');}catch(e){}})();",
-          }}
-        />
+      <body className="ops-grid min-h-full flex flex-col font-sans antialiased">
+        {/* Dark-first, no flash: apply the persisted theme before first paint. */}
+        <ThemeScript />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

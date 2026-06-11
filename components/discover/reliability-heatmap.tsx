@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { ShieldCheck, AlertTriangle, XCircle } from "lucide-react";
+import { ShieldCheck, AlertTriangle, XCircle, Grid2x2 } from "lucide-react";
 import type { NIMModel } from "../dashboard/mock-data";
-import { SurfaceCard, SectionLabel } from "./discover-primitives";
-import { cn } from "@/lib/utils";
+import { PanelHeader } from "./ops-primitives";
 
 interface ReliabilityHeatmapProps {
   models: NIMModel[];
@@ -43,23 +42,23 @@ export function ReliabilityHeatmap({ models }: ReliabilityHeatmapProps) {
 
   if (!models.length) {
     return (
-      <SurfaceCard className="p-4">
-        <SectionLabel>Reliability Matrix</SectionLabel>
-        <div className="py-8 text-center text-[--text-tertiary] text-xs font-mono">No data.</div>
-      </SurfaceCard>
+      <section className="ops-card">
+        <PanelHeader label="Reliability Matrix" icon={Grid2x2} tone="info" />
+        <div className="py-8 text-center text-text-tertiary body-xs">No data.</div>
+      </section>
     );
   }
 
   return (
-    <SurfaceCard className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <SectionLabel>Reliability Matrix</SectionLabel>
-        <span className="text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">
-          By routing confidence
-        </span>
-      </div>
+    <section className="ops-card">
+      <PanelHeader
+        label="Reliability Matrix"
+        icon={Grid2x2}
+        tone="info"
+        meta={<span className="metric-xs">by routing confidence</span>}
+      />
 
-      <div className="space-y-1.5">
+      <div className="panel-pad space-y-1.5">
         {rows.map(({ model, Icon, color, label, sessionScore }) => (
           <div
             key={model.id}
@@ -98,6 +97,6 @@ export function ReliabilityHeatmap({ models }: ReliabilityHeatmapProps) {
           </div>
         ))}
       </div>
-    </SurfaceCard>
+    </section>
   );
 }

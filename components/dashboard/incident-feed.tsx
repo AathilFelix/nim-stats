@@ -10,45 +10,27 @@ const SEVERITY_STYLES: Record<
   string,
   { dot: string; label: string }
 > = {
-  critical: { dot: "#f0616d", label: "CRITICAL" },
-  warning: { dot: "#f5a623", label: "WARN" },
-  info: { dot: "#3ecf8e", label: "INFO" },
+  critical: { dot: "var(--status-critical)", label: "CRITICAL" },
+  warning: { dot: "var(--status-warn)", label: "WARN" },
+  info: { dot: "var(--status-healthy)", label: "INFO" },
 };
 
 export function IncidentFeed({ incidents }: Props) {
   const display = incidents.slice(0, 6);
 
   return (
-    <div
-      className="overflow-hidden"
-      style={{
-        backgroundColor: 'var(--surface-card)',
-        border: '1px solid var(--border-base)',
-        borderRadius: '0.5rem',
-      }}
-    >
-      <div
-        className="flex items-center justify-between px-4 py-2.5"
-        style={{ borderBottom: '1px solid var(--border-subtle)' }}
-      >
-        <p className="label-sm text-text-tertiary">Active Incidents</p>
+    <section className="ops-card overflow-hidden">
+      <div className="hdiv">
+        <p className="section-label">Active Incidents</p>
         {incidents.length > 0 && (
-          <span
-            className="inline-flex h-5 min-w-5 items-center justify-center rounded-sm px-1 label-xs"
-            style={{
-              backgroundColor: 'rgba(240, 97, 109, 0.12)',
-              color: '#f0616d',
-            }}
-          >
-            {incidents.length}
-          </span>
+          <span className="status-chip status-chip--critical">{incidents.length}</span>
         )}
       </div>
 
       <div className="p-2">
         {display.length === 0 ? (
-          <div className="flex items-center gap-2 py-4 justify-center">
-            <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-emerald-500" aria-hidden="true" />
+          <div className="flex items-center gap-2 py-6 justify-center">
+            <span className="status-led status-led--healthy" style={{ width: 6, height: 6 }} aria-hidden="true" />
             <p className="body-sm text-text-tertiary">No active incidents</p>
           </div>
         ) : (
@@ -86,6 +68,6 @@ export function IncidentFeed({ incidents }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

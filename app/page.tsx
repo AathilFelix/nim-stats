@@ -39,67 +39,110 @@ export default async function Home() {
   }, null);
 
   return (
-    <div className="min-h-screen bg-surface-base">
+    <div className="min-h-screen text-text-primary">
       <NavBar />
       <AutoRefresh />
 
-      <main style={{ paddingTop: "calc(3rem + var(--safe-top))" }}>
-        <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 sm:px-6 lg:px-8">
-          <FleetSummary
-            fleetState={fleetState}
-            total={models.length}
-            healthy={healthy}
-            busy={busy}
-            jammed={jammed}
-            avgTtft={avgTtft}
-            avgThroughput={avgThroughput}
-            incidents24h={incidents24h}
-            lastProbe={lastChecked ? formatTimeAgo(lastChecked) : null}
-          />
-
-          <FleetTrendChart data={trend} />
-
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)]">
-            <BestModelNow recommendation={bestModel} models={enriched} />
-            <IncidentFeed incidents={incidents} />
-          </div>
-
-          <section>
-            <div className="mb-3 flex items-baseline justify-between">
-              <h2 className="text-sm font-semibold tracking-tight text-text-primary">Model fleet</h2>
-              <p className="font-mono text-xs tabular-nums text-text-tertiary">{models.length} endpoints</p>
+      <main style={{ paddingTop: "calc(3.5rem + var(--safe-top))" }}>
+        <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+          {/* Command header */}
+          <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <span className="status-led status-led--healthy" style={{ width: 6, height: 6 }} aria-hidden="true" />
+                <span className="label-sm text-text-tertiary">Command Center</span>
+              </div>
+              <h1 className="heading-xl text-text-primary">Fleet Overview</h1>
+              <p className="mt-1.5 max-w-xl body-sm text-text-secondary">
+                Real-time status and reliability for every free NVIDIA NIM endpoint, probed continuously.
+              </p>
             </div>
-            <ModelTable models={models} />
-          </section>
+            <dl className="flex items-center gap-5 sm:gap-6">
+              <HeaderStat label="Endpoints" value={`${models.length}`} />
+              <HeaderStat label="Healthy" value={`${healthy}`} tone="healthy" />
+              <HeaderStat label="Incidents" value={`${incidents24h}`} tone={incidents24h > 0 ? "critical" : "healthy"} />
+              <HeaderStat label="Last probe" value={lastChecked ? formatTimeAgo(lastChecked) : "—"} mono />
+            </dl>
+          </header>
+
+          <div className="space-y-5">
+            <FleetSummary
+              fleetState={fleetState}
+              total={models.length}
+              healthy={healthy}
+              busy={busy}
+              jammed={jammed}
+              avgTtft={avgTtft}
+              avgThroughput={avgThroughput}
+              incidents24h={incidents24h}
+              lastProbe={lastChecked ? formatTimeAgo(lastChecked) : null}
+            />
+
+            <FleetTrendChart data={trend} />
+
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
+              <BestModelNow recommendation={bestModel} models={enriched} />
+              <IncidentFeed incidents={incidents} />
+            </div>
+
+            <section>
+              <div className="mb-3 flex items-baseline justify-between">
+                <h2 className="section-label">Model Fleet</h2>
+                <p className="metric-xs text-text-tertiary">{models.length} endpoints</p>
+              </div>
+              <ModelTable models={models} />
+            </section>
+          </div>
         </div>
       </main>
 
       <footer
-        className="border-t border-border-subtle px-4 py-5 sm:px-6 lg:px-8"
-        style={{ paddingBottom: "max(1.25rem, var(--safe-bottom))" }}
+        className="mt-4 border-t border-border-subtle px-4 py-6 sm:px-6 lg:px-8"
+        style={{ paddingBottom: "max(1.5rem, var(--safe-bottom))" }}
       >
-        <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-1 sm:flex-row">
-          <p className="text-xs text-text-tertiary">
-            Live status of free NVIDIA NIM endpoints. Not affiliated with NVIDIA.
-          </p>
-          <p className="font-mono text-xs text-text-tertiary">Refreshes every 30s</p>
+        <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-between gap-2 sm:flex-row">
+          <div className="flex items-center gap-2">
+            <span className="status-led status-led--healthy" style={{ width: 6, height: 6 }} aria-hidden="true" />
+            <p className="body-xs text-text-tertiary">
+              Live status of free NVIDIA NIM endpoints. Not affiliated with NVIDIA.
+            </p>
+          </div>
+          <p className="metric-xs text-text-quaternary">Auto-refresh · 30s</p>
         </div>
       </footer>
     </div>
   );
 }
 
+function HeaderStat({
+  label, value, tone = "neutral", mono = false,
+}: {
+  label: string;
+  value: string;
+  tone?: "neutral" | "healthy" | "critical";
+  mono?: boolean;
+}) {
+  const base = mono ? "metric-sm" : "metric-lg";
+  const color = tone === "critical" ? "text-status-critical" : tone === "healthy" ? "text-status-healthy" : "text-text-primary";
+  return (
+    <div className="flex flex-col items-end">
+      <dd className={`${base} ${color}`}>{value}</dd>
+      <dt className="label-xs text-text-tertiary mt-0.5">{label}</dt>
+    </div>
+  );
+}
+
 function EmptyState() {
   return (
-    <div className="min-h-screen bg-surface-base">
+    <div className="min-h-screen text-text-primary">
       <NavBar />
       <main
         className="flex min-h-screen flex-col items-center justify-center px-6 text-center"
-        style={{ paddingTop: "calc(3rem + var(--safe-top))" }}
+        style={{ paddingTop: "calc(3.5rem + var(--safe-top))" }}
       >
         <span className="status-led status-led--warn mb-4" aria-hidden="true" />
-        <h1 className="text-xl font-semibold tracking-tight text-text-primary">Fleet awaiting first probe</h1>
-        <p className="mt-2 max-w-md text-sm text-text-tertiary">
+        <h1 className="heading-lg text-text-primary">Fleet awaiting first probe</h1>
+        <p className="mt-2 max-w-md body-sm text-text-tertiary">
           No endpoints have been measured yet. Start the collector with{" "}
           <code className="rounded bg-surface-recessed px-1.5 py-0.5 font-mono text-text-secondary">npm run worker</code>{" "}
           and data appears within a minute.
