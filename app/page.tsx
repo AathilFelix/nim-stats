@@ -4,7 +4,10 @@ import { FleetSummary } from "@/components/dashboard/fleet-summary";
 import { FleetTrendChart } from "@/components/dashboard/fleet-trend-chart";
 import { BestModelNow } from "@/components/dashboard/best-model-now";
 import { IncidentFeed } from "@/components/dashboard/incident-feed";
-import { ModelTable } from "@/components/dashboard/model-table";
+import { ModelExplorer } from "@/components/dashboard/model-explorer";
+import { SlaTracker } from "@/components/dashboard/sla-tracker";
+import { UptimeCalendar } from "@/components/dashboard/uptime-calendar";
+import { LatencyHeatmap } from "@/components/dashboard/latency-heatmap";
 import { computeFleetState, findBestModel, getAllIncidents } from "@/lib/operational-engine";
 import { getDashboardModels, getFleetTrend } from "@/lib/dashboard-data";
 import { formatTimeAgo } from "@/components/dashboard/mock-data";
@@ -37,6 +40,15 @@ export default async function Home() {
     const d = m.lastChecked instanceof Date ? m.lastChecked : new Date(m.lastChecked);
     return !latest || d > latest ? d : latest;
   }, null);
+
+  // Lightweight list for the calendar / heatmap model pickers (avoids shipping
+  // full per-model histories to those client panels).
+  const liteModels = models.map((m) => ({
+    id: m.id,
+    name: m.name,
+    provider: m.provider,
+    status: m.status,
+  }));
 
   return (
     <div className="min-h-screen text-text-primary">
@@ -88,9 +100,23 @@ export default async function Home() {
             <section>
               <div className="mb-3 flex items-baseline justify-between">
                 <h2 className="section-label">Model Fleet</h2>
-                <p className="metric-xs text-text-tertiary">{models.length} endpoints</p>
+                <p className="metric-xs text-text-tertiary">Search, filter, pin & export · {models.length} endpoints</p>
               </div>
-              <ModelTable models={models} />
+              <ModelExplorer models={models} />
+            </section>
+
+            <section>
+              <div className="mb-3 flex items-baseline justify-between">
+                <h2 className="section-label">Reliability &amp; SLA</h2>
+                <p className="metric-xs text-text-tertiary">Uptime history · time-of-day latency · error budgets</p>
+              </div>
+              <div className="space-y-5">
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <SlaTracker />
+                  <UptimeCalendar models={liteModels} />
+                </div>
+                <LatencyHeatmap />
+              </div>
             </section>
           </div>
         </div>

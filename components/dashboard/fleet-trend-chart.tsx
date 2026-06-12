@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -10,10 +10,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Activity } from "lucide-react";
+import { Activity, Loader2 } from "lucide-react";
 import type { FleetTrendPoint } from "@/lib/dashboard-data";
 
 type MetricKey = "ttftMs" | "throughput" | "successRate";
+type RangeKey = "12h" | "24h" | "7d";
 
 const METRICS: Record<
   MetricKey,
@@ -25,16 +26,44 @@ const METRICS: Record<
 };
 
 const ORDER: MetricKey[] = ["ttftMs", "throughput", "successRate"];
+const RANGES: RangeKey[] = ["12h", "24h", "7d"];
 
-function hhmm(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+function fmtTick(iso: string, range: RangeKey): string {
+  const d = new Date(iso);
+  if (range === "7d") {
+    return d.toLocaleString("en-US", { weekday: "short", hour: "2-digit", hour12: false });
+  }
+  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 export function FleetTrendChart({ data }: { data: FleetTrendPoint[] }) {
   const [metric, setMetric] = useState<MetricKey>("ttftMs");
+  const [range, setRange] = useState<RangeKey>("12h");
+  // Cached series for non-default ranges (the 12h prop refreshes via the page).
+  const [remote, setRemote] = useState<{ range: RangeKey; data: FleetTrendPoint[] } | null>(null);
+
+  useEffect(() => {
+    if (range === "12h") return;
+    let cancelled = false;
+    fetch(`/api/fleet/trend?range=${range}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j: { range: RangeKey; data: FleetTrendPoint[] }) => {
+        if (!cancelled) setRemote({ range, data: j.data ?? [] });
+      })
+      .catch(() => {
+        if (!cancelled) setRemote({ range, data: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [range]);
+
+  // In-flight whenever the requested range hasn't been fetched yet.
+  const loading = range !== "12h" && remote?.range !== range;
+  const series = range === "12h" ? data : remote?.range === range ? remote.data : [];
   const cfg = METRICS[metric];
 
-  const points = data.filter((d) => d[metric] != null);
+  const points = series.filter((d) => d[metric] != null);
   const values = points.map((d) => d[metric] as number);
   const current = values.at(-1) ?? null;
   const first = values.at(0) ?? null;
@@ -44,30 +73,49 @@ export function FleetTrendChart({ data }: { data: FleetTrendPoint[] }) {
 
   const deltaPct = current != null && first != null && first !== 0 ? ((current - first) / first) * 100 : null;
   const deltaGood = deltaPct == null ? null : cfg.goodWhen === "up" ? deltaPct >= 0 : deltaPct <= 0;
+  const rangeLabel = range === "7d" ? "7d" : range;
 
   return (
     <section className="ops-card">
       <div className="hdiv flex-col items-start gap-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
           <Activity className="h-3.5 w-3.5 text-text-accent" />
-          <span className="section-label">Fleet Performance · 12h</span>
+          <span className="section-label">Fleet Performance · {rangeLabel}</span>
+          {loading && <Loader2 className="h-3 w-3 animate-spin text-text-quaternary" aria-label="Loading" />}
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-border-subtle bg-surface-recessed p-0.5">
-          {ORDER.map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setMetric(k)}
-              aria-pressed={metric === k}
-              className={`rounded-md px-3 py-1 metric-xs transition-colors ${
-                metric === k
-                  ? "bg-surface-elevated text-text-primary"
-                  : "text-text-tertiary hover:text-text-secondary"
-              }`}
-            >
-              {METRICS[k].label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {/* Time range */}
+          <div className="flex items-center gap-1 rounded-lg border border-border-subtle bg-surface-recessed p-0.5">
+            {RANGES.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRange(r)}
+                aria-pressed={range === r}
+                className={`rounded-md px-3 py-1 metric-xs transition-colors ${
+                  range === r ? "bg-surface-elevated text-text-primary" : "text-text-tertiary hover:text-text-secondary"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          {/* Metric */}
+          <div className="flex items-center gap-1 rounded-lg border border-border-subtle bg-surface-recessed p-0.5">
+            {ORDER.map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setMetric(k)}
+                aria-pressed={metric === k}
+                className={`rounded-md px-3 py-1 metric-xs transition-colors ${
+                  metric === k ? "bg-surface-elevated text-text-primary" : "text-text-tertiary hover:text-text-secondary"
+                }`}
+              >
+                {METRICS[k].label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -82,7 +130,7 @@ export function FleetTrendChart({ data }: { data: FleetTrendPoint[] }) {
             className={`metric-xs ${deltaGood ? "text-status-healthy" : "text-status-critical"}`}
             title="Change over window"
           >
-            {deltaPct >= 0 ? "▲" : "▼"} {Math.abs(deltaPct).toFixed(1)}% · 12h
+            {deltaPct >= 0 ? "▲" : "▼"} {Math.abs(deltaPct).toFixed(1)}% · {rangeLabel}
           </span>
         )}
         <div className="ml-auto flex items-center gap-4">
@@ -95,7 +143,9 @@ export function FleetTrendChart({ data }: { data: FleetTrendPoint[] }) {
       <div className="h-[210px] w-full px-1 pb-2 pt-3 sm:h-[250px] sm:px-2">
         {points.length < 2 ? (
           <div className="flex h-full items-center justify-center">
-            <p className="body-xs text-text-tertiary">Collecting telemetry — the trend fills in as probes run.</p>
+            <p className="body-xs text-text-tertiary">
+              {loading ? "Loading…" : "Collecting telemetry — the trend fills in as probes run."}
+            </p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -109,7 +159,7 @@ export function FleetTrendChart({ data }: { data: FleetTrendPoint[] }) {
               <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="0" vertical={false} />
               <XAxis
                 dataKey="t"
-                tickFormatter={hhmm}
+                tickFormatter={(v) => fmtTick(v as string, range)}
                 tick={{ fill: "var(--text-tertiary)", fontSize: 10, fontFamily: "var(--font-mono)" }}
                 tickLine={false}
                 axisLine={{ stroke: "var(--border-subtle)" }}
@@ -135,7 +185,7 @@ export function FleetTrendChart({ data }: { data: FleetTrendPoint[] }) {
                 }}
                 labelStyle={{ color: "var(--text-tertiary)", marginBottom: 3 }}
                 itemStyle={{ color: "var(--text-primary)" }}
-                labelFormatter={(l) => hhmm(l as string)}
+                labelFormatter={(l) => fmtTick(l as string, range)}
                 formatter={(v) => [`${cfg.fmt(Number(v))} ${cfg.unit}`, cfg.label]}
               />
               <Area
