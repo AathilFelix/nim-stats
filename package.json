@@ -9,7 +9,9 @@
     "lint": "eslint",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "db:check": "tsx --env-file=.env scripts/test-prisma.ts",
-    "worker": "tsx --env-file=.env scripts/worker.ts"
+    "worker": "tsx --env-file=.env scripts/worker.ts",
+    "probe:once": "tsx --env-file=.env scripts/probe-once.ts",
+    "probe:once:ci": "tsx scripts/probe-once.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

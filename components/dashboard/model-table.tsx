@@ -155,10 +155,7 @@ export function ModelTable({ models, favorites, onToggleFavorite, onSelect, pres
                     {selectable ? (
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelect!(model);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); onSelect!(model); }}
                         className="body-md font-semibold text-text-primary whitespace-nowrap text-left hover:text-text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                       >
                         {model.name}
@@ -251,7 +248,7 @@ export function ModelTable({ models, favorites, onToggleFavorite, onSelect, pres
                     />
                   </TableCell>
                   <TableCell className="px-3 py-2.5 text-right hidden md:table-cell">
-                    <span className="metric-xs text-text-tertiary">{formatTimeAgo(model.lastChecked)}</span>
+                    <span className="metric-xs text-text-tertiary">{formatTimeAgo(new Date(model.lastChecked))}</span>
                   </TableCell>
                 </TableRow>
               );

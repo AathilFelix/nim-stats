@@ -14,7 +14,14 @@ if (!connectionString) {
   )
 }
 
-const adapter = new PrismaPg({ connectionString })
+// Pin every connection's session timezone to UTC. Without this, a non-UTC
+// server/session timezone (e.g. Asia/Kolkata) makes the pg adapter store
+// `timestamptz` values offset by the local zone: Prisma↔Prisma round-trips
+// cancel out and look fine, but every raw SQL time-window query (now() - interval
+// '1 hour', date/hour bucketing) compares against shifted timestamps — silently
+// emptying the anomaly/quota/trend "recent" windows. `-c timezone=UTC` is sent as
+// a startup parameter on each pooled connection, so reads and writes agree on UTC.
+const adapter = new PrismaPg({ connectionString, options: "-c timezone=UTC" })
 
 export const prisma: PrismaClient =
   global.__prisma ??

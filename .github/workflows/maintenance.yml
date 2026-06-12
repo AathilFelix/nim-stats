@@ -1,0 +1,32 @@
+name: maintenance
+
+# Once a day: re-discover the NIM model registry (--sync) and prune samples past
+# the retention window + retire dead endpoints (--maintenance). Pruning is what
+# keeps the database inside Neon's free 0.5 GB tier; without it ModelSample grows
+# unbounded. Runs alongside the regular 5-minute probe.
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC daily
+  workflow_dispatch: {}
+
+concurrency:
+  group: probe # share the probe lock so maintenance never overlaps a probe cycle
+  cancel-in-progress: false
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NIM_API_KEY: ${{ secrets.NIM_API_KEY }}
+      NIM_API_URL: ${{ secrets.NIM_API_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run probe:once:ci -- --sync --maintenance

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { NavBar } from "@/components/navigation/nav-bar";
 import { AutoRefresh } from "@/components/dashboard/auto-refresh";
 import { FleetSummary } from "@/components/dashboard/fleet-summary";
@@ -8,6 +9,7 @@ import { ModelExplorer } from "@/components/dashboard/model-explorer";
 import { SlaTracker } from "@/components/dashboard/sla-tracker";
 import { UptimeCalendar } from "@/components/dashboard/uptime-calendar";
 import { LatencyHeatmap } from "@/components/dashboard/latency-heatmap";
+import { QuotaBanner } from "@/components/dashboard/quota-banner";
 import { computeFleetState, findBestModel, getAllIncidents } from "@/lib/operational-engine";
 import { getDashboardModels, getFleetTrend } from "@/lib/dashboard-data";
 import { formatTimeAgo } from "@/components/dashboard/mock-data";
@@ -97,12 +99,20 @@ export default async function Home() {
               <IncidentFeed incidents={incidents} />
             </div>
 
+            {/* Anomaly detection is API-only for now (/api/fleet/anomalies).
+                The client callout panel popped in below-the-fold content on its
+                fetch/60s-poll, shifting scroll position — bad UX. Re-enable once
+                that layout shift is solved (reserve space / render in a portal). */}
+            <QuotaBanner />
+
             <section>
               <div className="mb-3 flex items-baseline justify-between">
                 <h2 className="section-label">Model Fleet</h2>
                 <p className="metric-xs text-text-tertiary">Search, filter, pin & export · {models.length} endpoints</p>
               </div>
-              <ModelExplorer models={models} />
+              <Suspense fallback={null}>
+                <ModelExplorer models={models} />
+              </Suspense>
             </section>
 
             <section>

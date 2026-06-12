@@ -6,6 +6,7 @@
 // analytics (session reliability, volatility, routing confidence, incidents,
 // …) — those are computed by `enrichModel`, then the real sample-derived
 // fields are layered back on top.
+import { unstable_cache } from "next/cache"
 import { prisma } from "@/lib/db/prisma"
 import { enrichModel } from "@/lib/operational-engine"
 import type { NIMModel, ModelStatus } from "@/components/dashboard/mock-data"
@@ -106,7 +107,7 @@ function toBaseModel(
  * Live model fleet for the dashboard. Returns only chat-capable, active models
  * that have been probed at least once (so every row has a real state).
  */
-export async function getDashboardModels(): Promise<NIMModel[]> {
+async function getDashboardModelsUncached(): Promise<NIMModel[]> {
   const rows = await prisma.nIModel.findMany({
     where: { isActive: true },
     select: {
@@ -198,7 +199,7 @@ export interface FleetTrendPoint {
  * `hours` into `~bucketMinutes`-wide points (avg TTFT, avg throughput, success
  * rate). Grows denser as the collector runs.
  */
-export async function getFleetTrend(hours = 12, bucketMinutes = 10): Promise<FleetTrendPoint[]> {
+async function getFleetTrendUncached(hours = 12, bucketMinutes = 10): Promise<FleetTrendPoint[]> {
   const bucketSec = bucketMinutes * 60
   const rows = await prisma.$queryRaw<
     Array<{ bucket: Date; n: number; ok: number; avg_ttft: number | null; avg_tput: number | null }>
@@ -233,7 +234,7 @@ function pct(ok: number, total: number): number | null {
  * and the SLA tracker (1d / 7d / 30d uptime windows). All UTC-bucketed. Sparse
  * by design until the collector has accumulated history.
  */
-export async function getReliabilityBreakdown(days = 90): Promise<ReliabilityResponse> {
+async function getReliabilityBreakdownUncached(days = 90): Promise<ReliabilityResponse> {
   const models = await prisma.nIModel.findMany({
     where: { isActive: true },
     select: { id: true, name: true, provider: true },
@@ -341,3 +342,160 @@ export async function getReliabilityBreakdown(days = 90): Promise<ReliabilityRes
 
   return { updatedAt: new Date().toISOString(), days, models: result }
 }
+
+export interface AnomalyResult {
+  modelId: string
+  name: string
+  provider: string
+  kind: "latency_spike" | "reliability_drop" | "both"
+  recentTtft: number | null
+  baselineTtft: number | null
+  recentUptime: number | null
+  baselineUptime: number | null
+}
+
+/**
+ * Compare each model's last-1h metrics against its 7d rolling baseline.
+ * Flags: TTFT spiked >2x OR uptime dropped >15pp vs baseline.
+ * Only returns models that have enough baseline data (≥20 probes in 7d).
+ */
+async function getAnomalyDataUncached(): Promise<AnomalyResult[]> {
+  type AnomalyRow = {
+    modelId: string
+    name: string
+    provider: string
+    recent_ttft: number | null
+    baseline_ttft: number | null
+    recent_ok: number
+    recent_total: number
+    baseline_ok: number
+    baseline_total: number
+  }
+
+  const rows = await prisma.$queryRaw<AnomalyRow[]>`
+    SELECT
+      m.id AS "modelId",
+      m.name,
+      m.provider::text,
+      avg(s."ttftMs") FILTER (WHERE s.timestamp > now() - interval '1 hour' AND s.success)::float8 AS recent_ttft,
+      avg(s."ttftMs") FILTER (WHERE s.timestamp > now() - interval '7 days' AND s.timestamp <= now() - interval '1 hour' AND s.success)::float8 AS baseline_ttft,
+      count(*) FILTER (WHERE s.timestamp > now() - interval '1 hour' AND s.success)::int AS recent_ok,
+      count(*) FILTER (WHERE s.timestamp > now() - interval '1 hour')::int AS recent_total,
+      count(*) FILTER (WHERE s.timestamp > now() - interval '7 days' AND s.timestamp <= now() - interval '1 hour' AND s.success)::int AS baseline_ok,
+      count(*) FILTER (WHERE s.timestamp > now() - interval '7 days' AND s.timestamp <= now() - interval '1 hour')::int AS baseline_total
+    FROM "NIModel" m
+    JOIN "ModelSample" s ON s."modelId" = m.id
+    WHERE m."isActive" = true
+      AND s.timestamp > now() - interval '7 days'
+    GROUP BY m.id, m.name, m.provider
+    HAVING count(*) FILTER (WHERE s.timestamp > now() - interval '7 days') >= 20
+      AND count(*) FILTER (WHERE s.timestamp > now() - interval '1 hour') >= 3
+  `
+
+  const anomalies: AnomalyResult[] = []
+  for (const r of rows) {
+    const recentUptime = r.recent_total > 0 ? (r.recent_ok / r.recent_total) * 100 : null
+    const baselineUptime = r.baseline_total > 0 ? (r.baseline_ok / r.baseline_total) * 100 : null
+
+    const latencySpike =
+      r.recent_ttft != null && r.baseline_ttft != null && r.baseline_ttft > 0
+        ? r.recent_ttft > r.baseline_ttft * 2
+        : false
+
+    const reliabilityDrop =
+      recentUptime != null && baselineUptime != null
+        ? baselineUptime - recentUptime > 15
+        : false
+
+    if (!latencySpike && !reliabilityDrop) continue
+
+    anomalies.push({
+      modelId: r.modelId,
+      name: r.name,
+      provider: r.provider,
+      kind: latencySpike && reliabilityDrop ? "both" : latencySpike ? "latency_spike" : "reliability_drop",
+      recentTtft: r.recent_ttft != null ? Math.round(r.recent_ttft) : null,
+      baselineTtft: r.baseline_ttft != null ? Math.round(r.baseline_ttft) : null,
+      recentUptime: recentUptime != null ? Math.round(recentUptime * 10) / 10 : null,
+      baselineUptime: baselineUptime != null ? Math.round(baselineUptime * 10) / 10 : null,
+    })
+  }
+
+  return anomalies.sort((a, b) => {
+    const score = (x: AnomalyResult) => (x.kind === "both" ? 2 : 1)
+    return score(b) - score(a)
+  })
+}
+
+export interface QuotaStats {
+  rateLimitCount: number
+  totalProbes: number
+  rateLimitPct: number
+  windowLabel: string
+}
+
+/**
+ * Count RateLimit errors vs total probes in the last hour.
+ * High rate-limit pct means "model down" readings may actually be throttling.
+ */
+async function getQuotaStatsUncached(): Promise<QuotaStats> {
+  type QuotaRow = { rate_limit: number; total: number }
+
+  const [row] = await prisma.$queryRaw<QuotaRow[]>`
+    SELECT
+      count(*) FILTER (WHERE "errorCode" = 'RateLimit')::int AS rate_limit,
+      count(*)::int AS total
+    FROM "ModelSample"
+    WHERE timestamp > now() - interval '1 hour'
+  `
+
+  const rl = Number(row?.rate_limit ?? 0)
+  const total = Number(row?.total ?? 0)
+  return {
+    rateLimitCount: rl,
+    totalProbes: total,
+    rateLimitPct: total > 0 ? Math.round((rl / total) * 1000) / 10 : 0,
+    windowLabel: "last hour",
+  }
+}
+
+// ── Caching ──────────────────────────────────────────────────────────────────
+// Every one of these read paths runs on each page load (dashboard/status) or
+// client poll (anomalies/quota every 60s). Wrapping them in the Next Data Cache
+// with a time-based `revalidate` collapses N concurrent visitors into ONE
+// database query per window — the single biggest lever for staying inside
+// Neon's free compute budget and surviving a traffic spike on Vercel Hobby.
+//
+// The collector runs in a separate process (GitHub Actions) and can't reach into
+// Vercel's cache to invalidate it, so revalidation is purely time-based — each
+// TTL is tuned to that surface's natural refresh cadence (the UI auto-refreshes
+// on a similar interval, so the staleness is never visible).
+//
+// Note: `unstable_cache` JSON-serialises results, so `Date` fields come back as
+// strings on a cache hit. The only such field is `NIMModel.lastChecked`; all
+// consumers coerce it with `new Date(...)`, so this is safe.
+export const getDashboardModels = unstable_cache(
+  getDashboardModelsUncached,
+  ["dashboard-models"],
+  { revalidate: 30, tags: ["fleet"] },
+)
+export const getFleetTrend = unstable_cache(
+  getFleetTrendUncached,
+  ["fleet-trend"],
+  { revalidate: 30, tags: ["fleet"] },
+)
+export const getReliabilityBreakdown = unstable_cache(
+  getReliabilityBreakdownUncached,
+  ["reliability-breakdown"],
+  { revalidate: 120, tags: ["fleet"] },
+)
+export const getAnomalyData = unstable_cache(
+  getAnomalyDataUncached,
+  ["anomaly-data"],
+  { revalidate: 60, tags: ["fleet"] },
+)
+export const getQuotaStats = unstable_cache(
+  getQuotaStatsUncached,
+  ["quota-stats"],
+  { revalidate: 60, tags: ["fleet"] },
+)

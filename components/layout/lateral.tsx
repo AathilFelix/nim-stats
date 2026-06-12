@@ -120,7 +120,7 @@ function StatRow({ label, value }: { label: string; value: string }) {
 }
 
 function IncidentFeed({ models, maxItems }: { models: NIMModel[]; maxItems: number }) {
-  const sorted = [...models].sort((a, b) => b.lastChecked.getTime() - a.lastChecked.getTime()).slice(0, maxItems);
+  const sorted = [...models].sort((a, b) => new Date(b.lastChecked).getTime() - new Date(a.lastChecked).getTime()).slice(0, maxItems);
 
   return (
     <div className="space-y-1.5">
@@ -138,7 +138,7 @@ function IncidentFeed({ models, maxItems }: { models: NIMModel[]; maxItems: numb
               {m.name}
             </p>
             <p className="text-[10px] text-text-tertiary mt-0.5 font-mono tabular-nums">
-              {formatTimeAgo(m.lastChecked)}
+              {formatTimeAgo(new Date(m.lastChecked))}
             </p>
           </div>
         </div>

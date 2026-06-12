@@ -8,10 +8,21 @@
 import { useCallback } from "react";
 import { useSyncExternalStore } from "react";
 
+export interface FilterPreset {
+  id: string;
+  name: string;
+  query: string;
+  provider: string;
+  statuses: string[];
+  favoritesOnly: boolean;
+  sort: string;
+}
+
 export interface Preferences {
   favorites: string[];
   /** SLA uptime target as a percentage, e.g. 99.9. */
   slaTarget: number;
+  filterPresets: FilterPreset[];
 }
 
 const KEY = "nim-stats-prefs-v1";
@@ -19,6 +30,7 @@ const KEY = "nim-stats-prefs-v1";
 const DEFAULTS: Preferences = {
   favorites: [],
   slaTarget: 99.9,
+  filterPresets: [],
 };
 
 let cache: Preferences = DEFAULTS;
@@ -36,6 +48,7 @@ function read(): Preferences {
       ...parsed,
       favorites: Array.isArray(parsed.favorites) ? parsed.favorites : DEFAULTS.favorites,
       slaTarget: typeof parsed.slaTarget === "number" ? parsed.slaTarget : DEFAULTS.slaTarget,
+      filterPresets: Array.isArray(parsed.filterPresets) ? parsed.filterPresets : DEFAULTS.filterPresets,
     };
   } catch {
     return DEFAULTS;
@@ -123,11 +136,25 @@ export function usePreferences() {
     write({ ...base, slaTarget });
   }, []);
 
+  const savePreset = useCallback((preset: Omit<FilterPreset, "id">) => {
+    const base = getSnapshot();
+    const id = `preset-${Date.now()}`;
+    write({ ...base, filterPresets: [...base.filterPresets, { ...preset, id }] });
+    return id;
+  }, []);
+
+  const deletePreset = useCallback((id: string) => {
+    const base = getSnapshot();
+    write({ ...base, filterPresets: base.filterPresets.filter((p) => p.id !== id) });
+  }, []);
+
   return {
     prefs,
     setPrefs,
     toggleFavorite,
     isFavorite,
     setSlaTarget,
+    savePreset,
+    deletePreset,
   };
 }
