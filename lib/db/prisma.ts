@@ -29,8 +29,26 @@ if (!connectionString) {
 // PgBouncer), which would break the serverless app's connection. So we apply it
 // only when connecting to localhost, where it's both needed and safe.
 const isLocalDb = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(connectionString)
+// Managed Postgres (Supabase pooler, etc.) terminates TLS with a cert chain Node
+// doesn't trust by default, so node-postgres throws "self-signed certificate in
+// certificate chain". We relax chain verification for remote DBs via the `ssl`
+// option — but node-postgres lets a `sslmode=...` in the URL override that, so we
+// strip `sslmode` here and let the explicit `ssl` config win. (The CLI migration
+// path keeps `sslmode=require` in DATABASE_URL; only the runtime adapter strips
+// it.) Swap to a pinned CA (`ssl: { ca }`) if you want full verification later.
+function stripSslmode(url: string): string {
+  const q = url.indexOf("?")
+  if (q === -1) return url
+  const params = new URLSearchParams(url.slice(q + 1))
+  params.delete("sslmode")
+  const rest = params.toString()
+  return rest ? `${url.slice(0, q)}?${rest}` : url.slice(0, q)
+}
+
 const adapter = new PrismaPg(
-  isLocalDb ? { connectionString, options: "-c timezone=UTC" } : { connectionString },
+  isLocalDb
+    ? { connectionString, options: "-c timezone=UTC" }
+    : { connectionString: stripSslmode(connectionString), ssl: { rejectUnauthorized: false } },
 )
 
 export const prisma: PrismaClient =
