@@ -1,16 +1,24 @@
 name: probe
 
-# The production data collector. Vercel Hobby can't run an always-on worker and
-# its cron fires at most once/day, so the probe cycle runs here instead. On a
-# PUBLIC repo, Linux minutes are unlimited — this is the $0 backend.
+# The production data collector. Vercel Hobby can't run an always-on worker, so
+# the probe cycle runs here. On a PUBLIC repo, Linux minutes are unlimited — $0.
 #
-# GitHub's scheduler has a 5-minute minimum and may delay/drop runs under load,
-# so treat "every 5 minutes" as best-effort (the dashboard degrades gracefully
-# to slightly older data, never breaks).
+# Primary cadence is driven externally (cron-job.org → /api/cron/trigger →
+# workflow_dispatch), which fires promptly. The `schedule:` below is only a
+# low-frequency SAFETY NET: if the external scheduler ever dies, GitHub still
+# drips in hourly probes so the dashboard never goes fully stale. GitHub's
+# scheduler is best-effort and may delay/drop runs, which is fine for a fallback.
+run-name: "probe · ${{ github.event.inputs.source || github.event_name }}"
+
 on:
   schedule:
-    - cron: "*/5 * * * *"
-  workflow_dispatch: {} # allow manual runs from the Actions tab
+    - cron: "0 * * * *" # hourly fallback only — cron-job.org drives the real cadence
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "What triggered this run (set by the dispatcher)"
+        required: false
+        default: "manual"
 
 # Never let two probe cycles overlap; if one is still running, skip the next.
 concurrency:

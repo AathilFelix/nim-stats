@@ -42,7 +42,9 @@ async function handle(req: Request): Promise<NextResponse> {
           "User-Agent": "nim-stats-cron",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ ref: REF }),
+        // `inputs.source` tags the run so it shows as "probe · cron-job.org"
+        // in the Actions list, distinct from manual/scheduled runs.
+        body: JSON.stringify({ ref: REF, inputs: { source: "cron-job.org" } }),
       },
     )
   } catch (err) {
