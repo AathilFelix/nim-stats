@@ -3,7 +3,9 @@ import { getDashboardModels } from "@/lib/dashboard-data";
 import { computeFleetState } from "@/lib/operational-engine";
 import { formatTimeAgo } from "@/components/dashboard/mock-data";
 
-export const dynamic = "force-dynamic";
+// ISR — serve from the CDN and revalidate every 30s instead of running a
+// function per visit (see app/page.tsx for the full rationale).
+export const revalidate = 30;
 
 const STATUS_COLOR: Record<string, string> = {
   healthy: "var(--status-healthy)",

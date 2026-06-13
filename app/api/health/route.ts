@@ -13,12 +13,17 @@ export async function GET() {
       orderBy: { timestamp: "desc" },
       select: { timestamp: true },
     })
-    return NextResponse.json({
-      status: "ok",
-      timestamp: new Date().toISOString(),
-      database: "connected",
-      lastProbeAt: latestProbe?.timestamp.toISOString() ?? null,
-    })
+    return NextResponse.json(
+      {
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        database: "connected",
+        lastProbeAt: latestProbe?.timestamp.toISOString() ?? null,
+      },
+      // Short edge cache so a chatty uptime monitor can't hammer a function on
+      // every ping, while still re-checking the DB every ~15s.
+      { headers: { "Cache-Control": "public, max-age=0, s-maxage=15, stale-while-revalidate=30" } },
+    )
   } catch (err) {
     api.error("GET /api/health failed", { error: (err as Error).message })
     return NextResponse.json({ status: "error", database: "unreachable" }, { status: 503 })

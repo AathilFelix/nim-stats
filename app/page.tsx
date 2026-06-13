@@ -13,7 +13,12 @@ import { computeFleetState, findBestModel, getAllIncidents } from "@/lib/operati
 import { getDashboardModels, getFleetTrend } from "@/lib/dashboard-data";
 import { formatTimeAgo } from "@/components/dashboard/mock-data";
 
-export const dynamic = "force-dynamic";
+// ISR — render once, then serve cached HTML from Vercel's CDN and revalidate in
+// the background every 30s. Under a traffic spike (e.g. an X post), visitors are
+// served from the edge instead of each waking a function, so Fluid Active CPU
+// stays flat regardless of pageviews. No freshness loss: the underlying data is
+// already ≤30s old via the unstable_cache layer, and AutoRefresh keeps tabs live.
+export const revalidate = 30;
 
 export default async function Home() {
   const [models, trend] = await Promise.all([getDashboardModels(), getFleetTrend()]);

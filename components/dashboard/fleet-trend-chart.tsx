@@ -44,7 +44,8 @@ export function FleetTrendChart({ data }: { data: FleetTrendPoint[] }) {
   useEffect(() => {
     if (range === "12h") return;
     let cancelled = false;
-    fetch(`/api/fleet/trend?range=${range}`, { cache: "no-store" })
+    // No `no-store`: let the route's Cache-Control drive CDN/browser caching.
+    fetch(`/api/fleet/trend?range=${range}`)
       .then((r) => r.json())
       .then((j: { range: RangeKey; data: FleetTrendPoint[] }) => {
         if (!cancelled) setRemote({ range, data: j.data ?? [] });

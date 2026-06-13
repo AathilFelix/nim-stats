@@ -20,7 +20,13 @@ export async function GET(req: Request) {
     const range = url.searchParams.get("range") ?? "12h"
     const cfg = RANGES[range] ?? RANGES["12h"]
     const data = await getFleetTrend(cfg.hours, cfg.bucketMinutes)
-    return NextResponse.json({ range: RANGES[range] ? range : "12h", data })
+    // Let Vercel's CDN serve repeat hits from the edge (s-maxage) so concurrent
+    // viewers collapse into ~one function call per 30s window. `max-age=0` keeps
+    // the browser revalidating; `stale-while-revalidate` hides refresh latency.
+    return NextResponse.json(
+      { range: RANGES[range] ? range : "12h", data },
+      { headers: { "Cache-Control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" } },
+    )
   } catch (err) {
     api.error("GET /api/fleet/trend failed", { error: (err as Error).message })
     return NextResponse.json({ error: "server_error" }, { status: 500 })

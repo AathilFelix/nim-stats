@@ -19,7 +19,8 @@ function notify() {
 function load(force = false): Promise<ReliabilityResponse> {
   if (cache && !force) return Promise.resolve(cache);
   if (inflight) return inflight;
-  inflight = fetch("/api/fleet/reliability", { cache: "no-store" })
+  // No `no-store`: the route sets Cache-Control so repeats hit the CDN edge.
+  inflight = fetch("/api/fleet/reliability")
     .then((r) => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json() as Promise<ReliabilityResponse>;
