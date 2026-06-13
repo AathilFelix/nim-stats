@@ -31,3 +31,21 @@ export function blockUnlessInternal(req: Request): NextResponse | null {
   if (provided && safeEqual(provided, token)) return null
   return new NextResponse(null, { status: 404 })
 }
+
+/**
+ * Gate for the cron-trigger route. Unlike the read-only internal routes, this one
+ * has side effects (dispatches a workflow), so it FAILS CLOSED: if `CRON_SECRET`
+ * is unset, or the caller's secret is missing/wrong, it returns 401. The secret
+ * is single-purpose — it only triggers a probe; it can't read any data — so the
+ * external scheduler holding it has near-zero blast radius. Sent as
+ * `Authorization: Bearer <CRON_SECRET>` or the `x-cron-secret` header.
+ */
+export function blockUnlessCron(req: Request): NextResponse | null {
+  const secret = process.env.CRON_SECRET
+  const auth = req.headers.get("authorization") ?? ""
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : ""
+  const provided = bearer || req.headers.get("x-cron-secret") || ""
+
+  if (secret && provided && safeEqual(provided, secret)) return null
+  return new NextResponse(null, { status: 401 })
+}
