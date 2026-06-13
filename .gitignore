@@ -39,6 +39,7 @@ yarn-error.log*
 *.env.enc
 .envrc
 # ...but keep the safe, key-less templates under version control.
+!.env.example
 !.env.sample
 !.env.template
 

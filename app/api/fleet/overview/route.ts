@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
 import { api } from "@/lib/telemetry/logger"
+import { blockUnlessInternal } from "@/lib/api/guard"
 
 export const runtime = "nodejs"
 export const maxDuration = 10
 
-export async function GET() {
+export async function GET(req: Request) {
+  const blocked = blockUnlessInternal(req)
+  if (blocked) return blocked
   try {
     const now = new Date()
     const oneMinAgo = new Date(now.getTime() - 60_000)
@@ -43,10 +46,7 @@ export async function GET() {
       },
     })
   } catch (err) {
-    api.error("GET /api/health failed", { error: (err as Error).message })
-    return NextResponse.json(
-      { status: "error", error: (err as Error).message },
-      { status: 500 }
-    )
+    api.error("GET /api/fleet/overview failed", { error: (err as Error).message })
+    return NextResponse.json({ status: "error" }, { status: 500 })
   }
 }

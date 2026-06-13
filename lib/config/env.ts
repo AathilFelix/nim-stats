@@ -3,6 +3,9 @@ export const env = {
   DATABASE_URL: process.env.DATABASE_URL!,
   UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
   UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+  // Shared secret that locks down internal API routes (anomalies, quota,
+  // overview, models, providers). Unset = open (local dev); set in prod.
+  INTERNAL_API_TOKEN: process.env.INTERNAL_API_TOKEN,
   PROBE_INTERVAL_MS: Number.parseInt(process.env.PROBE_INTERVAL_MS ?? "30000", 10),
   SYNC_INTERVAL_MS: Number.parseInt(process.env.SYNC_INTERVAL_MS ?? "21600000", 10),
   MODEL_REGISTRY_SYNC_CRON: process.env.MODEL_REGISTRY_SYNC_CRON ?? "0 */6 * * *",

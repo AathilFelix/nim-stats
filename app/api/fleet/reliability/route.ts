@@ -6,10 +6,16 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 export const maxDuration = 15
 
+// Public (the SLA/calendar/heatmap panels fetch this). `days` is snapped to a
+// small allowlist so callers can't cache-bust with 365 distinct heavy queries —
+// the UI only ever uses the default 90.
+const ALLOWED_DAYS = new Set([7, 30, 90, 365])
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
-    const days = Math.min(365, Math.max(1, Number.parseInt(url.searchParams.get("days") ?? "90", 10) || 90))
+    const requested = Number.parseInt(url.searchParams.get("days") ?? "90", 10)
+    const days = ALLOWED_DAYS.has(requested) ? requested : 90
     const data = await getReliabilityBreakdown(days)
     return NextResponse.json(data)
   } catch (err) {

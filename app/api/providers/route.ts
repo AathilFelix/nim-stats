@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server"
 import { getProviderStats } from "@/lib/telemetry/aggregation"
 import { api } from "@/lib/telemetry/logger"
+import { blockUnlessInternal } from "@/lib/api/guard"
 
 export const runtime = "nodejs"
 export const maxDuration = 15
 
-export async function GET() {
+export async function GET(req: Request) {
+  const blocked = blockUnlessInternal(req)
+  if (blocked) return blocked
   try {
     const providers = await getProviderStats()
     return NextResponse.json({ data: providers })

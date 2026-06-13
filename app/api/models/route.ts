@@ -2,11 +2,14 @@ import { OperationalState } from "@prisma/client"
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
 import { logger } from "@/lib/telemetry/logger"
+import { blockUnlessInternal } from "@/lib/api/guard"
 
 export const runtime = "nodejs"
 export const maxDuration = 10
 
 export async function GET(req: Request) {
+  const blocked = blockUnlessInternal(req)
+  if (blocked) return blocked
   try {
     const url = new URL(req.url)
     const provider = url.searchParams.get("provider")

@@ -1,19 +1,23 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
-import { aggregateModel, type WindowSize } from "@/lib/telemetry/aggregation"
+import { aggregateModel } from "@/lib/telemetry/aggregation"
 import { api } from "@/lib/telemetry/logger"
+import { blockUnlessInternal } from "@/lib/api/guard"
 
 export const runtime = "nodejs"
 export const maxDuration = 10
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const blocked = blockUnlessInternal(req)
+  if (blocked) return blocked
   try {
     const { id } = await params
-    const url = new URL(_req.url)
-    const window = (url.searchParams.get("window") as WindowSize | null) ?? "1h"
+    const url = new URL(req.url)
+    // Clamp caller-supplied row count to a sane bound (no unbounded `take`).
+    const limit = Math.min(500, Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? "60", 10) || 60))
 
     const model = await prisma.nIModel.findUnique({
       where: { id },
@@ -29,7 +33,7 @@ export async function GET(
         latest: true,
         samples: {
           orderBy: { timestamp: "desc" },
-          take: Number.parseInt(url.searchParams.get("limit") ?? "60", 10),
+          take: limit,
           select: {
             timestamp: true,
             ttftMs: true,
