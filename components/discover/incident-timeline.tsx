@@ -104,6 +104,7 @@ export function IncidentTimeline({ models }: { models: NIMModel[] }) {
               <div
                 className="flex items-center gap-2.5 py-2.5 px-3 transition-colors duration-150 hover:bg-[--surface-recessed] rounded-r-lg"
                 style={{ opacity: ageOpacity(item.time) }}
+                suppressHydrationWarning
               >
                 <Icon className={cn("w-3.5 h-3.5 shrink-0", severityColor(item.severity))} />
                 <div className="flex-1 min-w-0">
@@ -112,7 +113,7 @@ export function IncidentTimeline({ models }: { models: NIMModel[] }) {
                     {item.title} &middot; {item.provider}
                   </div>
                 </div>
-                <span className="text-xs font-mono text-[--text-tertiary] shrink-0">
+                <span className="text-xs font-mono text-[--text-tertiary] shrink-0" suppressHydrationWarning>
                   {formatAge(item.time)}
                 </span>
               </div>

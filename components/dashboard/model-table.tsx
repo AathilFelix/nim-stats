@@ -4,9 +4,9 @@ import { Star } from "lucide-react";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusPill } from "@/components/dashboard/status-pill";
 import { Sparkline } from "@/components/dashboard/sparkline";
+import { TimeAgo } from "@/components/dashboard/time-ago";
 import { cn } from "@/lib/utils";
 import type { NIMModel } from "./mock-data";
-import { formatTimeAgo } from "./mock-data";
 
 interface ModelTableProps {
   models: NIMModel[];
@@ -248,7 +248,7 @@ export function ModelTable({ models, favorites, onToggleFavorite, onSelect, pres
                     />
                   </TableCell>
                   <TableCell className="px-3 py-2.5 text-right hidden md:table-cell">
-                    <span className="metric-xs text-text-tertiary">{formatTimeAgo(new Date(model.lastChecked))}</span>
+                    <TimeAgo date={model.lastChecked} className="metric-xs text-text-tertiary" />
                   </TableCell>
                 </TableRow>
               );

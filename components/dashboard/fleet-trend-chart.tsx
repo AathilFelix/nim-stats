@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
   CartesianGrid,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -57,6 +56,24 @@ export function FleetTrendChart({ data }: { data: FleetTrendPoint[] }) {
       cancelled = true;
     };
   }, [range]);
+
+  // Self-measure the plot box instead of using Recharts' ResponsiveContainer,
+  // which renders at width(-1)/height(-1) on its first tick (and again under
+  // React 19 Strict Mode) and logs a warning. We render the chart only once the
+  // ResizeObserver reports a real, positive box — so the chart never sees -1.
+  const plotRef = useRef<HTMLDivElement>(null);
+  const [plot, setPlot] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = plotRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (cr) setPlot({ w: Math.round(cr.width), h: Math.round(cr.height) });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const plotReady = plot.w > 0 && plot.h > 0;
 
   // In-flight whenever the requested range hasn't been fetched yet.
   const loading = range !== "12h" && remote?.range !== range;
@@ -140,16 +157,15 @@ export function FleetTrendChart({ data }: { data: FleetTrendPoint[] }) {
         </div>
       </div>
 
-      <div className="h-[210px] w-full px-1 pb-2 pt-3 sm:h-[250px] sm:px-2">
-        {points.length < 2 ? (
+      <div ref={plotRef} className="h-[210px] w-full px-1 pb-2 pt-3 sm:h-[250px] sm:px-2">
+        {!plotReady || points.length < 2 ? (
           <div className="flex h-full items-center justify-center">
             <p className="body-xs text-text-tertiary">
-              {loading ? "Loading…" : "Collecting telemetry — the trend fills in as probes run."}
+              {loading || !plotReady ? "Loading…" : "Collecting telemetry — the trend fills in as probes run."}
             </p>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={points} margin={{ top: 4, right: 14, bottom: 0, left: 4 }}>
+            <AreaChart width={plot.w} height={plot.h} data={points} margin={{ top: 4, right: 14, bottom: 0, left: 4 }}>
               <defs>
                 <linearGradient id={`grad-${metric}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={cfg.color} stopOpacity={0.26} />
@@ -199,7 +215,6 @@ export function FleetTrendChart({ data }: { data: FleetTrendPoint[] }) {
                 isAnimationActive={false}
               />
             </AreaChart>
-          </ResponsiveContainer>
         )}
       </div>
     </section>
