@@ -9,9 +9,10 @@
   "account_id": "37d032e8c907210ad7543b5eeba23445",
   "compatibility_date": "2026-06-10",
   "triggers": {
-    // Every 10 minutes — matches the previous cron-job.org cadence. GitHub's
-    // hourly `schedule:` in probe.yml stays as the independent fallback.
-    "crons": ["*/10 * * * *"]
+    // */10 → probe.yml (data collection); 0 3 → maintenance.yml (prune + sync).
+    // probe.yml keeps GitHub's hourly `schedule:` as an independent fallback;
+    // maintenance.yml is now Cloudflare-only (its GitHub daily schedule removed).
+    "crons": ["*/10 * * * *", "0 3 * * *"]
   },
   "observability": {
     // Retain logs so `wrangler tail` and the dashboard show each dispatch.

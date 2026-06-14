@@ -1,13 +1,22 @@
 name: maintenance
 
-# Once a day: re-discover the NIM model registry (--sync) and prune samples past
-# the retention window + retire dead endpoints (--maintenance). Pruning is what
-# keeps the database inside Neon's free 0.5 GB tier; without it ModelSample grows
-# unbounded. Runs alongside the regular 5-minute probe.
+# Daily housekeeping: re-discover the NIM model registry (--sync) and prune
+# samples past the retention window + retire dead endpoints (--maintenance).
+# Pruning is what keeps the database inside Supabase's free 0.5 GB tier; without
+# it ModelSample grows unbounded.
+#
+# Triggered by the nimstats-cron Cloudflare Worker at 03:00 UTC (reliable) — NOT
+# GitHub's best-effort `schedule:`, which never fired dependably. Manual runs via
+# the Actions UI still work through workflow_dispatch.
+run-name: "maintenance · ${{ github.event.inputs.source || github.event_name }}"
+
 on:
-  schedule:
-    - cron: "0 3 * * *" # 03:00 UTC daily
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "What triggered this run (set by the dispatcher)"
+        required: false
+        default: "manual"
 
 concurrency:
   group: probe # share the probe lock so maintenance never overlaps a probe cycle

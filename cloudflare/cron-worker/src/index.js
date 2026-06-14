@@ -1,17 +1,21 @@
-// Cron-only Worker: dispatches the NIM Stats probe by triggering its GitHub
-// Actions workflow directly. No HTTP surface (no `fetch` handler) — it can only
-// be invoked by its own cron trigger, so there's nothing to abuse.
+// Cron-only Worker: drives the NIM Stats pipeline by dispatching its GitHub
+// Actions workflows directly. No HTTP surface (no `fetch` handler) — it can only
+// be invoked by its own cron triggers, so there's nothing to abuse.
+//
+// Two schedules (see wrangler.jsonc):
+//   */10 * * * *  → probe.yml        (collect fresh samples)
+//   0 3 * * *     → maintenance.yml  (sync registry + prune old samples)
 //
 // The GitHub token is injected as the `GH_DISPATCH_TOKEN` Worker Secret
 // (`wrangler secret put GH_DISPATCH_TOKEN`); it never appears in source.
 
 const REPO = "AathilFelix/nim-stats";
-const WORKFLOW = "probe.yml";
 const REF = "main";
+const MAINTENANCE_CRON = "0 3 * * *";
 
-async function dispatchProbe(env) {
+async function dispatch(env, workflow) {
   const res = await fetch(
-    `https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`,
+    `https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`,
     {
       method: "POST",
       headers: {
@@ -21,8 +25,7 @@ async function dispatchProbe(env) {
         "User-Agent": "nimstats-cf-cron",
         "Content-Type": "application/json",
       },
-      // `inputs.source` labels the run "probe · cloudflare-worker" in the Actions
-      // list, distinct from manual / schedule-fallback runs.
+      // `inputs.source` labels the run "… · cloudflare-worker" in the Actions list.
       body: JSON.stringify({ ref: REF, inputs: { source: "cloudflare-worker" } }),
     },
   );
@@ -30,19 +33,20 @@ async function dispatchProbe(env) {
   // GitHub returns 204 No Content on a successful dispatch.
   if (res.status !== 204) {
     const detail = await res.text().catch(() => "");
-    throw new Error(`GitHub dispatch failed: ${res.status} ${detail.slice(0, 200)}`);
+    throw new Error(`dispatch ${workflow} failed: ${res.status} ${detail.slice(0, 200)}`);
   }
 }
 
 export default {
   async scheduled(event, env, _ctx) {
+    // The 03:00 tick runs maintenance; every other tick runs the probe.
+    const workflow = event.cron === MAINTENANCE_CRON ? "maintenance.yml" : "probe.yml";
     try {
-      await dispatchProbe(env);
-      console.log(`dispatched probe (cron ${event.cron})`);
+      await dispatch(env, workflow);
+      console.log(`dispatched ${workflow} (cron ${event.cron})`);
     } catch (err) {
-      // Re-throw so the failure shows as an errored invocation in Cron Triggers
-      // metrics rather than silently passing.
-      console.error("probe dispatch error:", err.message);
+      // Re-throw so the failure shows as an errored invocation in Cron Triggers.
+      console.error(`dispatch error (${workflow}):`, err.message);
       throw err;
     }
   },
