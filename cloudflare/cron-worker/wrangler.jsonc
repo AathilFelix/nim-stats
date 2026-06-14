@@ -1,0 +1,20 @@
+{
+  // NIM Stats probe scheduler — a cron-only Worker that fires the GitHub Actions
+  // probe workflow every 10 minutes. Replaces cron-job.org AND the Vercel
+  // /api/cron/trigger relay: the GitHub token lives only as a Worker Secret here,
+  // and no Vercel function is invoked, so the probe cadence costs $0 Vercel
+  // Active CPU. Cloudflare Workers free tier easily covers 144 runs/day.
+  "name": "nimstats-cron",
+  "main": "src/index.js",
+  "account_id": "37d032e8c907210ad7543b5eeba23445",
+  "compatibility_date": "2026-06-10",
+  "triggers": {
+    // Every 10 minutes — matches the previous cron-job.org cadence. GitHub's
+    // hourly `schedule:` in probe.yml stays as the independent fallback.
+    "crons": ["*/10 * * * *"]
+  },
+  "observability": {
+    // Retain logs so `wrangler tail` and the dashboard show each dispatch.
+    "enabled": true
+  }
+}

@@ -71,6 +71,10 @@ gha-creds-*.json
 # vercel
 .vercel
 
+# cloudflare worker local secrets (prod value lives as a Worker Secret)
+.dev.vars
+**/.dev.vars
+
 # supabase CLI local state (link/temp — not used by the app; Prisma owns the schema)
 /supabase/.temp/
 /supabase/.branches/
