@@ -27,10 +27,38 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+const SITE_URL = "https://nimstats.aathil.com";
+const TITLE = "NIM Stats — Free NVIDIA NIM Endpoint Status";
+const DESCRIPTION =
+  "Real-time status and reliability metrics for free NVIDIA NIM API endpoints. Track throughput, latency, uptime, and congestion across Llama, Mistral, Gemma, Phi, Qwen, DeepSeek, and more models.";
+
+// metadataBase makes the generated opengraph-image / twitter-image URLs absolute,
+// which social crawlers require. The og:image and twitter:image tags themselves
+// are injected automatically by Next from app/opengraph-image.tsx + twitter-image.tsx.
 export const metadata: Metadata = {
-  title: "NIM Stats — Free NVIDIA NIM Endpoint Status",
-  description:
-    "Real-time status and reliability metrics for free NVIDIA NIM API endpoints. Track throughput, latency, uptime, and congestion across Llama, Mistral, Gemma, Phi, Qwen, DeepSeek, and more models.",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
+  applicationName: "NIM Stats",
+  keywords: [
+    "NVIDIA NIM", "LLM status", "API uptime", "inference latency", "TTFT",
+    "throughput", "model reliability", "Llama", "Mistral", "Gemma", "Qwen", "DeepSeek",
+  ],
+  alternates: { canonical: "/" },
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: "NIM Stats",
+    title: TITLE,
+    description: DESCRIPTION,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({
