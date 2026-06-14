@@ -33,12 +33,12 @@ export const CATEGORIES: DiscoverCategoryDef[] = [
     sort: (models) =>
       [...models].sort((a, b) => a.congestion - b.congestion),
   },
-  {
-    id: "best-for-coding",
-    label: "Best for Coding",
-    sort: (models) =>
-      [...models].sort((a, b) => codingScore(b) - codingScore(a)),
-  },
+  // "Best for Coding" is temporarily removed. It ranked purely on live speed +
+  // reliability with zero signal for actual coding ability, so a fast small model
+  // could outrank a strong coder — misleading. Re-add it as a curated set of
+  // coding-capable models ranked by live performance (capability list × telemetry),
+  // not as a quality claim derived from probing. The type member is kept so the
+  // icon/highlight maps stay intact for that rebuild.
   {
     id: "trending-degradation",
     label: "Trending Degradation",
@@ -74,13 +74,6 @@ export function getCategoryLabel(
   categoryId: DiscoverCategoryDef["id"],
 ): string {
   return CATEGORIES.find((c) => c.id === categoryId)?.label ?? categoryId;
-}
-
-function codingScore(m: NIMModel): number {
-  const latencyPenalty = Math.max(0, (m.ttft - 100) / 1000);
-  const reliabilityWeight = m.reliability / 100;
-  const throughputWeight = m.throughput / 150;
-  return reliabilityWeight * 0.5 + throughputWeight * 0.3 - latencyPenalty * 0.2;
 }
 
 function degradationTrend(m: NIMModel): number {
