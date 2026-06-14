@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BuiltBy } from "@/components/site/built-by";
 import { getDashboardModels } from "@/lib/dashboard-data";
 import { computeFleetState } from "@/lib/operational-engine";
 import { formatTimeAgo } from "@/components/dashboard/mock-data";
@@ -176,8 +177,9 @@ export default async function StatusPage() {
       <footer className="border-t border-border-subtle mt-8">
         <div className="mx-auto max-w-4xl px-4 py-5 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="body-xs text-text-quaternary">
-            Data refreshes every 30s · Probe cycle every ~2 min · Not affiliated with NVIDIA
+            Data refreshes every 30s · Probe cycle every ~10 min · Not affiliated with NVIDIA
           </p>
+          <BuiltBy />
           <Link
             href="/"
             className="label-xs text-text-tertiary hover:text-text-secondary transition-colors underline-offset-2 hover:underline"

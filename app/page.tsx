@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { NavBar } from "@/components/navigation/nav-bar";
+import { BuiltBy } from "@/components/site/built-by";
 import { AutoRefresh } from "@/components/dashboard/auto-refresh";
 import { FleetSummary } from "@/components/dashboard/fleet-summary";
 import { FleetTrendChart } from "@/components/dashboard/fleet-trend-chart";
@@ -147,7 +148,10 @@ export default async function Home() {
               Live status of free NVIDIA NIM endpoints. Not affiliated with NVIDIA.
             </p>
           </div>
-          <p className="metric-xs text-text-quaternary">Auto-refresh · 30s</p>
+          <div className="flex items-center gap-4">
+            <BuiltBy />
+            <p className="metric-xs text-text-quaternary hidden sm:block">Auto-refresh · 30s</p>
+          </div>
         </div>
       </footer>
     </div>
