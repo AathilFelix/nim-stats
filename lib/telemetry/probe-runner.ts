@@ -9,6 +9,19 @@ import type { Prisma } from "@prisma/client"
 // than "the endpoint is congested" — used to retire non-chat models.
 const NON_CHAT_STATUS = new Set([400, 404, 405, 422])
 
+// The `errorMessage` values written for the statuses above. A non-chat 4xx is
+// the ONLY path that records these exact messages (every other failure writes a
+// different status or a network message), so they double as a reliable marker
+// for counting consecutive non-chat 4xx from sample history.
+const NON_CHAT_MESSAGES = new Set(["HTTP 400", "HTTP 404", "HTTP 405", "HTTP 422"])
+
+// Retire a model only after this many CONSECUTIVE non-chat 4xx probes. A single
+// stray 4xx (e.g. a model briefly undeployed upstream) must not permanently
+// retire a genuine chat model — that erosion is what left prod at 26 active
+// endpoints vs dev's 47. A real non-chat endpoint 4xxs on every probe, so it
+// still retires within RETIRE_STRIKES cycles; a real chat model recovers first.
+const RETIRE_STRIKES = 3
+
 export interface RunProbeOpts {
   modelId: string
   modelName: string
@@ -125,22 +138,33 @@ export async function runProbe(opts: RunProbeOpts): Promise<ProbeReturn | null> 
     const res = await probeModel(modelId, controller.signal)
 
     if (!res.ok) {
-      // A 4xx "bad request / not found" means the model doesn't serve chat
-      // completions. Retire it rather than logging a misleading "jammed" reading.
-      if (NON_CHAT_STATUS.has(res.status)) {
-        await res.body?.cancel().catch(() => {})
-        await prisma.nIModel.update({ where: { id: modelId }, data: { isActive: false } }).catch(() => {})
-        probe.info(`retired non-chat model: ${modelId}`, { modelId, status: res.status })
-        return null
-      }
-
       const errorCode = classFromStatus(res.status)
       const elapsed = performance.now() - startTime
       await res.body?.cancel().catch(() => {})
+
+      // A 4xx like 400/404/405/422 usually means the endpoint doesn't serve chat
+      // completions — but a single one can be transient. Retire only after
+      // RETIRE_STRIKES consecutive non-chat 4xx (this probe + recent history).
+      let retire = false
+      if (NON_CHAT_STATUS.has(res.status)) {
+        const recent = await prisma.modelSample.findMany({
+          where: { modelId }, orderBy: { timestamp: "desc" },
+          take: RETIRE_STRIKES - 1, select: { success: true, errorMessage: true },
+        })
+        let strikes = 1 // this probe
+        for (const s of recent) {
+          if (!s.success && s.errorMessage && NON_CHAT_MESSAGES.has(s.errorMessage)) strikes++
+          else break // any success or other failure breaks the streak
+        }
+        retire = strikes >= RETIRE_STRIKES
+      }
+
       probe.warn(`probe failed: ${modelId} -> ${res.status}`, {
         modelId, status: res.status, durationMs: Math.round(elapsed),
       })
 
+      // Always record the failure (so the strike history exists) and mark the
+      // model jammed. Retirement, if warranted, happens after the write.
       await prismaTransaction(async (tx) => {
         const prev = await tx.modelSampleLatest.findUnique({ where: { modelId }, select: { state: true } })
         await tx.modelSample.create({ data: {
@@ -157,6 +181,12 @@ export async function runProbe(opts: RunProbeOpts): Promise<ProbeReturn | null> 
         })
         await recordTransition(tx, modelId, modelName, (prev?.state as OperationalState) ?? null, OperationalState.jammed, ` (HTTP ${res.status})`)
       })
+
+      if (retire) {
+        await prisma.nIModel.update({ where: { id: modelId }, data: { isActive: false } }).catch(() => {})
+        probe.info(`retired non-chat model after ${RETIRE_STRIKES} strikes: ${modelId}`, { modelId, status: res.status })
+        return null
+      }
 
       return {
         modelId, modelName,
