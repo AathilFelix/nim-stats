@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ShieldCheck, AlertTriangle, XCircle, Grid2x2 } from "lucide-react";
+import { Grid2x2 } from "lucide-react";
 import type { NIMModel } from "../dashboard/mock-data";
 import { PanelHeader } from "./ops-primitives";
 
@@ -9,36 +9,43 @@ interface ReliabilityHeatmapProps {
   models: NIMModel[];
 }
 
-function confidenceIcon(v: string): React.ElementType {
-  if (v === "high_confidence") return ShieldCheck;
-  if (v === "moderate_confidence") return AlertTriangle;
-  return XCircle;
+// Fixed column count — the matrix shows the most-recent N probe buckets per
+// model so every row lines up into a grid (Penpot: "ReliabilityHeatmap").
+const COLS = 12;
+
+type Band = { fg: string; alpha: number };
+
+// Score → status color + background alpha. Bands mirror the Penpot design:
+// bright green for near-perfect, green for healthy, amber for wobbly, red for
+// unreliable. Colors are the theme-aware status tokens (dark + light).
+function band(score: number): Band {
+  if (score >= 98) return { fg: "var(--status-healthy)", alpha: 0.16 };
+  if (score >= 94) return { fg: "var(--status-healthy)", alpha: 0.09 };
+  if (score >= 90) return { fg: "var(--status-warn)", alpha: 0.14 };
+  return { fg: "var(--status-critical)", alpha: 0.14 };
 }
 
-function confidenceColor(v: string): string {
-  if (v === "high_confidence") return "var(--status-healthy)";
-  if (v === "moderate_confidence") return "var(--status-warn)";
-  return "var(--status-critical)";
-}
+type Cell = { key: string; score: number | null };
 
-function confidenceLabel(v: string): string {
-  if (v === "high_confidence") return "High";
-  if (v === "moderate_confidence") return "Moderate";
-  return "Avoid";
+// Last COLS history points, right-aligned. Models with fewer points get empty
+// leading cells so the grid stays aligned across rows.
+function toCells(model: NIMModel): Cell[] {
+  const pts = model.reliabilityHistory.slice(-COLS);
+  const pad = COLS - pts.length;
+  const cells: Cell[] = [];
+  for (let i = 0; i < pad; i++) cells.push({ key: `pad-${i}`, score: null });
+  pts.forEach((p, i) => cells.push({ key: `${p.time}-${i}`, score: Math.round(p.score) }));
+  return cells;
 }
 
 export function ReliabilityHeatmap({ models }: ReliabilityHeatmapProps) {
-  const rows = useMemo(() => {
-    return [...models]
-      .sort((a, b) => b.reliability - a.reliability)
-      .map((m) => ({
-        model: m,
-        Icon: confidenceIcon(m.routingConfidence),
-        color: confidenceColor(m.routingConfidence),
-        label: confidenceLabel(m.routingConfidence),
-        sessionScore: m.sessionReliability.score,
-      }));
-  }, [models]);
+  const rows = useMemo(
+    () =>
+      [...models]
+        .sort((a, b) => b.reliability - a.reliability)
+        .map((m) => ({ model: m, cells: toCells(m) })),
+    [models],
+  );
 
   if (!models.length) {
     return (
@@ -55,45 +62,44 @@ export function ReliabilityHeatmap({ models }: ReliabilityHeatmapProps) {
         label="Reliability Matrix"
         icon={Grid2x2}
         tone="info"
-        meta={<span className="metric-xs">by routing confidence</span>}
+        meta={<span className="metric-xs">recent · by model</span>}
       />
 
       <div className="panel-pad space-y-1.5">
-        {rows.map(({ model, Icon, color, label, sessionScore }) => (
-          <div
-            key={model.id}
-            className="flex items-center gap-2.5 py-1.5 px-2 rounded-lg transition-colors duration-150 hover:bg-[--surface-recessed] group"
-          >
-            {/* Confidence icon */}
-            <Icon className="w-3.5 h-3.5 shrink-0" style={{ color }} />
-
-            {/* Model name */}
-            <span className="text-xs font-medium text-[--text-primary] truncate w-32 shrink-0">
+        {rows.map(({ model, cells }) => (
+          <div key={model.id} className="flex items-center gap-1.5">
+            {/* Model name — row label */}
+            <span className="w-32 shrink-0 truncate font-mono text-[11px] text-text-secondary">
               {model.name}
             </span>
 
-            {/* Stacked bar — session reliability score */}
-            <div className="flex-1 min-w-0">
-              <div className="h-1.5 rounded-full bg-[--border-subtle] overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{ width: `${sessionScore}%`, background: color }}
-                />
-              </div>
+            {/* Score cells — the matrix body */}
+            <div className="grid min-w-0 flex-1 grid-cols-12 gap-1">
+              {cells.map((c) => {
+                if (c.score == null) {
+                  return (
+                    <div
+                      key={c.key}
+                      className="h-7 rounded-[5px] bg-[--border-subtle]"
+                    />
+                  );
+                }
+                const { fg, alpha } = band(c.score);
+                return (
+                  <div
+                    key={c.key}
+                    className="flex h-7 items-center justify-center rounded-[5px] font-mono text-[11px] tabular-nums"
+                    style={{
+                      color: fg,
+                      background: `color-mix(in srgb, ${fg} ${alpha * 100}%, transparent)`,
+                    }}
+                    title={`${model.name} · ${c.score}%`}
+                  >
+                    {c.score}
+                  </div>
+                );
+              })}
             </div>
-
-            {/* Reliability % */}
-            <span className="text-xs font-mono tabular-nums text-[--text-primary] w-12 text-right shrink-0">
-              {model.reliability}%
-            </span>
-
-            {/* Confidence label */}
-            <span
-              className="text-[10px] font-bold uppercase tracking-[0.06em] font-mono w-16 text-right shrink-0"
-              style={{ color }}
-            >
-              {label}
-            </span>
           </div>
         ))}
       </div>

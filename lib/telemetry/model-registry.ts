@@ -81,7 +81,24 @@ export async function syncModelRegistry(): Promise<{ added: number; updated: num
    data: { isActive: false },
   })
 
-  logger.info("model-registry synced", { added, updated, deactivated: deactivated.count })
+  // Resurrect wrongly-retired models: still listed in the catalog AND proven
+  // chat-capable (>=1 successful probe on record). A genuine non-chat endpoint
+  // never succeeds, so it is never resurrected — no active<->retired flapping.
+  // This backfills models that a transient 4xx retired before the strike-count
+  // guard existed (the erosion behind prod's 26 vs dev's 47 endpoints).
+  const seen = Array.from(seenIds)
+  const proven = await prisma.modelSample.findMany({
+   where: { success: true, modelId: { in: seen } },
+   distinct: ["modelId"],
+   select: { modelId: true },
+  })
+  const provenIds = proven.map((p) => p.modelId)
+  const resurrected = await prisma.nIModel.updateMany({
+   where: { isActive: false, id: { in: provenIds } },
+   data: { isActive: true },
+  })
+
+  logger.info("model-registry synced", { added, updated, deactivated: deactivated.count, resurrected: resurrected.count })
   return { added, updated, deactivated: deactivated.count }
  } catch (err) {
   logger.error("model-registry sync failed", { error: (err as Error).message })
