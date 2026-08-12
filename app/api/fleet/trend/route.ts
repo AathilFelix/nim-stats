@@ -21,11 +21,13 @@ export async function GET(req: Request) {
     const cfg = RANGES[range] ?? RANGES["12h"]
     const data = await getFleetTrend(cfg.hours, cfg.bucketMinutes)
     // Let Vercel's CDN serve repeat hits from the edge (s-maxage) so concurrent
-    // viewers collapse into ~one function call per 30s window. `max-age=0` keeps
-    // the browser revalidating; `stale-while-revalidate` hides refresh latency.
+    // viewers collapse into ~one function call per 5-min window — matching the
+    // cache TTL beneath it and the 10-min probe cadence that produces new rows.
+    // `max-age=0` keeps the browser revalidating; `stale-while-revalidate` hides
+    // refresh latency.
     return NextResponse.json(
       { range: RANGES[range] ? range : "12h", data },
-      { headers: { "Cache-Control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" } },
+      { headers: { "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=600" } },
     )
   } catch (err) {
     api.error("GET /api/fleet/trend failed", { error: (err as Error).message })

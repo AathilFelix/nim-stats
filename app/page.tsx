@@ -15,11 +15,14 @@ import { getDashboardModels, getFleetTrend } from "@/lib/dashboard-data";
 import { formatTimeAgo } from "@/components/dashboard/mock-data";
 
 // ISR — render once, then serve cached HTML from Vercel's CDN and revalidate in
-// the background every 30s. Under a traffic spike (e.g. an X post), visitors are
-// served from the edge instead of each waking a function, so Fluid Active CPU
-// stays flat regardless of pageviews. No freshness loss: the underlying data is
-// already ≤30s old via the unstable_cache layer, and AutoRefresh keeps tabs live.
-export const revalidate = 30;
+// the background. Under a traffic spike (e.g. an X post), visitors are served
+// from the edge instead of each waking a function, so Fluid Active CPU stays
+// flat regardless of pageviews.
+//
+// 300s = PAGE_REVALIDATE in lib/config/cadence.ts (half the 10-min probe
+// interval). Must stay a literal — Next only statically analyses route segment
+// config, so an imported constant is not read. Keep the two in sync.
+export const revalidate = 300;
 
 export default async function Home() {
   const [models, trend] = await Promise.all([getDashboardModels(), getFleetTrend()]);

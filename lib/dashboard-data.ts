@@ -7,6 +7,7 @@
 // …) — those are computed by `enrichModel`, then the real sample-derived
 // fields are layered back on top.
 import { unstable_cache } from "next/cache"
+import { FLEET_TTL } from "@/lib/config/cadence"
 import { prisma } from "@/lib/db/prisma"
 import { enrichModel } from "@/lib/operational-engine"
 import type { NIMModel, ModelStatus } from "@/components/dashboard/mock-data"
@@ -18,7 +19,10 @@ import type {
   SlaWindow,
 } from "@/lib/reliability-types"
 
-const RECENT_SAMPLES = 60
+// Sparkline depth per model. At the 10-min probe cadence 30 samples is ~5 h of
+// history, which is all the card sparklines render; 60 doubled the rows pulled
+// on every cache miss for detail no surface displays.
+const RECENT_SAMPLES = 30
 
 type SampleRow = {
   timestamp: Date
@@ -471,31 +475,39 @@ async function getQuotaStatsUncached(): Promise<QuotaStats> {
 // TTL is tuned to that surface's natural refresh cadence (the UI auto-refreshes
 // on a similar interval, so the staleness is never visible).
 //
+// TTLs are anchored to FLEET_TTL, which is half the probe interval (the Cloudflare
+// cron dispatches probe.yml every 10 min). Refreshing faster than the collector
+// writes cannot surface new data — it just re-runs the same query against the same
+// rows. The previous 30s TTL did exactly that: a single dashboard tab left open
+// drove ~2,880 cache misses/day, each pulling ~2k sample rows, which is what
+// consumed ~15 GB of Supabase egress against a 5 GB free-tier cap.
+//
 // Note: `unstable_cache` JSON-serialises results, so `Date` fields come back as
 // strings on a cache hit. The only such field is `NIMModel.lastChecked`; all
 // consumers coerce it with `new Date(...)`, so this is safe.
 export const getDashboardModels = unstable_cache(
   getDashboardModelsUncached,
   ["dashboard-models"],
-  { revalidate: 30, tags: ["fleet"] },
+  { revalidate: FLEET_TTL, tags: ["fleet"] },
 )
 export const getFleetTrend = unstable_cache(
   getFleetTrendUncached,
   ["fleet-trend"],
-  { revalidate: 30, tags: ["fleet"] },
+  { revalidate: FLEET_TTL, tags: ["fleet"] },
 )
+// 90-day rollup — the heaviest query here and the slowest-moving result.
 export const getReliabilityBreakdown = unstable_cache(
   getReliabilityBreakdownUncached,
   ["reliability-breakdown"],
-  { revalidate: 120, tags: ["fleet"] },
+  { revalidate: FLEET_TTL * 2, tags: ["fleet"] },
 )
 export const getAnomalyData = unstable_cache(
   getAnomalyDataUncached,
   ["anomaly-data"],
-  { revalidate: 60, tags: ["fleet"] },
+  { revalidate: FLEET_TTL, tags: ["fleet"] },
 )
 export const getQuotaStats = unstable_cache(
   getQuotaStatsUncached,
   ["quota-stats"],
-  { revalidate: 60, tags: ["fleet"] },
+  { revalidate: FLEET_TTL, tags: ["fleet"] },
 )

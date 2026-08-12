@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Gauge, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CLIENT_REFRESH_MS } from "@/lib/config/cadence";
 import type { QuotaStats } from "@/lib/dashboard-data";
 
 function useQuota() {
@@ -19,7 +20,7 @@ function useQuota() {
       } catch { /* silent */ }
     }
     void load();
-    const interval = setInterval(load, 60_000);
+    const interval = setInterval(load, CLIENT_REFRESH_MS);
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 

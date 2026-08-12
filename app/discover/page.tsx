@@ -12,9 +12,9 @@ import { AutoRefresh } from "@/components/dashboard/auto-refresh";
 import { getDashboardModels, getFleetTrend } from "@/lib/dashboard-data";
 import { formatTimeAgo } from "@/components/dashboard/mock-data";
 
-// ISR — serve from the CDN and revalidate every 30s instead of running a
+// ISR — serve from the CDN and revalidate every 5 min instead of running a
 // function per visit (see app/page.tsx for the full rationale).
-export const revalidate = 30;
+export const revalidate = 300;
 
 export default async function DiscoverPage() {
   const [models, trend] = await Promise.all([getDashboardModels(), getFleetTrend()]);
