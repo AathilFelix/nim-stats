@@ -26,14 +26,34 @@ import {
 import { prisma } from "@/lib/db/prisma"
 import { logger } from "@/lib/telemetry/logger"
 
-async function step(label: string, fn: () => Promise<unknown>): Promise<void> {
+/**
+ * Run one pipeline stage.
+ *
+ * `fatal: false` (the default) logs and continues — a flaky registry sync
+ * shouldn't skip the probe. `fatal: true` rethrows so the process exits non-zero
+ * and the Actions run goes red.
+ *
+ * Note that `fatal` alone is not sufficient to catch a systemic outage:
+ * `runProbeCycle` swallows every per-model error so one bad endpoint can't abort
+ * the sweep, so a dead database surfaces as "all models failed" rather than a
+ * throw. The zero-success guard in `main` is what actually catches that case.
+ * Both used to be logged and then reported as success, which is how a restricted
+ * database went unnoticed across weeks of green runs.
+ */
+async function step<T>(
+  label: string,
+  fn: () => Promise<T>,
+  { fatal = false }: { fatal?: boolean } = {},
+): Promise<T | undefined> {
   const start = Date.now()
   try {
-    await fn()
+    const result = await fn()
     logger.info(`${label} done`, { durationMs: Date.now() - start })
+    return result
   } catch (err) {
-    // Surface the failure but keep going — a flaky sync shouldn't skip the probe.
     logger.error(`${label} failed`, { error: (err as Error).message, durationMs: Date.now() - start })
+    if (fatal) throw err
+    return undefined
   }
 }
 
@@ -51,7 +71,25 @@ async function main(): Promise<void> {
   logger.info("probe-once starting", { sync: mustSync, maintenance: wantMaintenance, activeModels: active.length })
 
   if (mustSync) await step("registry sync", () => syncModelRegistry())
-  await step("probe cycle", () => runProbeCycle())
+
+  // Fatal: the probe cycle is the whole point of this job.
+  const cycle = await step("probe cycle", () => runProbeCycle(), { fatal: true })
+
+  // `runProbeCycle` catches every per-model error to keep one bad endpoint from
+  // aborting the sweep, so a systemic failure (dead database, bad credentials,
+  // exhausted quota) surfaces as "every model failed" rather than a throw. A
+  // cycle that probed a non-empty fleet and recorded nothing is therefore the
+  // only reliable signal that something is broken beneath us — fail on it.
+  //
+  // A total upstream outage trips this too, which is intended: either way this
+  // run collected no data and a green check would be a lie.
+  if (cycle && cycle.models > 0 && cycle.succeeded === 0) {
+    throw new Error(
+      `probe cycle recorded 0 successes across ${cycle.models} models — ` +
+        `treating as a systemic failure (database, credentials, or a full upstream outage)`,
+    )
+  }
+
   if (wantMaintenance) {
     await step("prune stale samples", () => pruneStaleSamples())
     await step("mark inactive models", () => markInactiveModels())
