@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     const data = await getReliabilityBreakdown(days)
     // Slow-moving (90-day window); cache hard at the edge. See trend route notes.
     return NextResponse.json(data, {
-      headers: { "Cache-Control": "public, max-age=0, s-maxage=120, stale-while-revalidate=600" },
+      headers: { "Cache-Control": "public, max-age=0, s-maxage=600, stale-while-revalidate=1200" },
     })
   } catch (err) {
     api.error("GET /api/fleet/reliability failed", { error: (err as Error).message })

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, TrendingDown, Clock, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CLIENT_REFRESH_MS } from "@/lib/config/cadence";
 import type { AnomalyResult } from "@/lib/dashboard-data";
 
 function useAnomalies() {
@@ -21,7 +22,7 @@ function useAnomalies() {
       }
     }
     void load();
-    const interval = setInterval(load, 60_000);
+    const interval = setInterval(load, CLIENT_REFRESH_MS);
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
