@@ -57,6 +57,24 @@ async function step<T>(
   }
 }
 
+// ── TEMPORARY: known Supabase free-tier egress restriction ───────────────────
+// Egress reached 15.3 GB against a 5 GB cap, so the org is under Supabase's Fair
+// Use restriction until the billing cycle resets on 22 Aug 2026. Direct Postgres
+// was still serving when this landed (the site and this job both work), but
+// Supabase can cut the pooler at any point in the window.
+//
+// While the window is open, failures are still logged at ERROR but the process
+// exits 0, so an outage we already know about doesn't produce ~1,400 red runs
+// across ten days. The guard re-arms by itself at the date below.
+//
+// DELETE THIS BLOCK after 22 Aug, once the egress graph confirms the cadence fix
+// held. Leaving it in place would silence the next real outage.
+const RESTRICTION_LIFTS_AT = new Date("2026-08-22T00:00:00Z")
+
+function underKnownRestriction(): boolean {
+  return Date.now() < RESTRICTION_LIFTS_AT.getTime()
+}
+
 async function main(): Promise<void> {
   assertEnv()
 
@@ -84,10 +102,14 @@ async function main(): Promise<void> {
   // A total upstream outage trips this too, which is intended: either way this
   // run collected no data and a green check would be a lie.
   if (cycle && cycle.models > 0 && cycle.succeeded === 0) {
-    throw new Error(
+    const detail =
       `probe cycle recorded 0 successes across ${cycle.models} models — ` +
-        `treating as a systemic failure (database, credentials, or a full upstream outage)`,
-    )
+      `treating as a systemic failure (database, credentials, or a full upstream outage)`
+    if (underKnownRestriction()) {
+      logger.error(`${detail} — NOT failing the run: known egress restriction until ${RESTRICTION_LIFTS_AT.toISOString()}`)
+    } else {
+      throw new Error(detail)
+    }
   }
 
   if (wantMaintenance) {
@@ -104,5 +126,9 @@ async function main(): Promise<void> {
 main().catch(async (err) => {
   logger.error("probe-once crashed", { error: (err as Error).message })
   try { await prisma.$disconnect() } catch { /* already down */ }
-  process.exit(1)
+  // Suppressing only the zero-success guard would not be enough to keep runs
+  // green: `getActiveModels()` runs before it and throws outright if Postgres is
+  // unreachable. During the known restriction window every exit path reports 0
+  // so the whole job stays green; the ERROR log above is still the record.
+  process.exit(underKnownRestriction() ? 0 : 1)
 })
