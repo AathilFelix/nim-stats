@@ -114,27 +114,43 @@ function toBaseModel(
 async function getDashboardModelsUncached(): Promise<NIMModel[]> {
   const rows = await prisma.nIModel.findMany({
     where: { isActive: true },
-    select: {
-      id: true,
-      name: true,
-      provider: true,
-      latest: true,
-      samples: {
-        orderBy: { timestamp: "desc" },
-        take: RECENT_SAMPLES,
-        select: {
-          timestamp: true,
-          ttftMs: true,
-          latencyMs: true,
-          throughput: true,
-          success: true,
-          timeout: true,
-          congestion: true,
-        },
-      },
-    },
+    select: { id: true, name: true, provider: true, latest: true },
     orderBy: { updatedAt: "desc" },
   })
+
+  // Recent samples per model.
+  //
+  // This deliberately does NOT use a nested `samples: { take: N }` relation.
+  // Prisma applies a to-many `take` in its query engine rather than in SQL: it
+  // issues `WHERE "modelId" IN (…)` with no limit, streams back EVERY matching
+  // row, and discards all but N per parent client-side. pg_stat_statements
+  // measured that at ~115,000 rows returned per call against a ~150k-row table —
+  // roughly 11 MB of egress to render 34 sparklines, and the single largest
+  // consumer of the Supabase egress budget by two orders of magnitude.
+  //
+  // The window function makes Postgres do the per-model limiting, so the wire
+  // carries ~RECENT_SAMPLES × models rows instead of the whole table. The time
+  // bound keeps the scan on the (modelId, timestamp) index; at the 10-min probe
+  // cadence 48 h is ~288 samples per model, well past RECENT_SAMPLES.
+  const sampleRows = await prisma.$queryRaw<Array<SampleRow & { modelId: string }>>`
+    SELECT "modelId", "timestamp", "ttftMs", "latencyMs", throughput, success, timeout, congestion
+    FROM (
+      SELECT s."modelId", s."timestamp", s."ttftMs", s."latencyMs",
+             s.throughput, s.success, s.timeout, s.congestion,
+             row_number() OVER (PARTITION BY s."modelId" ORDER BY s."timestamp" DESC) AS rn
+      FROM "ModelSample" s
+      WHERE s."timestamp" > now() - interval '48 hours'
+    ) ranked
+    WHERE rn <= ${RECENT_SAMPLES}
+    ORDER BY "modelId", "timestamp" DESC
+  `
+
+  const samplesByModel = new Map<string, SampleRow[]>()
+  for (const s of sampleRows) {
+    const list = samplesByModel.get(s.modelId)
+    if (list) list.push(s)
+    else samplesByModel.set(s.modelId, [s])
+  }
 
   // Real incidents (state transitions recorded by the probe runner), grouped per model.
   const since = new Date(Date.now() - 24 * 3_600_000)
@@ -160,14 +176,16 @@ async function getDashboardModelsUncached(): Promise<NIMModel[]> {
     // healthy | busy | jammed only.
     if (!latest || latest.state === "unknown") continue
 
+    const samples = samplesByModel.get(row.id) ?? []
+
     const base = toBaseModel(
       { id: row.id, name: row.name, provider: row.provider },
       latest.state as ModelStatus,
       latest.congestion ?? 0,
-      latest.ttftMs ?? avg(row.samples.map((s) => s.ttftMs ?? 0)),
+      latest.ttftMs ?? avg(samples.map((s) => s.ttftMs ?? 0)),
       latest.throughput ?? 0,
       latest.lastProbeAt,
-      row.samples,
+      samples,
     )
 
     // enrichModel computes session reliability, volatility, routing confidence,
