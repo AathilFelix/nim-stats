@@ -87,10 +87,13 @@ export async function syncModelRegistry(): Promise<{ added: number; updated: num
   // This backfills models that a transient 4xx retired before the strike-count
   // guard existed (the erosion behind prod's 26 vs dev's 47 endpoints).
   const seen = Array.from(seenIds)
-  const proven = await prisma.modelSample.findMany({
+  // `groupBy` rather than `findMany({ distinct })`: Prisma resolves `distinct`
+  // in its query engine, so that form streams back every successful sample row
+  // (pg_stat_statements measured ~90k rows per call) just to derive ~34 ids.
+  // `groupBy` compiles to a real SQL GROUP BY and returns one row per model.
+  const proven = await prisma.modelSample.groupBy({
+   by: ["modelId"],
    where: { success: true, modelId: { in: seen } },
-   distinct: ["modelId"],
-   select: { modelId: true },
   })
   const provenIds = proven.map((p) => p.modelId)
   const resurrected = await prisma.nIModel.updateMany({
