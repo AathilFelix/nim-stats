@@ -9,6 +9,8 @@
 // Steps (probe is always run; sync/maintenance are opt-in via flags):
 //   --sync         re-discover NIM endpoints before probing
 //   --maintenance  prune stale samples + retire dead models after probing
+//   --parole-all   with --sync: re-verify the ENTIRE retired backlog in one run
+//                  instead of the usual bounded batch (manual catch-up only)
 // With no flags it just probes. If the registry is empty (cold start) it syncs
 // first regardless, so the very first run self-bootstraps.
 //
@@ -80,15 +82,19 @@ async function main(): Promise<void> {
 
   const wantSync = process.argv.includes("--sync")
   const wantMaintenance = process.argv.includes("--maintenance")
+  // Catch-up switch: parole every retired-but-still-catalogued endpoint at once
+  // rather than PAROLE_BATCH per sync. Drains a large backlog in a single cycle;
+  // dead endpoints retire themselves again within RETIRE_STRIKES probes.
+  const paroleAll = process.argv.includes("--parole-all")
 
   // Cold-start guard: if nothing has ever been discovered, sync no matter what
   // so the first scheduled run produces data instead of probing an empty fleet.
   const active = await getActiveModels()
   const mustSync = wantSync || active.length === 0
 
-  logger.info("probe-once starting", { sync: mustSync, maintenance: wantMaintenance, activeModels: active.length })
+  logger.info("probe-once starting", { sync: mustSync, maintenance: wantMaintenance, paroleAll, activeModels: active.length })
 
-  if (mustSync) await step("registry sync", () => syncModelRegistry())
+  if (mustSync) await step("registry sync", () => syncModelRegistry({ paroleAll }))
 
   // Fatal: the probe cycle is the whole point of this job.
   const cycle = await step("probe cycle", () => runProbeCycle(), { fatal: true })

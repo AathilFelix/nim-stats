@@ -28,7 +28,11 @@ concurrency:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Headroom for a growing fleet: at PROBE_MAX_RPM=30 the cycle costs ~2s per
+    # active endpoint, so the full ~80-model catalog is ~3 min on top of ~1 min
+    # of setup. Registry parole (see maintenance.yml) can push the fleet toward
+    # that ceiling, and 5 min left no margin.
+    timeout-minutes: 8
     env:
       NIM_API_KEY: ${{ secrets.NIM_API_KEY }}
       NIM_API_URL: ${{ secrets.NIM_API_URL }}
