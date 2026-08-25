@@ -2,6 +2,9 @@ name: maintenance
 
 # Daily housekeeping: re-discover the NIM model registry (--sync) and prune
 # samples past the retention window + retire dead endpoints (--maintenance).
+# --sync also paroles a bounded batch of retired endpoints for re-verification,
+# so a transient 4xx can't keep a working model off the dashboard permanently.
+# Run this workflow manually with `parole_all` to drain the whole backlog at once.
 # Pruning is what keeps the database inside Supabase's free 0.5 GB tier; without
 # it ModelSample grows unbounded.
 #
@@ -17,6 +20,11 @@ on:
         description: "What triggered this run (set by the dispatcher)"
         required: false
         default: "manual"
+      parole_all:
+        description: "Re-verify the ENTIRE retired-model backlog in one run (instead of the usual bounded batch)"
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: probe # share the probe lock so maintenance never overlaps a probe cycle
@@ -38,4 +46,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - run: npm run probe:once:ci -- --sync --maintenance
+      - run: npm run probe:once:ci -- --sync --maintenance ${{ github.event.inputs.parole_all == 'true' && '--parole-all' || '' }}
