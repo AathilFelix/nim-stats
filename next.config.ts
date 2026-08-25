@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 
+// Relative path, not the `@/*` alias: next.config.ts is transpiled and run
+// outside the app's module graph, where that alias does not resolve.
+import { renderLinkHeader } from "./lib/agent/link-header";
+
 // Baseline security response headers applied to every route. HSTS is already set
 // by the platform (Vercel/Cloudflare); these add the cheap, no-breakage wins.
 // A full Content-Security-Policy is intentionally left out for now — it would
@@ -35,6 +39,13 @@ const nextConfig: NextConfig = {
           // Vary is a union of its values, so declaring it more than once is
           // harmless.
           { key: "Vary", value: "Accept" },
+          // RFC 8288 discovery links: the API catalog, the OpenAPI document,
+          // the docs, the health endpoint and the agent-facing text files.
+          // Declared here rather than in proxy.ts so they also reach the routes
+          // the proxy deliberately skips (/api/*, /.well-known/*, llms.txt).
+          // The per-page `rel="alternate"` Markdown link is appended by the
+          // proxy instead, since it depends on the request path.
+          { key: "Link", value: renderLinkHeader() },
         ],
       },
     ];
