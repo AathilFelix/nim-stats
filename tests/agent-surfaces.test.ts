@@ -47,7 +47,18 @@ describe("llms.txt", () => {
   it("uses absolute URLs everywhere — an agent may have fetched this out of band", () => {
     const hrefs = [...txt.matchAll(/\]\(([^)]+)\)/g)].map((m) => m[1])
     expect(hrefs.length).toBeGreaterThan(5)
-    for (const href of hrefs) expect(href.startsWith(SITE_URL)).toBe(true)
+    // Own pages must be canonical; the only off-site links allowed are the
+    // source repository, which llms.txt points at for implementation detail.
+    for (const href of hrefs) {
+      expect(href.startsWith(SITE_URL) || href.startsWith("https://github.com/")).toBe(true)
+    }
+  })
+
+  it("lists the API surface by name so it is discoverable from here", () => {
+    expect(txt).toContain("## API")
+    expect(txt).toContain(absoluteUrl("/openapi.json"))
+    expect(txt).toContain(absoluteUrl("/api"))
+    for (const op of ["getHealth", "getFleetTrend", "getFleetReliability"]) expect(txt).toContain(op)
   })
 })
 
@@ -84,9 +95,11 @@ describe("sitemap.xml", () => {
     expect(new Set(entries.map((e) => e.url)).size).toBe(entries.length)
   })
 
-  it("includes the trust-anchor pages", () => {
+  it("includes the trust-anchor pages and the API reference", () => {
     const urls = entries.map((e) => e.url)
-    for (const path of ["/about", "/contact", "/privacy"]) expect(urls).toContain(absoluteUrl(path))
+    for (const path of ["/about", "/contact", "/privacy", "/api"]) {
+      expect(urls).toContain(absoluteUrl(path))
+    }
   })
 
   it("carries lastmod, changefreq and a valid priority on every entry", () => {

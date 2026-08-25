@@ -74,7 +74,7 @@ export default async function Home() {
             <div>
               <div className="mb-2 flex items-center gap-2">
                 <span className="status-led status-led--healthy" style={{ width: 6, height: 6 }} aria-hidden="true" />
-                <span className="label-sm text-text-tertiary">Command Center</span>
+                <span className="label-sm text-text-tertiary">NIM Stats · Command Center</span>
               </div>
               <h1 className="heading-xl text-text-primary">Fleet Overview</h1>
               <p className="mt-1.5 max-w-xl body-sm text-text-secondary">
@@ -160,6 +160,7 @@ export default async function Home() {
                 treating a source as legitimate, and nothing linked to them. */}
             <nav aria-label="Site information" className="flex items-center gap-x-4">
               <FooterLink href="/status" label="Status" />
+              <FooterLink href="/api" label="API" />
               <FooterLink href="/about" label="About" />
               <FooterLink href="/contact" label="Contact" />
               <FooterLink href="/privacy" label="Privacy" />

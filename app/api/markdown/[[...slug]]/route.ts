@@ -1,11 +1,15 @@
+import { buildOpenApiDocument } from "@/lib/api/openapi"
+import { buildApiReference } from "@/lib/api/reference"
 import { findStaticPage } from "@/lib/content/pages"
 import { getFleetSnapshot } from "@/lib/markdown/fleet-snapshot"
 import {
+  renderApiReferenceMarkdown,
   renderDiscoverMarkdown,
   renderHomeMarkdown,
   renderNotFoundMarkdown,
   renderStatusMarkdown,
   renderStaticPageMarkdown,
+  resolveMarkdownPath,
 } from "@/lib/markdown/site-markdown"
 
 // The Markdown representation of every public page. Never linked from the HTML
@@ -35,7 +39,11 @@ export async function GET(
   { params }: { params: Promise<{ slug?: string[] }> },
 ) {
   const { slug = [] } = await params
-  const pathname = slug.length === 0 ? "/" : `/${slug.join("/")}`
+  const pathname = resolveMarkdownPath(slug)
+
+  if (pathname === "/api") {
+    return markdown(renderApiReferenceMarkdown(buildApiReference(buildOpenApiDocument())))
+  }
 
   const staticPage = findStaticPage(pathname)
   if (staticPage) return markdown(renderStaticPageMarkdown(staticPage))

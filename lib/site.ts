@@ -38,13 +38,16 @@ export const SAME_AS = [
 // PostalAddress. Add both here when a support address is available — the
 // contact page, the Markdown surface, and the JSON-LD all read from this file.
 export const CONTACT_EMAIL: string | null = null
-export const CONTACT_ISSUES_URL = "https://github.com/AathilFelix/nim-stats/issues"
+export const REPO_URL = "https://github.com/AathilFelix/nim-stats"
+export const README_URL = `${REPO_URL}#readme`
+export const CONTACT_ISSUES_URL = `${REPO_URL}/issues`
 
 /** Routes that are indexable, listed in the sitemap, and served as Markdown. */
 export const PUBLIC_ROUTES = [
   { path: "/", title: "Fleet Overview", changeFrequency: "hourly", priority: 1.0 },
   { path: "/discover", title: "Discover", changeFrequency: "hourly", priority: 0.9 },
   { path: "/status", title: "Public Status", changeFrequency: "hourly", priority: 0.9 },
+  { path: "/api", title: "API Reference", changeFrequency: "monthly", priority: 0.7 },
   { path: "/about", title: "About", changeFrequency: "monthly", priority: 0.6 },
   { path: "/contact", title: "Contact", changeFrequency: "monthly", priority: 0.5 },
   { path: "/privacy", title: "Privacy", changeFrequency: "yearly", priority: 0.4 },
