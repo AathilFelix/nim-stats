@@ -24,6 +24,7 @@ import {
   getActiveModels,
   pruneStaleSamples,
   markInactiveModels,
+  fleetChanged,
 } from "@/lib/telemetry/jobs"
 import { prisma } from "@/lib/db/prisma"
 import { logger } from "@/lib/telemetry/logger"
@@ -59,6 +60,36 @@ async function step<T>(
   }
 }
 
+/**
+ * Drop the site's cached fleet reads after the registry changed shape.
+ *
+ * The dashboard's cache TTLs assume the fleet is a fixed set whose numbers move
+ * every 10 minutes. When a sync adds, retires, paroles or resurrects an
+ * endpoint that assumption breaks: the model table (page ISR) and the SLA /
+ * latency panels (a separately cached JSON route) refresh on different clocks,
+ * so the site renders two different fleet sizes side by side until the slowest
+ * cache expires. One request at the moment of change keeps them consistent.
+ *
+ * Best-effort and opt-in: without REVALIDATE_URL this is skipped entirely and
+ * everything still converges on its normal TTL. A failure here must never fail
+ * the collector — the samples are already written by then.
+ */
+async function revalidateSiteCaches(): Promise<void> {
+  const base = process.env.REVALIDATE_URL
+  if (!base) {
+    logger.info("skipping cache revalidation", { reason: "REVALIDATE_URL not set" })
+    return
+  }
+  const res = await fetch(`${base.replace(/\/$/, "")}/api/internal/revalidate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.INTERNAL_API_TOKEN ?? ""}` },
+    signal: AbortSignal.timeout(10_000),
+  })
+  // The guard answers 404 (not 401) when the token is wrong, so surface the
+  // status rather than assuming the route is missing.
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+}
+
 async function main(): Promise<void> {
   assertEnv()
 
@@ -76,7 +107,9 @@ async function main(): Promise<void> {
 
   logger.info("probe-once starting", { sync: mustSync, maintenance: wantMaintenance, paroleAll, activeModels: active.length })
 
-  if (mustSync) await step("registry sync", () => syncModelRegistry({ paroleAll }))
+  const sync = mustSync
+    ? await step("registry sync", () => syncModelRegistry({ paroleAll }))
+    : undefined
 
   // Fatal: the probe cycle is the whole point of this job.
   const cycle = await step("probe cycle", () => runProbeCycle(), { fatal: true })
@@ -99,6 +132,13 @@ async function main(): Promise<void> {
   if (wantMaintenance) {
     await step("prune stale samples", () => pruneStaleSamples())
     await step("mark inactive models", () => markInactiveModels())
+  }
+
+  // After the probe cycle, so the newly-active endpoints already have a sample
+  // to show rather than an empty row on the first render post-invalidation.
+  if (sync && fleetChanged(sync)) {
+    logger.info("fleet composition changed, revalidating site caches", { ...sync })
+    await step("revalidate site caches", () => revalidateSiteCaches())
   }
 
   await prisma.$disconnect()

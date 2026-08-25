@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { FLEET_CACHE_CONTROL } from "@/lib/config/cadence"
 import { getFleetTrend } from "@/lib/dashboard-data"
 import { api } from "@/lib/telemetry/logger"
 
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
     // refresh latency.
     return NextResponse.json(
       { range: RANGES[range] ? range : "12h", data },
-      { headers: { "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=600" } },
+      { headers: { "Cache-Control": FLEET_CACHE_CONTROL } },
     )
   } catch (err) {
     api.error("GET /api/fleet/trend failed", { error: (err as Error).message })
