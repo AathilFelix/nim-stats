@@ -18,7 +18,26 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          ...securityHeaders,
+          // Every page has two representations (HTML and Markdown), selected
+          // from the Accept header in proxy.ts, so caches must key on it.
+          //
+          // Declared in three places on purpose, because no single one covers
+          // every response: the Markdown route handler sets it on its own
+          // response; this entry covers routes Next serves without clobbering
+          // it; and vercel.json sets it in the CDN layer, outside the render —
+          // which is the one that survives on a prerendered page, since Next's
+          // Node server overwrites Vary when it appends its own RSC vary.
+          // Vary is a union of its values, so declaring it more than once is
+          // harmless.
+          { key: "Vary", value: "Accept" },
+        ],
+      },
+    ];
   },
 };
 

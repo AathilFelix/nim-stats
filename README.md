@@ -6,7 +6,7 @@
 
 Probes every available endpoint continuously and surfaces throughput, latency, uptime, and congestion — so you can pick a model that actually works right now, without trial and error.
 
-[**Live demo → nim-stats.vercel.app**](https://nim-stats.vercel.app)
+[**Live → nimstats.aathil.com**](https://nimstats.aathil.com)
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-000?logo=next.js)
 ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
@@ -27,7 +27,7 @@ NIM Stats is a public operational dashboard for the free [NVIDIA NIM](https://bu
 - **Trends & history** — fleet performance chart (12h / 24h / 7d), per-model uptime calendar, time-of-day latency heatmap, and SLA windows (1d / 7d / 30d).
 - **Incident feed** — state transitions (degradation, congestion, recovery) recorded as the worker observes them.
 - **Explore the fleet** — search, provider/status filters, favorites/watchlist, saved filter presets, shareable URL state, and CSV export.
-- **Public status page** at [`/status`](https://nim-stats.vercel.app/status) — a read-only, at-a-glance health summary.
+- **Public status page** at [`/status`](https://nimstats.aathil.com/status) — a read-only, at-a-glance health summary.
 - **Anomaly & quota detection** — TTFT spikes and reliability drops vs. a 7-day baseline, plus rate-limit proximity, exposed via internal APIs.
 
 ## How it works
@@ -98,6 +98,7 @@ Open [http://localhost:3000](http://localhost:3000). Data appears within a minut
 | `npm run worker` | Run the always-on collector (local dev) |
 | `npm run probe:once` | Run a single probe cycle and exit (used by CI) |
 | `npm run lint` | Lint with `eslint-config-next` |
+| `npm test` | Run the unit tests (Vitest) |
 
 ## Configuration
 
@@ -123,6 +124,34 @@ Public (no auth):
 | `GET /api/health` | Liveness + last probe time |
 
 Internal (require `INTERNAL_API_TOKEN` in production): `/api/fleet/anomalies`, `/api/fleet/quota`, `/api/fleet/overview`, `/api/models`, `/api/models/[id]`, `/api/providers`.
+
+## For AI agents
+
+Every public page has two representations at the same URL. Browsers get HTML; a
+client that sends `Accept: text/markdown` gets clean Markdown of the same
+content, and responses carry `Vary: Accept` so caches keep the two apart.
+Appending `.md` to a path (`/discover.md`) forces Markdown without a header, and
+a request that accepts neither representation gets a `406`. Negotiation lives in
+[`proxy.ts`](proxy.ts); the Markdown is rendered by
+[`app/api/markdown`](app/api/markdown) from the same data the dashboard uses, so
+the two can never disagree.
+
+| File | Purpose |
+|---|---|
+| [`/llms.txt`](https://nimstats.aathil.com/llms.txt) | What the site covers and when an agent should reach for it |
+| [`/agent-instructions.md`](https://nimstats.aathil.com/agent-instructions.md) | Task-by-task guidance, request examples, and how to cite |
+| [`/sitemap.xml`](https://nimstats.aathil.com/sitemap.xml) | Every indexable URL with `lastmod` |
+| [`/robots.txt`](https://nimstats.aathil.com/robots.txt) | Crawl policy — everything public is open |
+
+```bash
+curl -s -H "Accept: text/markdown" https://nimstats.aathil.com/
+```
+
+Verify negotiation after a deploy:
+
+```bash
+curl -sI -H "Accept: text/markdown" https://nimstats.aathil.com/ | grep -iE "content-type|vary"
+```
 
 ## Deployment
 

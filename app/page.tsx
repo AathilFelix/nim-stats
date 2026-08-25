@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { NavBar } from "@/components/navigation/nav-bar";
 import { BuiltBy } from "@/components/site/built-by";
+import { HomeExplainer } from "@/components/site/home-explainer";
 import { AutoRefresh } from "@/components/dashboard/auto-refresh";
 import { FleetSummary } from "@/components/dashboard/fleet-summary";
 import { FleetTrendChart } from "@/components/dashboard/fleet-trend-chart";
@@ -136,6 +138,8 @@ export default async function Home() {
                 <LatencyHeatmap />
               </div>
             </section>
+
+            <HomeExplainer />
           </div>
         </div>
       </main>
@@ -151,13 +155,32 @@ export default async function Home() {
               Live status of free NVIDIA NIM endpoints. Not affiliated with NVIDIA.
             </p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+            {/* Crawl path to the trust-anchor pages — agents check these before
+                treating a source as legitimate, and nothing linked to them. */}
+            <nav aria-label="Site information" className="flex items-center gap-x-4">
+              <FooterLink href="/status" label="Status" />
+              <FooterLink href="/about" label="About" />
+              <FooterLink href="/contact" label="Contact" />
+              <FooterLink href="/privacy" label="Privacy" />
+            </nav>
             <BuiltBy />
             <p className="metric-xs text-text-quaternary hidden sm:block">Auto-refresh · 30s</p>
           </div>
         </div>
       </footer>
     </div>
+  );
+}
+
+function FooterLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="label-xs text-text-tertiary underline-offset-2 transition-colors hover:text-text-secondary hover:underline"
+    >
+      {label}
+    </Link>
   );
 }
 

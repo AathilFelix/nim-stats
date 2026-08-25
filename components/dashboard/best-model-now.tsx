@@ -28,7 +28,10 @@ function Metric({ label, value }: MetricProps) {
 
 export function BestModelNow({ recommendation }: Props) {
   const m = recommendation?.model;
-  if (!m) {
+  // `findBestModel` signals "nothing qualified" with an empty object, not null —
+  // truthy, so it used to fall through and render undefined metrics (crashing on
+  // `humanize(undefined)`). Treat an empty model as no recommendation.
+  if (!m || Object.keys(m).length === 0) {
     return (
       <section className="ops-card p-5">
         <p className="body-sm text-text-tertiary">

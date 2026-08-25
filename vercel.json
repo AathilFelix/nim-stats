@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "headers": [
+    {
+      "source": "/((?!_next/static|_next/image).*)",
+      "headers": [{ "key": "Vary", "value": "Accept" }]
+    }
+  ]
+}
