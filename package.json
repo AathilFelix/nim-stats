@@ -12,7 +12,9 @@
     "db:check": "tsx --env-file=.env scripts/test-prisma.ts",
     "worker": "tsx --env-file=.env scripts/worker.ts",
     "probe:once": "tsx --env-file=.env scripts/probe-once.ts",
-    "probe:once:ci": "tsx scripts/probe-once.ts"
+    "probe:once:ci": "tsx scripts/probe-once.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
@@ -46,6 +48,7 @@
     "eslint-config-next": "16.2.7",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

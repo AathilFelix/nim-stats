@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, JetBrains_Mono as JetBrainsMono } from "next/font/google";
+import { JsonLd } from "@/components/site/json-ld";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeScript } from "@/components/theme/theme-script";
+import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 // Geist — Vercel's technical grotesque, for all UI text. Instrument-grade,
@@ -27,10 +29,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-const SITE_URL = "https://nimstats.aathil.com";
-const TITLE = "NIM Stats — Free NVIDIA NIM Endpoint Status";
-const DESCRIPTION =
-  "Real-time status and reliability metrics for free NVIDIA NIM API endpoints. Track throughput, latency, uptime, and congestion across Llama, Mistral, Gemma, Phi, Qwen, DeepSeek, and more models.";
+// Identity facts live in lib/site.ts — the sitemap, robots.txt, llms.txt, the
+// JSON-LD graph and the Markdown representations all read from the same place.
+const TITLE = SITE_TITLE;
+const DESCRIPTION = SITE_DESCRIPTION;
 
 // metadataBase makes the generated opengraph-image / twitter-image URLs absolute,
 // which social crawlers require. The og:image and twitter:image tags themselves
@@ -44,7 +46,12 @@ export const metadata: Metadata = {
     "NVIDIA NIM", "LLM status", "API uptime", "inference latency", "TTFT",
     "throughput", "model reliability", "Llama", "Mistral", "Gemma", "Qwen", "DeepSeek",
   ],
-  alternates: { canonical: "/" },
+  alternates: {
+    canonical: "/",
+    // Advertise the Markdown representation of this URL. A crawler that can't
+    // content-negotiate can still follow the `.md` alias.
+    types: { "text/markdown": [{ url: "/.md", title: TITLE }] },
+  },
   robots: { index: true, follow: true },
   openGraph: {
     type: "website",
@@ -75,6 +82,7 @@ export default function RootLayout({
       <body className="ops-grid min-h-full flex flex-col font-sans antialiased">
         {/* Dark-first, no flash: apply the persisted theme before first paint. */}
         <ThemeScript />
+        <JsonLd />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

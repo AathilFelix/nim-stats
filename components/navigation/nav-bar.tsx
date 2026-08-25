@@ -17,7 +17,6 @@ interface NavBarProps {
  */
 export function NavBar({ className }: NavBarProps) {
   const pathname = usePathname();
-  const isDiscover = pathname === "/discover";
 
   return (
     <header
@@ -54,8 +53,10 @@ export function NavBar({ className }: NavBarProps) {
         {/* Primary nav + instruments */}
         <div className="flex items-center gap-2 sm:gap-3">
           <nav className="flex items-center gap-1" aria-label="Primary navigation">
-            <NavLink href="/" label="COMMAND" active={!isDiscover} />
-            <NavLink href="/discover" label="DISCOVER" active={isDiscover} />
+            {/* Exact match: the shell is shared by /about, /contact, /privacy and
+                the 404 too, and none of those is the command view. */}
+            <NavLink href="/" label="COMMAND" active={pathname === "/"} />
+            <NavLink href="/discover" label="DISCOVER" active={pathname === "/discover"} />
           </nav>
 
           <span className="hidden h-4 w-px bg-border-base md:block" aria-hidden="true" />
