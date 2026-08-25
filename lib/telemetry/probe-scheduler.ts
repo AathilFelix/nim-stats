@@ -31,6 +31,11 @@ class RateLimiter {
  * Probe every active model once, capped at `maxRpm` outbound requests/min and
  * `concurrency` in-flight at a time. At 30 rpm a ~56-model fleet takes ~2 min;
  * node-cron `noOverlap` keeps cycles back-to-back without bursting.
+ *
+ * `succeeded` counts endpoints that actually returned a chat completion.
+ * Everything else — HTTP errors, timeouts, network faults, retirements — is
+ * `failed`, so `succeeded + failed === models` and a zero means the cycle
+ * genuinely collected nothing.
  */
 export async function runProbeCycle(
   maxRpm: number = env.PROBE_MAX_RPM,
@@ -63,7 +68,13 @@ export async function runProbeCycle(
       const m = models[i]
       try {
         const result = await runProbe({ modelId: m.id, modelName: m.name })
-        if (result) succeeded++
+        // `runProbe` returns null for a network error or a retirement, but a
+        // non-retiring HTTP failure comes back as a populated result with
+        // success:false. Counting "not null" as a success made an all-4xx cycle
+        // report 69/78 healthy when only 29 endpoints actually answered — and
+        // left probe-once's zero-success outage guard unable to ever fire,
+        // since 4xx responses kept the counter off zero.
+        if (result?.success) succeeded++
         else failed++
       } catch {
         failed++
