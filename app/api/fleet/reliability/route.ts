@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { FLEET_CACHE_CONTROL } from "@/lib/config/cadence"
 import { getReliabilityBreakdown } from "@/lib/dashboard-data"
 import { api } from "@/lib/telemetry/logger"
 
@@ -17,9 +18,14 @@ export async function GET(req: Request) {
     const requested = Number.parseInt(url.searchParams.get("days") ?? "90", 10)
     const days = ALLOWED_DAYS.has(requested) ? requested : 90
     const data = await getReliabilityBreakdown(days)
-    // Slow-moving (90-day window); cache hard at the edge. See trend route notes.
+    // The 90-day aggregate is slow-moving, so the expensive part stays cached
+    // server-side (see getReliabilityBreakdown's TTL). The edge window is the
+    // shared FLEET_TTL instead of double it: the fleet's *composition* changes
+    // the moment the registry paroles or retires an endpoint, and an edge entry
+    // outliving the page's own ISR window is what left the SLA and latency
+    // panels rendering a 34-model fleet next to a 78-model table.
     return NextResponse.json(data, {
-      headers: { "Cache-Control": "public, max-age=0, s-maxage=600, stale-while-revalidate=1200" },
+      headers: { "Cache-Control": FLEET_CACHE_CONTROL },
     })
   } catch (err) {
     api.error("GET /api/fleet/reliability failed", { error: (err as Error).message })

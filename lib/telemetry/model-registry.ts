@@ -93,12 +93,25 @@ async function paroleRetiredModels(catalogIds: string[], all = false): Promise<n
  return count
 }
 
+export interface SyncResult {
+ added: number
+ updated: number
+ deactivated: number
+ resurrected: number
+ paroled: number
+}
+
+/** Did this sync change WHICH models the fleet contains (not just their fields)? */
+export function fleetChanged(r: SyncResult): boolean {
+ return r.added + r.deactivated + r.resurrected + r.paroled > 0
+}
+
 export async function syncModelRegistry(
  { paroleAll = false }: { paroleAll?: boolean } = {},
-): Promise<{ added: number; updated: number; deactivated: number }> {
+): Promise<SyncResult> {
  try {
   const { data } = await fetchModels()
-  if (!data?.length) return { added: 0, updated: 0, deactivated: 0 }
+  if (!data?.length) return { added: 0, updated: 0, deactivated: 0, resurrected: 0, paroled: 0 }
 
   let added = 0
   let updated = 0
@@ -160,7 +173,7 @@ export async function syncModelRegistry(
   const paroled = await paroleRetiredModels(seen, paroleAll)
 
   logger.info("model-registry synced", { added, updated, deactivated: deactivated.count, resurrected: resurrected.count, paroled })
-  return { added, updated, deactivated: deactivated.count }
+  return { added, updated, deactivated: deactivated.count, resurrected: resurrected.count, paroled }
  } catch (err) {
   logger.error("model-registry sync failed", { error: (err as Error).message })
   throw err

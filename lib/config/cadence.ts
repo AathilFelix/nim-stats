@@ -24,3 +24,19 @@ export const PAGE_REVALIDATE = FLEET_TTL
 
 /** Client poll/auto-refresh interval, in ms. Same cadence, expressed for setInterval. */
 export const CLIENT_REFRESH_MS = FLEET_TTL * 1000
+
+/**
+ * `Cache-Control` for the public fleet JSON routes.
+ *
+ * These are hand-set CDN headers, NOT the Next.js route cache — `revalidateTag`
+ * cannot purge them, so whatever sits here is a hard floor on how stale a panel
+ * can be. Anchor it to FLEET_TTL (and the page ISR window) so a client polling
+ * at CLIENT_REFRESH_MS is never held behind a longer edge entry: reliability
+ * used to run s-maxage=600 on top of a 600s server cache, stacking into ~20
+ * minutes of lag on a fleet that had already changed.
+ *
+ * `stale-while-revalidate` is 2x so a miss is served instantly from the edge
+ * while the origin recomputes in the background.
+ */
+export const FLEET_CACHE_CONTROL =
+  `public, max-age=0, s-maxage=${FLEET_TTL}, stale-while-revalidate=${FLEET_TTL * 2}`
