@@ -28,6 +28,24 @@ describe("HTML branch", () => {
   it("treats a missing Accept header as HTML", () => {
     expect(rewriteTarget(proxy(request("/")))).toBeNull()
   })
+
+  it("carries the discovery links plus this page's Markdown twin", () => {
+    const res = proxy(request("/", { accept: "text/html" }))
+    const header = res.headers.get("Link") ?? ""
+    // Set here rather than left to next.config.ts: React's own preload Link
+    // header replaces the config's on an HTML render.
+    expect(header).toContain('</.well-known/api-catalog>; rel="api-catalog"')
+    expect(header).toContain('</openapi.json>; rel="service-desc"')
+  })
+
+  it("advertises this page's Markdown twin with a Link header", () => {
+    const home = proxy(request("/", { accept: "text/html" }))
+    expect(home.headers.get("Link")).toContain('</.md>; rel="alternate"')
+
+    const about = proxy(request("/about", { accept: "text/html" }))
+    expect(about.headers.get("Link")).toContain('</about.md>; rel="alternate"')
+    expect(about.headers.get("Link")).toContain('type="text/markdown"')
+  })
 })
 
 describe("Markdown branch", () => {
@@ -35,6 +53,7 @@ describe("Markdown branch", () => {
     const res = proxy(request("/", { accept: "text/markdown" }))
     expect(rewriteTarget(res)).toBe("/api/markdown")
     expect(res.headers.get("Vary")).toBe("Accept")
+    expect(res.headers.get("Link")).toContain('rel="api-catalog"')
   })
 
   it("rewrites a nested path", () => {
@@ -67,6 +86,8 @@ describe("bypasses", () => {
     "/opengraph-image",
     "/twitter-image",
     "/agent-instructions.md",
+    "/.well-known/api-catalog",
+    "/.well-known/ai-catalog.json",
     "/favicon.ico",
     "/globe.svg",
   ])("leaves %s untouched even with a hostile Accept", (path) => {

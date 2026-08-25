@@ -151,7 +151,17 @@ the two can never disagree.
 | [`/api`](https://nimstats.aathil.com/api) | Human-readable API reference, rendered from that spec |
 | [`/agent-instructions.md`](https://nimstats.aathil.com/agent-instructions.md) | Task-by-task guidance, request examples, and how to cite |
 | [`/sitemap.xml`](https://nimstats.aathil.com/sitemap.xml) | Every indexable URL with `lastmod` |
-| [`/robots.txt`](https://nimstats.aathil.com/robots.txt) | Crawl policy — everything public is open |
+| [`/robots.txt`](https://nimstats.aathil.com/robots.txt) | Crawl policy plus Content Signals — search and live AI grounding yes, model training no |
+| [`/.well-known/api-catalog`](https://nimstats.aathil.com/.well-known/api-catalog) | RFC 9727 linkset: the spec, the docs, and the health endpoint, from one registered entry point |
+| [`/.well-known/ai-catalog.json`](https://nimstats.aathil.com/.well-known/ai-catalog.json) | ARD capability manifest — one entry per surface, with the questions it answers |
+
+Every response also carries an [RFC 8288](https://www.rfc-editor.org/rfc/rfc8288)
+`Link` header pointing at the same set, so an agent finds them without probing
+paths (`rel="api-catalog"`, `service-desc`, `service-doc`, `status`,
+`describedby`, `help`), plus `rel="alternate"` for the page's own Markdown twin.
+In a browser that supports [WebMCP](https://webmachinelearning.github.io/webmcp/),
+the page registers read-only tools over those same surfaces
+([`components/agent/webmcp.tsx`](components/agent/webmcp.tsx)).
 
 ```bash
 curl -s -H "Accept: text/markdown" https://nimstats.aathil.com/
@@ -161,6 +171,12 @@ Verify negotiation after a deploy:
 
 ```bash
 curl -sI -H "Accept: text/markdown" https://nimstats.aathil.com/ | grep -iE "content-type|vary"
+```
+
+Verify agent discovery after a deploy:
+
+```bash
+curl -sI https://nimstats.aathil.com/ | grep -i "^link"
 ```
 
 ## Deployment

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+import { renderPageLinkHeader } from "@/lib/agent/link-header"
 import { appendVaryAccept, preferredType } from "@/lib/http/accept"
 
 // Markdown content negotiation (https://acceptmarkdown.com).
@@ -29,6 +30,10 @@ import { appendVaryAccept, preferredType } from "@/lib/http/accept"
  */
 const RESERVED_PREFIXES = [
   "/api/",
+  // Discovery documents own their media types (application/linkset+json,
+  // application/json). Negotiating them would answer an agent that asked for
+  // exactly the right type with a 406.
+  "/.well-known/",
   "/_next/",
   "/_vercel/",
   "/opengraph-image",
@@ -63,6 +68,7 @@ function markdownRewrite(req: NextRequest, pathname: string): NextResponse {
   url.pathname = `/api/markdown${pathname === "/" ? "" : pathname}`
   const rewritten = NextResponse.rewrite(url)
   appendVaryAccept(rewritten.headers)
+  rewritten.headers.append("Link", renderPageLinkHeader(pathname))
   return rewritten
 }
 
@@ -112,6 +118,13 @@ export function proxy(req: NextRequest) {
   // costs nothing (Vary is a union) and neither alone covers every route type.
   const res = NextResponse.next()
   appendVaryAccept(res.headers)
+  // Discovery links (RFC 8288) plus this page's Markdown twin. next.config.ts
+  // declares the same discovery set for every route, which is what covers the
+  // paths the proxy skips; on a page render, though, React's own preload `Link`
+  // header replaces the config's, so the copy that survives is the one set
+  // here. RFC 8288 defines Link as a list, so more than one field line — or a
+  // repeated link — is well-formed.
+  res.headers.append("Link", renderPageLinkHeader(pathname))
   return res
 }
 
@@ -119,6 +132,6 @@ export const config = {
   // Everything except API routes, Next internals, and root-level metadata files
   // that already have a fixed content type.
   matcher: [
-    "/((?!api/|_next/|_vercel/|favicon\\.ico|robots\\.txt|sitemap\\.xml|llms\\.txt|agent-instructions\\.md|opengraph-image|twitter-image).*)",
+    "/((?!api/|_next/|_vercel/|\\.well-known/|favicon\\.ico|robots\\.txt|sitemap\\.xml|llms\\.txt|agent-instructions\\.md|opengraph-image|twitter-image).*)",
   ],
 }

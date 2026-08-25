@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, JetBrains_Mono as JetBrainsMono } from "next/font/google";
+import { WebMcpTools } from "@/components/agent/webmcp";
 import { JsonLd } from "@/components/site/json-ld";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeScript } from "@/components/theme/theme-script";
@@ -83,6 +84,8 @@ export default function RootLayout({
         {/* Dark-first, no flash: apply the persisted theme before first paint. */}
         <ThemeScript />
         <JsonLd />
+        {/* WebMCP tools for an agent driving the browser. No-op elsewhere. */}
+        <WebMcpTools />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

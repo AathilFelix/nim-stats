@@ -34,6 +34,7 @@ export function renderLlmsTxt(): string {
 - [Health check](${absoluteUrl("/api/health")}): \`getHealth\` — liveness plus the collector's last run timestamp.
 - [Fleet trend](${absoluteUrl("/api/fleet/trend")}): \`getFleetTrend\` — fleet-wide TTFT, throughput, and success rate over 12h, 24h, or 7d.
 - [Fleet reliability](${absoluteUrl("/api/fleet/reliability")}): \`getFleetReliability\` — per-endpoint uptime history, time-of-day latency, and 1/7/30-day SLA windows.
+- [API catalog](${absoluteUrl("/.well-known/api-catalog")}): RFC 9727 linkset pointing at the specification, the documentation, and the health endpoint. The registered entry point if you are discovering this origin's APIs automatically.
 - [Source and self-hosting](${README_URL}): Implementation, architecture, and how to run your own collector.
 
 ## Agent instructions
@@ -49,7 +50,8 @@ export function renderLlmsTxt(): string {
 ## Optional
 
 - [Sitemap](${absoluteUrl("/sitemap.xml")}): Complete list of indexable URLs with last-modified dates.
-- [Robots policy](${absoluteUrl("/robots.txt")}): Crawl rules. All public pages are open to agents and crawlers.
+- [Robots policy](${absoluteUrl("/robots.txt")}): Crawl rules and Content Signals. All public pages are open to agents and crawlers: search and live AI grounding are welcome, model training is not.
+- [Capability manifest](${absoluteUrl("/.well-known/ai-catalog.json")}): Agentic Resource Discovery entry for each surface above, with the questions it answers.
 - [Source repository](${REPO_URL}): Issues, source, and deployment notes.
 `
 }

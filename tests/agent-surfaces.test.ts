@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import robots from "@/app/robots"
 import sitemap from "@/app/sitemap"
 import { jsonLdGraph } from "@/components/site/json-ld"
+import { buildAiCatalog, buildApiCatalog } from "@/lib/agent/discovery"
+import { DISCOVERY_LINKS, markdownAlternateLink, renderLinkHeader } from "@/lib/agent/link-header"
+import { CONTENT_SIGNALS, renderRobotsTxt } from "@/lib/agent/robots"
 import { renderAgentInstructions, renderLlmsTxt } from "@/lib/markdown/agent-docs"
 import { PUBLIC_ROUTES, SITE_URL, absoluteUrl } from "@/lib/site"
 
@@ -117,20 +119,130 @@ describe("sitemap.xml", () => {
 })
 
 describe("robots.txt", () => {
-  const result = robots()
+  const txt = renderRobotsTxt()
 
   it("allows everything public and points at the sitemap", () => {
-    const rule = Array.isArray(result.rules) ? result.rules[0] : result.rules
-    expect(rule.userAgent).toBe("*")
-    expect(rule.allow).toBe("/")
-    expect(result.sitemap).toBe(absoluteUrl("/sitemap.xml"))
+    expect(txt).toContain("User-agent: *")
+    expect(txt).toContain("Allow: /")
+    expect(txt).toContain(`Sitemap: ${absoluteUrl("/sitemap.xml")}`)
     // No `Host:` directive — it is a Yandex extension, not part of the standard.
-    expect(result).not.toHaveProperty("host")
+    expect(txt).not.toContain("Host:")
   })
 
   it("disallows only the internal API and build output", () => {
-    const rule = Array.isArray(result.rules) ? result.rules[0] : result.rules
-    expect(rule.disallow).toEqual(["/api/", "/_next/"])
+    const disallowed = txt.split("\n").filter((l) => l.startsWith("Disallow:"))
+    expect(disallowed).toEqual(["Disallow: /api/", "Disallow: /_next/"])
+  })
+
+  it("declares Content Signals inside the user-agent group", () => {
+    const lines = txt.split("\n").filter((l) => !l.startsWith("#") && l.trim() !== "")
+    const group = lines.indexOf("User-agent: *")
+    expect(group).toBeGreaterThanOrEqual(0)
+    expect(lines[group + 1]).toBe(`Content-Signal: ${CONTENT_SIGNALS}`)
+  })
+
+  it("opts into search and live grounding, out of training", () => {
+    expect(CONTENT_SIGNALS).toBe("search=yes, ai-input=yes, ai-train=no")
+    for (const signal of ["search", "ai-input", "ai-train"]) {
+      expect(CONTENT_SIGNALS).toContain(`${signal}=`)
+    }
+  })
+})
+
+describe("Link header", () => {
+  const header = renderLinkHeader()
+
+  it("serialises every link as an RFC 8288 link-value", () => {
+    const values = header.split(", <").length
+    expect(values).toBe(DISCOVERY_LINKS.length)
+    for (const link of DISCOVERY_LINKS) {
+      expect(header).toContain(`<${link.href}>; rel="${link.rel}"`)
+    }
+  })
+
+  it("keeps targets relative so preview deployments point at themselves", () => {
+    for (const link of DISCOVERY_LINKS) expect(link.href.startsWith("/")).toBe(true)
+  })
+
+  it("advertises the catalog, the spec, the docs and the health endpoint", () => {
+    const byRel = new Map(DISCOVERY_LINKS.map((l) => [l.rel, l.href]))
+    expect(byRel.get("api-catalog")).toBe("/.well-known/api-catalog")
+    expect(byRel.get("service-desc")).toBe("/openapi.json")
+    expect(byRel.get("service-doc")).toBe("/api")
+    expect(byRel.get("status")).toBe("/api/health")
+  })
+
+  it("points each page at its own Markdown twin", () => {
+    expect(markdownAlternateLink("/")).toContain('</.md>; rel="alternate"')
+    expect(markdownAlternateLink("/about")).toContain('</about.md>; rel="alternate"')
+    expect(markdownAlternateLink("/about/")).toContain('</about.md>; rel="alternate"')
+    expect(markdownAlternateLink("/about")).toContain('type="text/markdown"')
+  })
+})
+
+describe("/.well-known/api-catalog", () => {
+  type CatalogLink = { href: string; type?: string; title?: string }
+  const catalog = buildApiCatalog() as {
+    linkset: Array<{ anchor: string } & Record<string, CatalogLink[]>>
+  }
+
+  it("is a linkset anchored on the API, with absolute targets", () => {
+    expect(catalog.linkset).toHaveLength(1)
+    const entry = catalog.linkset[0]
+    expect(entry.anchor).toBe(absoluteUrl("/api"))
+    for (const [rel, links] of Object.entries(entry)) {
+      if (rel === "anchor") continue
+      for (const link of links as CatalogLink[]) {
+        expect(link.href.startsWith("https://")).toBe(true)
+      }
+    }
+  })
+
+  it("carries service-desc, service-doc and status", () => {
+    const entry = catalog.linkset[0]
+    expect(entry["service-desc"][0].href).toBe(absoluteUrl("/openapi.json"))
+    expect(entry["service-doc"].map((l) => l.href)).toContain(absoluteUrl("/api"))
+    expect(entry.status[0].href).toBe(absoluteUrl("/api/health"))
+  })
+})
+
+describe("/.well-known/ai-catalog.json", () => {
+  const catalog = buildAiCatalog() as {
+    specVersion: string
+    host: { name: string; url: string }
+    entries: Array<{
+      id: string
+      displayName: string
+      type: string
+      url?: string
+      data?: unknown
+      representativeQueries: string[]
+    }>
+  }
+
+  it("declares a spec version and the host", () => {
+    expect(catalog.specVersion).toMatch(/^\d+\.\d+/)
+    expect(catalog.host.url).toBe(SITE_URL)
+  })
+
+  it("gives every entry a urn:air id scoped to this domain", () => {
+    const ids = catalog.entries.map((e) => e.id)
+    expect(ids.length).toBeGreaterThan(0)
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const id of ids) expect(id).toMatch(/^urn:air:nimstats\.aathil\.com:[a-z-]+:[a-z-]+$/)
+  })
+
+  it("gives every entry a media type, exactly one locator, and 2-5 queries", () => {
+    for (const entry of catalog.entries) {
+      expect(entry.type).toMatch(/^[a-z]+\/[a-z+.-]+$/)
+      expect(Number(entry.url !== undefined) + Number(entry.data !== undefined)).toBe(1)
+      expect(entry.representativeQueries.length).toBeGreaterThanOrEqual(2)
+      expect(entry.representativeQueries.length).toBeLessThanOrEqual(5)
+    }
+  })
+
+  it("keeps entry URLs on this origin", () => {
+    for (const entry of catalog.entries) expect(entry.url?.startsWith(SITE_URL)).toBe(true)
   })
 })
 
