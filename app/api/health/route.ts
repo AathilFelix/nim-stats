@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { readOnlyMethodHandler, serviceUnavailable } from "@/lib/api/errors"
 import { prisma } from "@/lib/db/prisma"
 import { api } from "@/lib/telemetry/logger"
 
@@ -26,6 +27,16 @@ export async function GET() {
     )
   } catch (err) {
     api.error("GET /api/health failed", { error: (err as Error).message })
-    return NextResponse.json({ status: "error", database: "unreachable" }, { status: 503 })
+    return serviceUnavailable(
+      "The telemetry database is unreachable, so endpoint status cannot be read.",
+      "The site itself is up; retry in ~30s. Cached fleet data on the site's pages may still be served.",
+    )
   }
 }
+
+// Read-only endpoint: every other method answers with a structured 405 rather
+// than Next's default empty-bodied one.
+export const POST = readOnlyMethodHandler
+export const PUT = readOnlyMethodHandler
+export const PATCH = readOnlyMethodHandler
+export const DELETE = readOnlyMethodHandler

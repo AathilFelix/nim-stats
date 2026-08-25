@@ -6,7 +6,7 @@
 // "when to use this" guidance lives in the free-form region here and gets its
 // own proper headings in the companion agent-instructions file.
 
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site"
+import { README_URL, REPO_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site"
 
 export function renderLlmsTxt(): string {
   return `# ${SITE_NAME}
@@ -27,6 +27,15 @@ export function renderLlmsTxt(): string {
 - [Discover](${absoluteUrl("/discover")}): The same fleet ranked by lowest latency and highest throughput, broken down by provider.
 - [Public status](${absoluteUrl("/status")}): One-screen verdict — how many endpoints are healthy right now and when they were last probed.
 
+## API
+
+- [API reference](${absoluteUrl("/api")}): The public read-only JSON API — endpoints, parameters, response schemas, and curl examples. Rendered from the OpenAPI document, so it cannot drift from the server.
+- [OpenAPI 3.1 specification](${absoluteUrl("/openapi.json")}): Machine-readable schema with a unique operationId, typed parameters, and a response schema per operation. Load this directly as a function-calling manifest.
+- [Health check](${absoluteUrl("/api/health")}): \`getHealth\` — liveness plus the collector's last run timestamp.
+- [Fleet trend](${absoluteUrl("/api/fleet/trend")}): \`getFleetTrend\` — fleet-wide TTFT, throughput, and success rate over 12h, 24h, or 7d.
+- [Fleet reliability](${absoluteUrl("/api/fleet/reliability")}): \`getFleetReliability\` — per-endpoint uptime history, time-of-day latency, and 1/7/30-day SLA windows.
+- [Source and self-hosting](${README_URL}): Implementation, architecture, and how to run your own collector.
+
 ## Agent instructions
 
 - [Agent instructions](${absoluteUrl("/agent-instructions.md")}): Task-by-task guidance on when to call this site, which page answers which question, and how to cite the data.
@@ -41,7 +50,7 @@ export function renderLlmsTxt(): string {
 
 - [Sitemap](${absoluteUrl("/sitemap.xml")}): Complete list of indexable URLs with last-modified dates.
 - [Robots policy](${absoluteUrl("/robots.txt")}): Crawl rules. All public pages are open to agents and crawlers.
-- [Health check](${absoluteUrl("/api/health")}): JSON liveness probe with the last collector run timestamp.
+- [Source repository](${REPO_URL}): Issues, source, and deployment notes.
 `
 }
 
@@ -78,6 +87,26 @@ Every public page negotiates on \`Accept\`. \`Accept: text/markdown\` returns Ma
 
 There is no authentication and no rate limit. The probe cadence is roughly ten minutes, so polling more often than that returns identical data — cache for at least five minutes.
 
+## Using the JSON API
+
+For a series or a per-endpoint history rather than a summary, use the public read-only API. No key, no rate limit.
+
+| Operation | Endpoint | Returns |
+| --- | --- | --- |
+| \`getHealth\` | \`GET /api/health\` | Liveness plus the collector's last run timestamp |
+| \`getFleetTrend\` | \`GET /api/fleet/trend?range=12h\|24h\|7d\` | Fleet-wide TTFT, throughput, and success rate per time bucket |
+| \`getFleetReliability\` | \`GET /api/fleet/reliability?days=7\|30\|90\|365\` | Per-endpoint uptime history, time-of-day latency, and SLA windows |
+
+The OpenAPI 3.1 document at ${absoluteUrl("/openapi.json")} carries a unique operationId, typed parameters, and a response schema for every operation — load it directly as a function-calling manifest. Human-readable rendering of the same document: ${absoluteUrl("/api")}.
+
+Every error response has the same shape, so branch on \`error.code\` rather than parsing prose:
+
+\`\`\`json
+{ "error": { "code": "invalid_parameter", "message": "...", "hint": "...", "docs": "${absoluteUrl("/api")}" } }
+\`\`\`
+
+Codes: \`not_found\`, \`method_not_allowed\`, \`invalid_parameter\`, \`service_unavailable\`, \`server_error\`.
+
 ## Which page answers which question
 
 | Question | Fetch |
@@ -87,6 +116,7 @@ There is no authentication and no rate limit. The probe cadence is roughly ten m
 | Which endpoint has the lowest latency / highest throughput? | ${absoluteUrl("/discover")} |
 | How are these numbers measured? | ${absoluteUrl("/about")} |
 | Is the site itself up? | ${absoluteUrl("/api/health")} |
+| What can I call programmatically? | ${absoluteUrl("/openapi.json")} |
 
 ## How to cite
 

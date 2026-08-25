@@ -125,7 +125,7 @@ export const PRIVACY_PAGE: StaticPage = {
     {
       heading: "Automated clients",
       body: [
-        `Crawling and agent access are welcome. Every public page is available as Markdown at the same URL via \`Accept: text/markdown\`, and the site publishes a robots.txt, an XML sitemap, and an llms.txt describing when an agent should use it. Requests from automated clients are treated exactly like any other request and are subject to this same policy.`,
+        `Crawling and agent access are welcome. Every public page is available as Markdown at the same URL via \`Accept: text/markdown\`, and the site publishes a robots.txt, an XML sitemap, an llms.txt describing when an agent should use it, and an OpenAPI 3.1 specification for its public read-only JSON API. Requests from automated clients are treated exactly like any other request and are subject to this same policy.`,
       ],
     },
     {
@@ -155,7 +155,7 @@ export const HOME_EXPLAINER: PageSection[] = [
     heading: "How to use it",
     body: [
       `Pick the highest-reliability endpoint with a healthy status, or read the recommendation at the top of the page. If a call you were already making starts failing, check whether that endpoint is jammed here before you go debugging your own client. Measurements come from a single vantage point on a fixed cadence, so treat them as a strong prior for which endpoint to try first rather than a service-level guarantee — your own latency will vary with geography, network path, and prompt size.`,
-      `Agents and scripts can read every page on this site as clean Markdown at the same URL by sending \`Accept: text/markdown\`, or by appending \`.md\` to the path. Start at [/llms.txt](/llms.txt) for what this site covers and when to reach for it. ${SITE_NAME} is not affiliated with, endorsed by, or operated by NVIDIA Corporation.`,
+      `Agents and scripts can read every page on this site as clean Markdown at the same URL by sending \`Accept: text/markdown\`, or by appending \`.md\` to the path. Start at [/llms.txt](/llms.txt) for what this site covers and when to reach for it. For a time series or per-endpoint history rather than a summary, the [${SITE_NAME} API reference](/api) documents the public read-only JSON API — no key, no rate limit — with an OpenAPI 3.1 spec at [/openapi.json](/openapi.json). ${SITE_NAME} is not affiliated with, endorsed by, or operated by NVIDIA Corporation.`,
     ],
   },
 ]

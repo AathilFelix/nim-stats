@@ -15,6 +15,7 @@ export function SiteFooter({ className = "" }: { className?: string }) {
           {[
             { href: "/", label: "Dashboard" },
             { href: "/status", label: "Status" },
+            { href: "/api", label: "API" },
             { href: "/about", label: "About" },
             { href: "/contact", label: "Contact" },
             { href: "/privacy", label: "Privacy" },

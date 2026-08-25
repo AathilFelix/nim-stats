@@ -5,8 +5,21 @@
 // route handler supplies already-fetched data, which keeps every document
 // snapshot-testable.
 
+import type { ApiReference } from "@/lib/api/reference"
 import type { StaticPage } from "@/lib/content/pages"
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site"
+
+/**
+ * Maps the catch-all slug of the Markdown route back to a site path.
+ *
+ * `/index.md` is a widespread convention for "the Markdown of the site root",
+ * and crawlers reach for it unprompted, so it resolves to `/` rather than 404.
+ */
+export function resolveMarkdownPath(slug: string[]): string {
+  const joined = slug.join("/")
+  if (slug.length === 0 || joined === "index") return "/"
+  return `/${joined}`
+}
 
 /** Minimal projection of a dashboard model — everything the Markdown needs. */
 export type MarkdownModel = {
@@ -77,6 +90,7 @@ function footer(): string {
     `- [Fleet overview](${absoluteUrl("/")}) — live status of every tracked endpoint`,
     `- [Discover](${absoluteUrl("/discover")}) — rankings, provider comparison, trends`,
     `- [Public status](${absoluteUrl("/status")}) — plain status summary`,
+    `- [API reference](${absoluteUrl("/api")}) — public JSON API, OpenAPI 3.1 at /openapi.json`,
     `- [About](${absoluteUrl("/about")}) — what is measured and how`,
     `- [Contact](${absoluteUrl("/contact")}) — how to reach the operator`,
     `- [Privacy](${absoluteUrl("/privacy")}) — data handling`,
@@ -287,4 +301,72 @@ export function renderNotFoundMarkdown(pathname: string): string {
     "There are no per-model URLs: model detail is rendered client-side from the fleet overview, so the fleet pages above are the canonical source for any single endpoint.",
     "",
   ].join("\n")
+}
+
+/**
+ * Markdown rendering of the API reference, from the same OpenAPI document the
+ * HTML page walks. This is the representation an agent gets when it asks for
+ * `/api` as Markdown.
+ */
+export function renderApiReferenceMarkdown(reference: ApiReference): string {
+  const parts: string[] = [
+    `# ${reference.title}`,
+    "",
+    `> ${reference.summary}`,
+    "",
+    `**Version** ${reference.version} · **Base URL** \`${reference.serverUrl}\` · **Spec** ${absoluteUrl("/openapi.json")} (OpenAPI 3.1)`,
+    "",
+    reference.description,
+    "",
+    "## Endpoints",
+    "",
+  ]
+
+  for (const op of reference.operations) {
+    parts.push(`### ${op.method} ${op.path}`, "")
+    parts.push(`\`operationId: ${op.operationId}\` — ${op.summary}`, "")
+    parts.push(op.description, "")
+
+    if (op.parameters.length > 0) {
+      parts.push("| Parameter | Type | Required | Default | Description |", "| --- | --- | --- | --- | --- |")
+      for (const p of op.parameters) {
+        const type = p.enum ? p.enum.map((v) => `\`${v}\``).join(" \\| ") : `\`${p.type}\``
+        parts.push(
+          `| \`${p.name}\` | ${type} | ${p.required ? "yes" : "no"} | ${p.default ?? "—"} | ${cell(p.description)} |`,
+        )
+      }
+      parts.push("")
+    }
+
+    parts.push("| Status | Meaning | Schema |", "| --- | --- | --- |")
+    for (const r of op.responses) {
+      parts.push(`| ${r.status} | ${cell(r.description)} | ${r.schema ? `\`${r.schema}\`` : "—"} |`)
+    }
+    parts.push("")
+
+    const example = op.parameters.length > 0
+      ? `?${op.parameters[0].name}=${op.parameters[0].default ?? op.parameters[0].enum?.[0] ?? ""}`
+      : ""
+    parts.push("```bash", `curl -s ${reference.serverUrl}${op.path}${example}`, "```", "")
+  }
+
+  parts.push("## Schemas", "")
+  for (const schema of reference.schemas) {
+    parts.push(`### ${schema.name}`, "", schema.description, "")
+    parts.push("| Field | Type | Required | Description |", "| --- | --- | --- | --- |")
+    for (const f of schema.fields) {
+      parts.push(`| \`${f.name}\` | \`${f.type}\` | ${f.required ? "yes" : "no"} | ${cell(f.description)} |`)
+    }
+    parts.push("")
+  }
+
+  parts.push(
+    "## Source",
+    "",
+    `Implementation, self-hosting instructions, and architecture notes: ${reference.externalDocsUrl}`,
+    "",
+    footer(),
+  )
+
+  return parts.join("\n")
 }

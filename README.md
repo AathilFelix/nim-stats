@@ -115,15 +115,23 @@ Set in `.env` (see [`.env.example`](.env.example) for the full list):
 
 ## API
 
-Public (no auth):
+Public, read-only, no auth. Full reference at [`/api`](https://nimstats.aathil.com/api); OpenAPI 3.1 spec at [`/openapi.json`](https://nimstats.aathil.com/openapi.json).
 
-| Route | Description |
-|---|---|
-| `GET /api/fleet/trend?range=12h\|24h\|7d` | Fleet-wide time series |
-| `GET /api/fleet/reliability` | Per-model uptime / heatmap / SLA breakdown |
-| `GET /api/health` | Liveness + last probe time |
+| Operation | Route | Description |
+|---|---|---|
+| `getFleetTrend` | `GET /api/fleet/trend?range=12h\|24h\|7d` | Fleet-wide time series |
+| `getFleetReliability` | `GET /api/fleet/reliability?days=7\|30\|90\|365` | Per-model uptime / heatmap / SLA breakdown |
+| `getHealth` | `GET /api/health` | Liveness + last probe time |
 
-Internal (require `INTERNAL_API_TOKEN` in production): `/api/fleet/anomalies`, `/api/fleet/quota`, `/api/fleet/overview`, `/api/models`, `/api/models/[id]`, `/api/providers`.
+Every non-2xx response has the same JSON shape, so branch on `error.code` rather than parsing prose:
+
+```json
+{ "error": { "code": "invalid_parameter", "message": "…", "hint": "…", "docs": "https://nimstats.aathil.com/api" } }
+```
+
+Codes: `not_found`, `method_not_allowed`, `invalid_parameter`, `service_unavailable`, `server_error`.
+
+Internal (require `INTERNAL_API_TOKEN` in production): `/api/fleet/anomalies`, `/api/fleet/quota`, `/api/fleet/overview`, `/api/models`, `/api/models/[id]`, `/api/providers`. These are deliberately absent from the OpenAPI document — they answer 404 without a token.
 
 ## For AI agents
 
@@ -139,6 +147,8 @@ the two can never disagree.
 | File | Purpose |
 |---|---|
 | [`/llms.txt`](https://nimstats.aathil.com/llms.txt) | What the site covers and when an agent should reach for it |
+| [`/openapi.json`](https://nimstats.aathil.com/openapi.json) | OpenAPI 3.1 spec for the public API — load it as a function-calling manifest |
+| [`/api`](https://nimstats.aathil.com/api) | Human-readable API reference, rendered from that spec |
 | [`/agent-instructions.md`](https://nimstats.aathil.com/agent-instructions.md) | Task-by-task guidance, request examples, and how to cite |
 | [`/sitemap.xml`](https://nimstats.aathil.com/sitemap.xml) | Every indexable URL with `lastmod` |
 | [`/robots.txt`](https://nimstats.aathil.com/robots.txt) | Crawl policy — everything public is open |

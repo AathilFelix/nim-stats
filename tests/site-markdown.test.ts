@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest"
 
+import { buildOpenApiDocument } from "@/lib/api/openapi"
+import { buildApiReference } from "@/lib/api/reference"
 import { ABOUT_PAGE, CONTACT_PAGE, PRIVACY_PAGE } from "@/lib/content/pages"
 import {
+  renderApiReferenceMarkdown,
   renderDiscoverMarkdown,
   renderHomeMarkdown,
   renderNotFoundMarkdown,
   renderStaticPageMarkdown,
   renderStatusMarkdown,
+  resolveMarkdownPath,
   type FleetSnapshot,
   type MarkdownModel,
 } from "@/lib/markdown/site-markdown"
@@ -162,5 +166,70 @@ describe("every document", () => {
       expect(md).toContain("## Machine-readable index")
       expect(md).toContain("/llms.txt")
     }
+  })
+})
+
+describe("renderApiReferenceMarkdown", () => {
+  const md = renderApiReferenceMarkdown(buildApiReference(buildOpenApiDocument()))
+
+  it("opens with a single H1 and the version, base URL and spec link", () => {
+    expect(md.startsWith("# NIM Stats API\n")).toBe(true)
+    expect(md.match(/^# /gm)).toHaveLength(1)
+    expect(md).toContain("https://nimstats.aathil.com/openapi.json")
+  })
+
+  it("documents every operation with its operationId and a runnable example", () => {
+    for (const [id, path] of [
+      ["getHealth", "/api/health"],
+      ["getFleetTrend", "/api/fleet/trend"],
+      ["getFleetReliability", "/api/fleet/reliability"],
+    ] as const) {
+      expect(md).toContain(`### GET ${path}`)
+      expect(md).toContain(`operationId: ${id}`)
+      expect(md).toContain(`curl -s https://nimstats.aathil.com${path}`)
+    }
+  })
+
+  it("tables the parameters, including their accepted values", () => {
+    expect(md).toContain("| Parameter | Type | Required | Default | Description |")
+    expect(md).toContain("`12h`")
+    expect(md).toContain("`7d`")
+  })
+
+  it("tables the response statuses against their schemas", () => {
+    expect(md).toContain("| Status | Meaning | Schema |")
+    expect(md).toContain("| 400 |")
+    expect(md).toContain("`Error`")
+  })
+
+  it("documents every schema the operations reference", () => {
+    for (const name of ["Health", "TrendResponse", "TrendPoint", "ReliabilityResponse", "Error"]) {
+      expect(md).toContain(`### ${name}`)
+    }
+  })
+
+  it("points at the source repository and ends with the shared index", () => {
+    expect(md).toContain("github.com/AathilFelix/nim-stats")
+    expect(md).toContain("## Machine-readable index")
+  })
+})
+
+describe("resolveMarkdownPath", () => {
+  it("maps the empty slug to the site root", () => {
+    expect(resolveMarkdownPath([])).toBe("/")
+  })
+
+  it("treats /index.md as the homepage — crawlers request it unprompted", () => {
+    expect(resolveMarkdownPath(["index"])).toBe("/")
+  })
+
+  it("passes through real paths, nested ones included", () => {
+    expect(resolveMarkdownPath(["about"])).toBe("/about")
+    expect(resolveMarkdownPath(["api"])).toBe("/api")
+    expect(resolveMarkdownPath(["a", "b"])).toBe("/a/b")
+  })
+
+  it("does not treat a nested index as the root", () => {
+    expect(resolveMarkdownPath(["docs", "index"])).toBe("/docs/index")
   })
 })

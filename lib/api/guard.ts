@@ -1,5 +1,7 @@
 import { timingSafeEqual } from "node:crypto"
-import { NextResponse } from "next/server"
+import type { NextResponse } from "next/server"
+
+import { notFound } from "@/lib/api/errors"
 
 function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a)
@@ -11,8 +13,9 @@ function safeEqual(a: string, b: string): boolean {
  * Gate for internal / non-browser API routes.
  *
  * Returns a 404 `NextResponse` when the caller isn't authorized (404 rather than
- * 401 so the endpoint's existence stays hidden), or `null` when the request may
- * proceed. Auth is a shared secret sent as `Authorization: Bearer <token>` or
+ * 401 so the endpoint's existence stays hidden — with the same JSON body the
+ * catch-all returns for a path that genuinely does not exist), or `null` when
+ * the request may proceed. Auth is a shared secret sent as `Authorization: Bearer <token>` or
  * the `x-internal-token` header, compared in constant time.
  *
  * If `INTERNAL_API_TOKEN` is unset (e.g. local dev) the guard is a no-op so the
@@ -29,5 +32,7 @@ export function blockUnlessInternal(req: Request): NextResponse | null {
   const provided = bearer || req.headers.get("x-internal-token") || ""
 
   if (provided && safeEqual(provided, token)) return null
-  return new NextResponse(null, { status: 404 })
+  // Byte-identical to the catch-all's 404 so an unauthorized caller cannot tell
+  // a gated endpoint from one that was never there.
+  return notFound(new URL(req.url).pathname)
 }
