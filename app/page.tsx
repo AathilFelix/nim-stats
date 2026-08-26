@@ -76,7 +76,7 @@ export default async function Home() {
                 <span className="status-led status-led--healthy" style={{ width: 6, height: 6 }} aria-hidden="true" />
                 <span className="label-sm text-text-tertiary">NIM Stats · Command Center</span>
               </div>
-              <h1 className="heading-xl text-text-primary">Fleet Overview</h1>
+              <h1 className="heading-xl text-text-primary">NVIDIA NIM Fleet Overview</h1>
               <p className="mt-1.5 max-w-xl body-sm text-text-secondary">
                 Real-time status and reliability for every free NVIDIA NIM endpoint, probed continuously.
               </p>
