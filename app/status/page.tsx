@@ -1,8 +1,18 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { BuiltBy } from "@/components/site/built-by";
 import { getDashboardModels } from "@/lib/dashboard-data";
 import { computeFleetState } from "@/lib/operational-engine";
 import { formatTimeAgo } from "@/components/dashboard/mock-data";
+import { SITE_NAME } from "@/lib/site";
+
+// See /discover for why every indexable page carries its own title.
+export const metadata: Metadata = {
+  title: `Live status for free NVIDIA NIM API endpoints | ${SITE_NAME}`,
+  description:
+    "Live operational status for the free NVIDIA NIM inference endpoints — operational, degraded, or disrupted for every model, updated continuously from real probes.",
+  alternates: { canonical: "/status" },
+};
 
 // ISR — serve from the CDN and revalidate every 5 min instead of running a
 // function per visit (see app/page.tsx for the full rationale).

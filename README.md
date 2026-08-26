@@ -2,7 +2,8 @@
 
 # NIM Stats
 
-**Live reliability dashboard for free NVIDIA NIM API endpoints.**
+**NIMStats — live reliability dashboard for the free NVIDIA NIM API endpoints.**
+Uptime, latency, and throughput for every model on [build.nvidia.com](https://build.nvidia.com).
 
 Probes every available endpoint continuously and surfaces throughput, latency, uptime, and congestion — so you can pick a model that actually works right now, without trial and error.
 

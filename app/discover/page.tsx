@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { NavBar } from "@/components/navigation/nav-bar";
 import { FleetIntelligence } from "@/components/discover/fleet-intelligence";
 import { RevealSection } from "@/components/discover/reveal-section";
@@ -11,6 +13,17 @@ import { FleetTrendChart } from "@/components/dashboard/fleet-trend-chart";
 import { AutoRefresh } from "@/components/dashboard/auto-refresh";
 import { getDashboardModels, getFleetTrend } from "@/lib/dashboard-data";
 import { formatTimeAgo } from "@/components/dashboard/mock-data";
+import { SITE_NAME } from "@/lib/site";
+
+// Without its own metadata this page inherited the root title verbatim, so /,
+// /discover and /status all shipped the same <title> and description — three
+// indexable URLs competing as duplicates. Each indexable page states its own.
+export const metadata: Metadata = {
+  title: `Discover — compare free NVIDIA NIM models by speed and reliability | ${SITE_NAME}`,
+  description:
+    "Rank and compare every free NVIDIA NIM endpoint by time-to-first-token, throughput, uptime, and congestion. Provider breakdowns, reliability heatmaps, incident timelines, and use-case rankings.",
+  alternates: { canonical: "/discover" },
+};
 
 // ISR — serve from the CDN and revalidate every 5 min instead of running a
 // function per visit (see app/page.tsx for the full rationale).
