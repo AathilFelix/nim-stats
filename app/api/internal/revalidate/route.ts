@@ -1,13 +1,10 @@
-import { revalidatePath, revalidateTag } from "next/cache"
+import { revalidateTag } from "next/cache"
 import { NextResponse } from "next/server"
 import { blockUnlessInternal } from "@/lib/api/guard"
 import { api } from "@/lib/telemetry/logger"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-
-/** ISR pages that render fleet data. */
-const FLEET_PAGES = ["/", "/discover", "/status"]
 
 /**
  * Refresh the site after the collector writes new data.
@@ -29,12 +26,19 @@ export async function POST(req: Request) {
   const blocked = blockUnlessInternal(req)
   if (blocked) return blocked
 
-  // Expire the cached queries outright rather than stale-while-revalidate
-  // ("max"): the page regeneration below reads them, and a stale-served query
-  // would bake the previous cycle's rows into a page that then stays cached.
-  revalidateTag("fleet", { expire: 0 })
-  // Pages are marked stale and regenerate lazily on their next visit.
-  for (const path of FLEET_PAGES) revalidatePath(path)
+  // One tag covers both layers: every fleet query is an `unstable_cache` tagged
+  // "fleet", and unstable_cache adds its tags to the rendering page, so the ISR
+  // pages (/, /discover, /status) carry it too.
+  //
+  // "max" = stale-while-revalidate: the next visitor gets the cached page
+  // instantly and ONE background regeneration runs. That rebuild still renders
+  // fresh rows — during a page regeneration unstable_cache recomputes a stale
+  // entry and awaits it rather than serving it. Do NOT hard-expire here
+  // (`{ expire: 0 }`, or `revalidatePath`, which carries no profile and so
+  // expires immediately): that forces a blocking regeneration, and a crawler
+  // burst landing on a deleted page rebuilt it 3–5 times per cycle in
+  // production instead of once.
+  revalidateTag("fleet", "max")
   api.info("fleet cache invalidated")
 
   return NextResponse.json({ revalidated: true, at: new Date().toISOString() })
