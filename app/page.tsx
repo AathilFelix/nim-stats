@@ -14,17 +14,24 @@ import { UptimeCalendar } from "@/components/dashboard/uptime-calendar";
 import { LatencyHeatmap } from "@/components/dashboard/latency-heatmap";
 import { computeFleetState, findBestModel, getAllIncidents } from "@/lib/operational-engine";
 import { getDashboardModels, getFleetTrend } from "@/lib/dashboard-data";
-import { formatTimeAgo } from "@/components/dashboard/mock-data";
+import { TimeAgo } from "@/components/dashboard/time-ago";
 
 // ISR — render once, then serve cached HTML from Vercel's CDN and revalidate in
 // the background. Under a traffic spike (e.g. an X post), visitors are served
 // from the edge instead of each waking a function, so Fluid Active CPU stays
 // flat regardless of pageviews.
 //
-// 300s = PAGE_REVALIDATE in lib/config/cadence.ts (half the 10-min probe
-// interval). Must stay a literal — Next only statically analyses route segment
-// config, so an imported constant is not read. Keep the two in sync.
-export const revalidate = 300;
+// Freshness is ON DEMAND: after every probe cycle the collector POSTs
+// /api/internal/revalidate, which marks this page stale, and the next visit
+// regenerates it once. A timer regenerates on a clock unrelated to when data
+// lands — the old 300s window re-rendered (and re-wrote to the ISR cache) twice
+// per 10-min probe, usually with nothing new to show.
+//
+// 1200s = PAGE_FALLBACK_REVALIDATE in lib/config/cadence.ts: a safety net that
+// only fires if the revalidation hook stops arriving. Must stay a literal — Next
+// only statically analyses route segment config, so an imported constant is not
+// read. Keep the two in sync.
+export const revalidate = 1200;
 
 export default async function Home() {
   const [models, trend] = await Promise.all([getDashboardModels(), getFleetTrend()]);
@@ -85,7 +92,7 @@ export default async function Home() {
               <HeaderStat label="Endpoints" value={`${models.length}`} />
               <HeaderStat label="Healthy" value={`${healthy}`} tone="healthy" />
               <HeaderStat label="Incidents" value={`${incidents24h}`} tone={incidents24h > 0 ? "critical" : "healthy"} />
-              <HeaderStat label="Last probe" value={lastChecked ? formatTimeAgo(lastChecked) : "—"} mono />
+              <HeaderStat label="Last probe" value={lastChecked ? <TimeAgo date={lastChecked} /> : "—"} mono />
             </dl>
           </header>
 
@@ -99,7 +106,7 @@ export default async function Home() {
               avgTtft={avgTtft}
               avgThroughput={avgThroughput}
               incidents24h={incidents24h}
-              lastProbe={lastChecked ? formatTimeAgo(lastChecked) : null}
+              lastProbe={lastChecked}
             />
 
             <FleetTrendChart data={trend} />
@@ -189,7 +196,7 @@ function HeaderStat({
   label, value, tone = "neutral", mono = false,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   tone?: "neutral" | "healthy" | "critical";
   mono?: boolean;
 }) {

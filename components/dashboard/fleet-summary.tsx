@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import type { FleetStateResult } from "@/lib/operational-types";
+import { TimeAgo } from "./time-ago";
 
 interface Props {
   fleetState: FleetStateResult;
@@ -9,7 +11,7 @@ interface Props {
   avgTtft: number;
   avgThroughput: number;
   incidents24h: number;
-  lastProbe: string | null;
+  lastProbe: Date | null;
 }
 
 const STATE_META: Record<FleetStateResult["state"], { label: string; tone: "healthy" | "warn" | "critical" }> = {
@@ -64,7 +66,7 @@ export function FleetSummary({
           value={incidents24h.toString()}
           unit={incidents24h === 0 ? "all clear" : "critical"}
           tone={incidents24h > 0 ? "critical" : undefined}
-          sub={lastProbe ? `Updated ${lastProbe}` : undefined}
+          sub={lastProbe ? <>Updated <TimeAgo date={lastProbe} /></> : undefined}
         />
       </div>
     </section>
@@ -73,7 +75,7 @@ export function FleetSummary({
 
 function Tile({
   label, value, unit, tone, sub,
-}: { label: string; value: string; unit: string; tone?: "critical"; sub?: string }) {
+}: { label: string; value: string; unit: string; tone?: "critical"; sub?: ReactNode }) {
   return (
     <div className="flex flex-col justify-center bg-surface-card p-4 sm:p-5">
       <p className="label-xs text-text-tertiary">{label}</p>

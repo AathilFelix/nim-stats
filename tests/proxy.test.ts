@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { describe, expect, it } from "vitest"
 
-import { proxy } from "@/proxy"
+import { config, proxy } from "@/proxy"
 
 const ORIGIN = "https://nimstats.aathil.com"
 
@@ -108,5 +108,38 @@ describe("bypasses", () => {
   it("does not negotiate non-GET requests", () => {
     const res = proxy(request("/", { accept: "application/pdf", method: "POST" }))
     expect(res.status).toBe(200)
+  })
+})
+
+// The matcher decides whether the proxy function runs at all — on Vercel every
+// match is a billed invocation, even when the page is a CDN hit. Evaluated the
+// way Next compiles `has` values (anchored RegExp).
+describe("matcher", () => {
+  const acceptRules = config.matcher.flatMap((m) =>
+    "has" in m && m.has ? m.has.filter((h) => h.key === "accept").map((h) => new RegExp(`^${h.value}$`)) : [],
+  )
+  const wakesProxy = (accept: string) => acceptRules.some((re) => re.test(accept))
+
+  it("lets browsers and generic clients skip the proxy", () => {
+    for (const accept of [
+      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "text/html",
+      "*/*",
+      "text/*",
+    ]) {
+      expect(wakesProxy(accept), accept).toBe(false)
+    }
+  })
+
+  it("routes Markdown negotiation and HTML-rejecting clients to the proxy", () => {
+    expect(wakesProxy("text/markdown")).toBe(true)
+    expect(wakesProxy("text/markdown, text/html;q=0.5")).toBe(true)
+    expect(wakesProxy("application/json")).toBe(true)
+  })
+
+  it("never wakes the proxy for RSC requests", () => {
+    for (const m of config.matcher) {
+      if ("has" in m && m.has) expect(m.missing).toContainEqual({ type: "header", key: "rsc" })
+    }
   })
 })

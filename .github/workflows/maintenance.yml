@@ -38,10 +38,11 @@ jobs:
       NIM_API_KEY: ${{ secrets.NIM_API_KEY }}
       NIM_API_URL: ${{ secrets.NIM_API_URL }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      # Optional: lets a sync that changed the fleet's composition drop the
-      # site's cached fleet reads immediately instead of waiting out each TTL.
-      # Unset = skipped, and everything still converges on its normal cadence.
-      REVALIDATE_URL: ${{ secrets.REVALIDATE_URL }}
+      # After each run the collector POSTs {REVALIDATE_URL}/api/internal/revalidate
+      # so the site regenerates once with the new data (pages no longer refresh
+      # on a short timer). Needs the INTERNAL_API_TOKEN secret to match Vercel's;
+      # without it the call is skipped and the site falls back to a 20-min TTL.
+      REVALIDATE_URL: ${{ secrets.REVALIDATE_URL || 'https://nimstats.aathil.com' }}
       INTERNAL_API_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4

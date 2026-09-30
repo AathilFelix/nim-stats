@@ -61,28 +61,29 @@ async function step<T>(
 }
 
 /**
- * Drop the site's cached fleet reads after the registry changed shape.
+ * Tell the site that new data has landed.
  *
- * The dashboard's cache TTLs assume the fleet is a fixed set whose numbers move
- * every 10 minutes. When a sync adds, retires, paroles or resurrects an
- * endpoint that assumption breaks: the model table (page ISR) and the SLA /
- * latency panels (a separately cached JSON route) refresh on different clocks,
- * so the site renders two different fleet sizes side by side until the slowest
- * cache expires. One request at the moment of change keeps them consistent.
+ * The site's pages and cached queries refresh on demand rather than on a timer
+ * (see app/api/internal/revalidate), so this runs after every probe cycle — the
+ * one moment the data actually changes. It also keeps the model table and the
+ * SLA / latency panels agreeing on fleet size after a sync changes the fleet.
  *
- * Best-effort and opt-in: without REVALIDATE_URL this is skipped entirely and
- * everything still converges on its normal TTL. A failure here must never fail
- * the collector — the samples are already written by then.
+ * Best-effort: without REVALIDATE_URL or INTERNAL_API_TOKEN this is skipped and
+ * the site falls back to its 20-minute safety-net TTL. A failure here must never
+ * fail the collector — the samples are already written by then.
  */
 async function revalidateSiteCaches(): Promise<void> {
   const base = process.env.REVALIDATE_URL
-  if (!base) {
-    logger.info("skipping cache revalidation", { reason: "REVALIDATE_URL not set" })
+  const token = process.env.INTERNAL_API_TOKEN
+  if (!base || !token) {
+    logger.info("skipping cache revalidation", {
+      reason: !base ? "REVALIDATE_URL not set" : "INTERNAL_API_TOKEN not set",
+    })
     return
   }
   const res = await fetch(`${base.replace(/\/$/, "")}/api/internal/revalidate`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.INTERNAL_API_TOKEN ?? ""}` },
+    headers: { Authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(10_000),
   })
   // The guard answers 404 (not 401) when the token is wrong, so surface the
@@ -134,12 +135,10 @@ async function main(): Promise<void> {
     await step("mark inactive models", () => markInactiveModels())
   }
 
-  // After the probe cycle, so the newly-active endpoints already have a sample
-  // to show rather than an empty row on the first render post-invalidation.
-  if (sync && fleetChanged(sync)) {
-    logger.info("fleet composition changed, revalidating site caches", { ...sync })
-    await step("revalidate site caches", () => revalidateSiteCaches())
-  }
+  // Last, so every write above (samples, prune, a changed fleet) is visible to
+  // the regeneration this triggers.
+  if (sync && fleetChanged(sync)) logger.info("fleet composition changed", { ...sync })
+  await step("revalidate site caches", () => revalidateSiteCaches())
 
   await prisma.$disconnect()
   logger.info("probe-once complete")

@@ -19,8 +19,18 @@ export const PROBE_INTERVAL_S = 600
  */
 export const FLEET_TTL = PROBE_INTERVAL_S / 2
 
-/** ISR window for the server-rendered pages. Matches the cache layer beneath it. */
-export const PAGE_REVALIDATE = FLEET_TTL
+/**
+ * Safety-net TTL for the ISR pages and the server data cache.
+ *
+ * Those layers are refreshed ON DEMAND: after every probe cycle the collector
+ * POSTs /api/internal/revalidate, so pages regenerate once per cycle and only
+ * if someone visits. This timer only matters if that hook stops arriving; two
+ * probe intervals bounds staleness then without firing in normal operation
+ * (every on-demand regeneration restarts the clock).
+ *
+ * The page files repeat this as a literal `revalidate = 1200` — keep in sync.
+ */
+export const PAGE_FALLBACK_REVALIDATE = PROBE_INTERVAL_S * 2
 
 /** Client poll/auto-refresh interval, in ms. Same cadence, expressed for setInterval. */
 export const CLIENT_REFRESH_MS = FLEET_TTL * 1000

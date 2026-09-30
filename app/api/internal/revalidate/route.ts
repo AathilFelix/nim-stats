@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { NextResponse } from "next/server"
 import { blockUnlessInternal } from "@/lib/api/guard"
 import { api } from "@/lib/telemetry/logger"
@@ -6,31 +6,35 @@ import { api } from "@/lib/telemetry/logger"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+/** ISR pages that render fleet data. */
+const FLEET_PAGES = ["/", "/discover", "/status"]
+
 /**
- * Drop the cached fleet reads on demand.
+ * Refresh the site after the collector writes new data.
  *
- * Every cached function in `lib/dashboard-data.ts` already declares
- * `tags: ["fleet"]`, but nothing ever invalidated them, so the tags were inert
- * and a fleet change could only surface by waiting out each TTL. The collector
- * calls this after a registry sync that actually changed the fleet's
- * composition (see `scripts/probe-once.ts`), which is the one moment where the
- * shape of the data — not just its values — is different.
- *
- * Sample values changing every 10 minutes is exactly what the TTLs are for and
- * deliberately does NOT hit this route; a model appearing or disappearing is
- * what users notice, so only that is worth an invalidation.
+ * The collector (`scripts/probe-once.ts`) calls this at the end of every probe
+ * cycle. That is the only moment the fleet data changes, so it is the only
+ * moment worth regenerating anything: pages and cached queries now rebuild once
+ * per cycle, and only if someone visits, instead of on a timer that ran twice
+ * per cycle whether or not anything had landed. Each timer-driven rebuild cost
+ * Fluid Active CPU plus an ISR cache write of the full page.
  *
  * Guarded by INTERNAL_API_TOKEN (404s when the caller isn't authorized), so it
  * can't be used to force expensive recomputation from outside.
  */
 export async function POST(req: Request) {
+  // Unlike the read-only internal routes, fail CLOSED when no token is
+  // configured: an open revalidate endpoint lets anyone force regenerations.
+  if (!process.env.INTERNAL_API_TOKEN) return new NextResponse(null, { status: 404 })
   const blocked = blockUnlessInternal(req)
   if (blocked) return blocked
 
-  // Two-argument form: the bare `revalidateTag(tag)` is deprecated in Next 16.
-  // "max" marks the entries stale with stale-while-revalidate semantics, so the
-  // next visitor is served instantly while the query re-runs behind them.
-  revalidateTag("fleet", "max")
+  // Expire the cached queries outright rather than stale-while-revalidate
+  // ("max"): the page regeneration below reads them, and a stale-served query
+  // would bake the previous cycle's rows into a page that then stays cached.
+  revalidateTag("fleet", { expire: 0 })
+  // Pages are marked stale and regenerate lazily on their next visit.
+  for (const path of FLEET_PAGES) revalidatePath(path)
   api.info("fleet cache invalidated")
 
   return NextResponse.json({ revalidated: true, at: new Date().toISOString() })

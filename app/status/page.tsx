@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BuiltBy } from "@/components/site/built-by";
 import { getDashboardModels } from "@/lib/dashboard-data";
 import { computeFleetState } from "@/lib/operational-engine";
-import { formatTimeAgo } from "@/components/dashboard/mock-data";
+import { TimeAgo } from "@/components/dashboard/time-ago";
 import { SITE_NAME } from "@/lib/site";
 
 // See /discover for why every indexable page carries its own title.
@@ -14,9 +14,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/status" },
 };
 
-// ISR — serve from the CDN and revalidate every 5 min instead of running a
-// function per visit (see app/page.tsx for the full rationale).
-export const revalidate = 300;
+// ISR, revalidated on demand after each probe cycle; 1200s is only the safety
+// net (see app/page.tsx for the full rationale).
+export const revalidate = 1200;
 
 const STATUS_COLOR: Record<string, string> = {
   healthy: "var(--status-healthy)",
@@ -84,7 +84,7 @@ export default async function StatusPage() {
                 {overallStatus === "healthy" ? "All systems operational" : overallStatus === "busy" ? "Partial degradation" : "Service disruption"}
               </span>
               <p className="metric-xs text-text-quaternary">
-                Updated {lastProbe ? formatTimeAgo(lastProbe) : "—"}
+                Updated {lastProbe ? <TimeAgo date={lastProbe} /> : "—"}
               </p>
             </div>
           </div>

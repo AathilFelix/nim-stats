@@ -7,7 +7,7 @@
 // …) — those are computed by `enrichModel`, then the real sample-derived
 // fields are layered back on top.
 import { unstable_cache } from "next/cache"
-import { FLEET_TTL } from "@/lib/config/cadence"
+import { PAGE_FALLBACK_REVALIDATE } from "@/lib/config/cadence"
 import { prisma } from "@/lib/db/prisma"
 import { enrichModel } from "@/lib/operational-engine"
 import type { NIMModel, ModelStatus } from "@/components/dashboard/mock-data"
@@ -488,17 +488,17 @@ async function getQuotaStatsUncached(): Promise<QuotaStats> {
 // database query per window — the single biggest lever for staying inside
 // Neon's free compute budget and surviving a traffic spike on Vercel Hobby.
 //
-// The collector runs in a separate process (GitHub Actions) and can't reach into
-// Vercel's cache to invalidate it, so revalidation is purely time-based — each
-// TTL is tuned to that surface's natural refresh cadence (the UI auto-refreshes
-// on a similar interval, so the staleness is never visible).
+// Revalidation is ON DEMAND: the collector (GitHub Actions) POSTs
+// /api/internal/revalidate after every probe cycle, which expires the "fleet"
+// tag, so each query re-runs at most once per cycle — and only if something
+// reads it. The `revalidate` below is only a safety net for when that hook
+// fails (PAGE_FALLBACK_REVALIDATE, two probe intervals).
 //
-// TTLs are anchored to FLEET_TTL, which is half the probe interval (the Cloudflare
-// cron dispatches probe.yml every 10 min). Refreshing faster than the collector
-// writes cannot surface new data — it just re-runs the same query against the same
-// rows. The previous 30s TTL did exactly that: a single dashboard tab left open
-// drove ~2,880 cache misses/day, each pulling ~2k sample rows, which is what
-// consumed ~15 GB of Supabase egress against a 5 GB free-tier cap.
+// Refreshing faster than the collector writes cannot surface new data — it
+// just re-runs the same query against the same rows. A 30s TTL once did exactly
+// that: one open tab drove ~2,880 cache misses/day and ~15 GB of Supabase
+// egress against a 5 GB cap; the later 300s TTL still ran twice per cycle and
+// re-wrote each entry to Vercel's cache each time.
 //
 // Note: `unstable_cache` JSON-serialises results, so `Date` fields come back as
 // strings on a cache hit. The only such field is `NIMModel.lastChecked`; all
@@ -506,26 +506,26 @@ async function getQuotaStatsUncached(): Promise<QuotaStats> {
 export const getDashboardModels = unstable_cache(
   getDashboardModelsUncached,
   ["dashboard-models"],
-  { revalidate: FLEET_TTL, tags: ["fleet"] },
+  { revalidate: PAGE_FALLBACK_REVALIDATE, tags: ["fleet"] },
 )
 export const getFleetTrend = unstable_cache(
   getFleetTrendUncached,
   ["fleet-trend"],
-  { revalidate: FLEET_TTL, tags: ["fleet"] },
+  { revalidate: PAGE_FALLBACK_REVALIDATE, tags: ["fleet"] },
 )
 // 90-day rollup — the heaviest query here and the slowest-moving result.
 export const getReliabilityBreakdown = unstable_cache(
   getReliabilityBreakdownUncached,
   ["reliability-breakdown"],
-  { revalidate: FLEET_TTL * 2, tags: ["fleet"] },
+  { revalidate: PAGE_FALLBACK_REVALIDATE, tags: ["fleet"] },
 )
 export const getAnomalyData = unstable_cache(
   getAnomalyDataUncached,
   ["anomaly-data"],
-  { revalidate: FLEET_TTL, tags: ["fleet"] },
+  { revalidate: PAGE_FALLBACK_REVALIDATE, tags: ["fleet"] },
 )
 export const getQuotaStats = unstable_cache(
   getQuotaStatsUncached,
   ["quota-stats"],
-  { revalidate: FLEET_TTL, tags: ["fleet"] },
+  { revalidate: PAGE_FALLBACK_REVALIDATE, tags: ["fleet"] },
 )
