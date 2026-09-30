@@ -12,7 +12,7 @@ import { IncidentTimeline } from "@/components/discover/incident-timeline";
 import { FleetTrendChart } from "@/components/dashboard/fleet-trend-chart";
 import { AutoRefresh } from "@/components/dashboard/auto-refresh";
 import { getDashboardModels, getFleetTrend } from "@/lib/dashboard-data";
-import { formatTimeAgo } from "@/components/dashboard/mock-data";
+import { TimeAgo } from "@/components/dashboard/time-ago";
 import { SITE_NAME } from "@/lib/site";
 
 // Without its own metadata this page inherited the root title verbatim, so /,
@@ -25,9 +25,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/discover" },
 };
 
-// ISR — serve from the CDN and revalidate every 5 min instead of running a
-// function per visit (see app/page.tsx for the full rationale).
-export const revalidate = 300;
+// ISR, revalidated on demand after each probe cycle; 1200s is only the safety
+// net (see app/page.tsx for the full rationale).
+export const revalidate = 1200;
 
 export default async function DiscoverPage() {
   const [models, trend] = await Promise.all([getDashboardModels(), getFleetTrend()]);
@@ -71,7 +71,7 @@ export default async function DiscoverPage() {
               />
               <HeaderStat
                 label="Last probe"
-                value={lastChecked ? formatTimeAgo(lastChecked) : "—"}
+                value={lastChecked ? <TimeAgo date={lastChecked} /> : "—"}
                 mono
               />
             </dl>
@@ -119,7 +119,7 @@ function HeaderStat({
   label, value, tone = "neutral", mono = false,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   tone?: "neutral" | "healthy" | "critical";
   mono?: boolean;
 }) {

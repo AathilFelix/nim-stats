@@ -2,7 +2,8 @@ import type { NextConfig } from "next";
 
 // Relative path, not the `@/*` alias: next.config.ts is transpiled and run
 // outside the app's module graph, where that alias does not resolve.
-import { renderLinkHeader } from "./lib/agent/link-header";
+import { renderLinkHeader, renderPageLinkHeader } from "./lib/agent/link-header";
+import { PUBLIC_ROUTES } from "./lib/site";
 
 // Baseline security response headers applied to every route. HSTS is already set
 // by the platform (Vercel/Cloudflare); these add the cheap, no-breakage wins.
@@ -48,6 +49,15 @@ const nextConfig: NextConfig = {
           { key: "Link", value: renderLinkHeader() },
         ],
       },
+      // Public pages: the same discovery set plus the page's own Markdown twin
+      // (rel="alternate"). This used to be stamped by proxy.ts on every HTML
+      // request; the proxy no longer runs for browsers (see its matcher), so it
+      // is declared statically here. A later entry setting the same key wins,
+      // which is what replaces the generic Link above on these paths.
+      ...PUBLIC_ROUTES.map((route) => ({
+        source: route.path,
+        headers: [{ key: "Link", value: renderPageLinkHeader(route.path) }],
+      })),
     ];
   },
 };
