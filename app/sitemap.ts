@@ -7,7 +7,7 @@ import { PUBLIC_ROUTES, absoluteUrl } from "@/lib/site"
 // canonical URLs there are.
 //
 // Regenerated daily; lastModified is the generation time, which for the live
-// fleet pages is the honest signal (their content changes on every probe cycle).
+// fleet pages is the honest signal (their content changes every site refresh).
 
 export const revalidate = 86400
 

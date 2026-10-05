@@ -42,7 +42,8 @@ export function HorizontalSparkline({
   const coords = data.map((v, i) => {
     const x = (i / (data.length - 1)) * width;
     const y = height - ((v - min) / range) * (height - pad * 2) - pad;
-    return [x, y] as const;
+    // 0.1px precision; see svgPoint in lib/utils.ts for why.
+    return [Math.round(x * 10) / 10, Math.round(y * 10) / 10] as const;
   });
 
   const points = coords.map(([x, y]) => `${x},${y}`).join(" ");

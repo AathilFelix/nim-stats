@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import { svgPoint } from "@/lib/utils";
 
 interface SparklineProps {
   data: number[];
@@ -22,7 +23,7 @@ export function Sparkline({ data, color = "#10b981", height = 24 }: SparklinePro
   const points = data.map((val, i) => {
     const x = padding + (i / (data.length - 1)) * (width - padding * 2);
     const y = height - padding - ((val - min) / range) * (height - padding * 2);
-    return `${x},${y}`;
+    return svgPoint(x, y);
   }).join(" ");
 
   return (

@@ -21,17 +21,17 @@ import { TimeAgo } from "@/components/dashboard/time-ago";
 // from the edge instead of each waking a function, so Fluid Active CPU stays
 // flat regardless of pageviews.
 //
-// Freshness is ON DEMAND: after every probe cycle the collector POSTs
-// /api/internal/revalidate, which marks this page stale, and the next visit
-// regenerates it once. A timer regenerates on a clock unrelated to when data
-// lands — the old 300s window re-rendered (and re-wrote to the ISR cache) twice
-// per 10-min probe, usually with nothing new to show.
+// Freshness is ON DEMAND: every SITE_REFRESH_CYCLES probe cycles (20 min) the
+// collector POSTs /api/internal/revalidate, which marks this page stale, and the
+// next visit regenerates it once. A timer regenerates on a clock unrelated to
+// when data lands — the old 300s window re-rendered (and re-wrote to the ISR
+// cache) twice per 10-min probe, usually with nothing new to show.
 //
-// 1200s = PAGE_FALLBACK_REVALIDATE in lib/config/cadence.ts: a safety net that
+// 1800s = PAGE_FALLBACK_REVALIDATE in lib/config/cadence.ts: a safety net that
 // only fires if the revalidation hook stops arriving. Must stay a literal — Next
 // only statically analyses route segment config, so an imported constant is not
 // read. Keep the two in sync.
-export const revalidate = 1200;
+export const revalidate = 1800;
 
 export default async function Home() {
   const [models, trend] = await Promise.all([getDashboardModels(), getFleetTrend()]);

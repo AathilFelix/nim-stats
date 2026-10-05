@@ -38,10 +38,11 @@ jobs:
       NIM_API_KEY: ${{ secrets.NIM_API_KEY }}
       NIM_API_URL: ${{ secrets.NIM_API_URL }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      # After each run the collector POSTs {REVALIDATE_URL}/api/internal/revalidate
-      # so the site regenerates once with the new data (pages no longer refresh
-      # on a short timer). Needs the INTERNAL_API_TOKEN secret to match Vercel's;
-      # without it the call is skipped and the site falls back to a 20-min TTL.
+      # Every other run (SITE_REFRESH_CYCLES), or whenever models joined or left,
+      # the collector POSTs {REVALIDATE_URL}/api/internal/revalidate so the site
+      # regenerates once with the new data (pages no longer refresh on a short
+      # timer). Needs the INTERNAL_API_TOKEN secret to match Vercel's; without it
+      # the call is skipped and the site falls back to a 30-min TTL.
       REVALIDATE_URL: ${{ secrets.REVALIDATE_URL || 'https://nimstats.aathil.com' }}
       INTERNAL_API_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
     steps:

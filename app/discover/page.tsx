@@ -25,9 +25,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/discover" },
 };
 
-// ISR, revalidated on demand after each probe cycle; 1200s is only the safety
+// ISR, revalidated on demand every site refresh (20 min); 1800s is only the safety
 // net (see app/page.tsx for the full rationale).
-export const revalidate = 1200;
+export const revalidate = 1800;
 
 export default async function DiscoverPage() {
   const [models, trend] = await Promise.all([getDashboardModels(), getFleetTrend()]);

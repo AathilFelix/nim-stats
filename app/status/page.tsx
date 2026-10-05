@@ -14,9 +14,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/status" },
 };
 
-// ISR, revalidated on demand after each probe cycle; 1200s is only the safety
+// ISR, revalidated on demand every site refresh (20 min); 1800s is only the safety
 // net (see app/page.tsx for the full rationale).
-export const revalidate = 1200;
+export const revalidate = 1800;
 
 const STATUS_COLOR: Record<string, string> = {
   healthy: "var(--status-healthy)",
