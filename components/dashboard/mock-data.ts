@@ -1,7 +1,9 @@
 export type ModelStatus = "healthy" | "busy" | "jammed";
 
 export interface ReliabilityPoint {
-  time: string;
+  // Label only the mock series sets. Live data omits it: nothing renders it, and
+  // it was ~20% of the model payload serialized into every ISR page entry.
+  time?: string;
   score: number;
 }
 

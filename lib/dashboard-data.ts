@@ -6,8 +6,9 @@
 // analytics (session reliability, volatility, routing confidence, incidents,
 // …) — those are computed by `enrichModel`, then the real sample-derived
 // fields are layered back on top.
+import { cache } from "react"
 import { unstable_cache } from "next/cache"
-import { PAGE_FALLBACK_REVALIDATE } from "@/lib/config/cadence"
+import { PAGE_FALLBACK_REVALIDATE, RELIABILITY_REVALIDATE } from "@/lib/config/cadence"
 import { prisma } from "@/lib/db/prisma"
 import { enrichModel } from "@/lib/operational-engine"
 import type { NIMModel, ModelStatus } from "@/components/dashboard/mock-data"
@@ -23,6 +24,9 @@ import type {
 // history, which is all the card sparklines render; 60 doubled the rows pulled
 // on every cache miss for detail no surface displays.
 const RECENT_SAMPLES = 30
+
+// Incidents kept per model: the detail drawer lists at most this many.
+const INCIDENTS_PER_MODEL = 12
 
 type SampleRow = {
   timestamp: Date
@@ -42,10 +46,6 @@ function percentile(arr: number[], pct: number): number {
   if (!arr.length) return 0
   const sorted = [...arr].sort((a, b) => a - b)
   return sorted[Math.min(Math.floor(sorted.length * pct), sorted.length - 1)]
-}
-
-function hhmm(d: Date): string {
-  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
 }
 
 function relTime(d: Date): string {
@@ -88,7 +88,6 @@ function toBaseModel(
     congestion: Math.round(congestion01 * 100),
     lastChecked: lastProbeAt,
     reliabilityHistory: chrono.map((s) => ({
-      time: hhmm(s.timestamp),
       score: s.success ? Math.round((1 - (s.congestion ?? 0)) * 100) : 0,
     })),
     throughputHistory: chrono.map((s) => Math.round((s.throughput ?? 0) * 10) / 10),
@@ -164,6 +163,10 @@ async function getDashboardModelsUncached(): Promise<NIMModel[]> {
   for (const inc of incidentRows) {
     if (!inc.modelId) continue
     const list = incidentsByModel.get(inc.modelId) ?? []
+    // Rows are newest-first; keep only what the detail drawer can show. A flappy
+    // endpoint logs dozens a day, and the full list was ~45% of the model
+    // payload serialized into every ISR page entry.
+    if (list.length >= INCIDENTS_PER_MODEL) continue
     list.push({ id: inc.id, time: relTime(inc.createdAt), severity: inc.severity, message: inc.message, modelId: inc.modelId })
     incidentsByModel.set(inc.modelId, list)
   }
@@ -482,42 +485,68 @@ async function getQuotaStatsUncached(): Promise<QuotaStats> {
 }
 
 // ── Caching ──────────────────────────────────────────────────────────────────
-// Every one of these read paths runs on each page load (dashboard/status) or
-// client poll (anomalies/quota every 60s). Wrapping them in the Next Data Cache
-// with a time-based `revalidate` collapses N concurrent visitors into ONE
-// database query per window — the single biggest lever for staying inside
-// Neon's free compute budget and surviving a traffic spike on Vercel Hobby.
+// `unstable_cache` on Vercel is durable storage billed exactly like ISR: every
+// entry written or read costs one unit per 8 KB. So it is used only where it
+// buys something the CDN can't, and never as a second copy of an ISR page.
 //
-// Revalidation is ON DEMAND: the collector (GitHub Actions) POSTs
-// /api/internal/revalidate after every probe cycle, which expires the "fleet"
-// tag, so each query re-runs at most once per cycle — and only if something
-// reads it. The `revalidate` below is only a safety net for when that hook
-// fails (PAGE_FALLBACK_REVALIDATE, two probe intervals).
+// Freshness is ON DEMAND: the collector (GitHub Actions) POSTs
+// /api/internal/revalidate every SITE_REFRESH_CYCLES probe cycles, which marks
+// the "fleet" tag stale. Each `revalidate` below is only a safety net for when that hook fails.
 //
-// Refreshing faster than the collector writes cannot surface new data — it
-// just re-runs the same query against the same rows. A 30s TTL once did exactly
-// that: one open tab drove ~2,880 cache misses/day and ~15 GB of Supabase
-// egress against a 5 GB cap; the later 300s TTL still ran twice per cycle and
-// re-wrote each entry to Vercel's cache each time.
-//
-// Note: `unstable_cache` JSON-serialises results, so `Date` fields come back as
-// strings on a cache hit. The only such field is `NIMModel.lastChecked`; all
-// consumers coerce it with `new Date(...)`, so this is safe.
-export const getDashboardModels = unstable_cache(
-  getDashboardModelsUncached,
-  ["dashboard-models"],
+// Refreshing faster than the collector writes cannot surface new data — it just
+// re-runs the same query against the same rows. A 30s TTL once drove ~2,880
+// cache misses/day and ~15 GB of Supabase egress against a 5 GB cap.
+
+/**
+ * Tag the rendering ISR page with "fleet" without caching any fleet data.
+ *
+ * unstable_cache stamps its tags onto the page being prerendered (hit or miss),
+ * which is how `revalidateTag("fleet", "max")` reaches /, /discover and /status.
+ * The entry itself is a constant, so it costs ~1 write unit per refresh.
+ */
+const tagFleetDependency = unstable_cache(
+  async () => true,
+  ["fleet-dependency"],
   { revalidate: PAGE_FALLBACK_REVALIDATE, tags: ["fleet"] },
 )
-export const getFleetTrend = unstable_cache(
+
+// Page reads: straight to the database, deduplicated within one render.
+//
+// These used to be unstable_cache entries too, which put the same ~70 KB fleet
+// payload in durable storage twice: once as the cached query and again inside
+// the ISR page built from it. With on-demand revalidation every cycle rewrote
+// both, and every page regeneration also read the query back — data-cache
+// writes ran ~40 MB/day, the bulk of the project's ISR usage. The ISR page is
+// the cache; under it, each regeneration (at most one per page per refresh)
+// runs a few indexed queries over ~RECENT_SAMPLES × models rows.
+//
+// Note: `lastChecked` is a real `Date` here (cached reads used to hand back a
+// JSON string). Consumers already coerce with `new Date(...)`, so both work.
+export const getDashboardModels = cache(async (): Promise<NIMModel[]> => {
+  await tagFleetDependency()
+  return getDashboardModelsUncached()
+})
+export const getFleetTrend = cache(async (hours?: number, bucketMinutes?: number) => {
+  await tagFleetDependency()
+  return getFleetTrendUncached(hours, bucketMinutes)
+})
+
+// API reads: route handlers have no ISR page underneath, only a CDN entry per
+// region, so each regional miss would otherwise hit the database. These entries
+// are small (a trend series is a few KB).
+export const getCachedFleetTrend = unstable_cache(
   getFleetTrendUncached,
   ["fleet-trend"],
   { revalidate: PAGE_FALLBACK_REVALIDATE, tags: ["fleet"] },
 )
-// 90-day rollup — the heaviest query here and the slowest-moving result.
+// 90-day / 30-day rollups (~90 KB, the largest entry) whose buckets are days and
+// hours, so a 10-minute probe barely moves them. Refreshed hourly, plus on
+// demand when the collector reports the fleet's COMPOSITION changed — that is
+// what must stay in step with the model table (see /api/internal/revalidate).
 export const getReliabilityBreakdown = unstable_cache(
   getReliabilityBreakdownUncached,
   ["reliability-breakdown"],
-  { revalidate: PAGE_FALLBACK_REVALIDATE, tags: ["fleet"] },
+  { revalidate: RELIABILITY_REVALIDATE, tags: ["fleet-composition"] },
 )
 export const getAnomalyData = unstable_cache(
   getAnomalyDataUncached,

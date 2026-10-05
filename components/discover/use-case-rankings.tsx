@@ -5,7 +5,7 @@ import { Award, Trophy } from "lucide-react";
 import type { NIMModel } from "../dashboard/mock-data";
 import { RankBadge } from "./discover-primitives";
 import { PanelHeader } from "./ops-primitives";
-import { cn } from "@/lib/utils";
+import { cn, svgPoint } from "@/lib/utils";
 
 interface UseCaseRankingsProps {
   models: NIMModel[];
@@ -165,7 +165,7 @@ function InlineSparkline({ data }: { data: number[] }) {
     .map((v, i) => {
       const x = (i / (data.length - 1)) * 56;
       const y = 16 - ((v - min) / range) * 14 - 1;
-      return `${x},${y}`;
+      return svgPoint(x, y);
     })
     .join(" ");
 

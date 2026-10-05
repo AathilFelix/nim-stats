@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { invalidParameter, readOnlyMethodHandler, serverError } from "@/lib/api/errors"
 import { DEFAULT_TREND_RANGE, TREND_RANGES, TREND_RANGE_VALUES } from "@/lib/api/params"
 import { FLEET_CACHE_CONTROL } from "@/lib/config/cadence"
-import { getFleetTrend } from "@/lib/dashboard-data"
+import { getCachedFleetTrend } from "@/lib/dashboard-data"
 import { api } from "@/lib/telemetry/logger"
 
 export const runtime = "nodejs"
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     // caller with a typo got real-looking data for a window they never asked
     // for. The OpenAPI document declares this as an enum; say so instead.
     if (!cfg) return invalidParameter("range", range, TREND_RANGE_VALUES)
-    const data = await getFleetTrend(cfg.hours, cfg.bucketMinutes)
+    const data = await getCachedFleetTrend(cfg.hours, cfg.bucketMinutes)
     // Let Vercel's CDN serve repeat hits from the edge (s-maxage) so concurrent
     // viewers collapse into ~one function call per 5-min window — matching the
     // cache TTL beneath it and the 10-min probe cadence that produces new rows.

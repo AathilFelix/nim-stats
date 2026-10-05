@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { invalidParameter, readOnlyMethodHandler, serverError } from "@/lib/api/errors"
 import { DEFAULT_RELIABILITY_DAYS, RELIABILITY_DAY_VALUES } from "@/lib/api/params"
-import { FLEET_CACHE_CONTROL } from "@/lib/config/cadence"
+import { RELIABILITY_CACHE_CONTROL } from "@/lib/config/cadence"
 import { getReliabilityBreakdown } from "@/lib/dashboard-data"
 import { api } from "@/lib/telemetry/logger"
 
@@ -23,14 +23,14 @@ export async function GET(req: Request) {
     // the one they asked for, with no way to tell.
     if (!ALLOWED_DAYS.has(days)) return invalidParameter("days", raw ?? "", RELIABILITY_DAY_VALUES)
     const data = await getReliabilityBreakdown(days)
-    // The 90-day aggregate is slow-moving, so the expensive part stays cached
-    // server-side (see getReliabilityBreakdown's TTL). The edge window is the
-    // shared FLEET_TTL instead of double it: the fleet's *composition* changes
-    // the moment the registry paroles or retires an endpoint, and an edge entry
-    // outliving the page's own ISR window is what left the SLA and latency
-    // panels rendering a 34-model fleet next to a 78-model table.
+    // The 90-day aggregate is slow-moving, so it stays cached server-side for an
+    // hour, and is dropped early when the fleet's composition changes (see
+    // getReliabilityBreakdown). The edge window is one site-refresh interval
+    // (see RELIABILITY_CACHE_CONTROL): it once ran longer than the page's own
+    // refresh with nothing ever re-fetching, which is what left the SLA and
+    // latency panels rendering a 34-model fleet next to a 78-model table.
     return NextResponse.json(data, {
-      headers: { "Cache-Control": FLEET_CACHE_CONTROL },
+      headers: { "Cache-Control": RELIABILITY_CACHE_CONTROL },
     })
   } catch (err) {
     api.error("GET /api/fleet/reliability failed", { error: (err as Error).message })

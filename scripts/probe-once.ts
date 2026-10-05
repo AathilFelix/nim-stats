@@ -18,6 +18,7 @@
 // DATABASE_URL): run via `tsx --env-file=.env scripts/probe-once.ts` locally, or
 // rely on real env vars in CI (see .github/workflows/probe.yml).
 import { assertEnv } from "@/lib/config/env"
+import { PROBE_INTERVAL_S, SITE_REFRESH_CYCLES } from "@/lib/config/cadence"
 import {
   runProbeCycle,
   syncModelRegistry,
@@ -64,15 +65,17 @@ async function step<T>(
  * Tell the site that new data has landed.
  *
  * The site's pages and cached queries refresh on demand rather than on a timer
- * (see app/api/internal/revalidate), so this runs after every probe cycle — the
- * one moment the data actually changes. It also keeps the model table and the
- * SLA / latency panels agreeing on fleet size after a sync changes the fleet.
+ * (see app/api/internal/revalidate), so this runs right after a probe cycle —
+ * the moment the data actually changes — on every SITE_REFRESH_CYCLES-th cycle
+ * (see isRefreshCycle). `compositionChanged` additionally drops
+ * the hourly reliability rollup, so the model table and the SLA / latency panels
+ * agree on fleet size as soon as models join or leave.
  *
  * Best-effort: without REVALIDATE_URL or INTERNAL_API_TOKEN this is skipped and
  * the site falls back to its 20-minute safety-net TTL. A failure here must never
  * fail the collector — the samples are already written by then.
  */
-async function revalidateSiteCaches(): Promise<void> {
+async function revalidateSiteCaches(compositionChanged: boolean): Promise<void> {
   const base = process.env.REVALIDATE_URL
   const token = process.env.INTERNAL_API_TOKEN
   if (!base || !token) {
@@ -83,7 +86,8 @@ async function revalidateSiteCaches(): Promise<void> {
   }
   const res = await fetch(`${base.replace(/\/$/, "")}/api/internal/revalidate`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ compositionChanged }),
     signal: AbortSignal.timeout(10_000),
   })
   // The guard answers 404 (not 401) when the token is wrong, so surface the
@@ -91,7 +95,21 @@ async function revalidateSiteCaches(): Promise<void> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
 }
 
+/**
+ * Whether this run should refresh the site.
+ *
+ * Every SITE_REFRESH_CYCLES-th cycle, picked from the wall clock rather than a
+ * counter (each run is a fresh process with no memory of the last). The cron
+ * fires on the 10-minute marks and a run starts within that slot, so
+ * consecutive runs alternate. A delayed run that lands in the wrong slot costs
+ * one skipped or extra refresh; the pages' safety-net TTL covers the former.
+ */
+function isRefreshCycle(startedAt: number): boolean {
+  return Math.floor(startedAt / (PROBE_INTERVAL_S * 1000)) % SITE_REFRESH_CYCLES === 0
+}
+
 async function main(): Promise<void> {
+  const startedAt = Date.now()
   assertEnv()
 
   const wantSync = process.argv.includes("--sync")
@@ -138,7 +156,21 @@ async function main(): Promise<void> {
   // Last, so every write above (samples, prune, a changed fleet) is visible to
   // the regeneration this triggers.
   if (sync && fleetChanged(sync)) logger.info("fleet composition changed", { ...sync })
-  await step("revalidate site caches", () => revalidateSiteCaches())
+  // Compare the active set itself rather than trusting the sync counters: the
+  // probe cycle and maintenance also retire endpoints, and either way the
+  // reliability panels must drop their hourly cache to match the table. If the
+  // re-read fails, assume it changed: one extra rollup beats a stale fleet size.
+  const after = await step("read fleet composition", () => getActiveModels())
+  const before = new Set(active.map((m) => m.id))
+  const compositionChanged =
+    !after || after.length !== before.size || after.some((m) => !before.has(m.id))
+  // A composition change refreshes at once whatever the cycle, so the model
+  // table never lists an endpoint that has gone (or misses one that arrived).
+  if (compositionChanged || isRefreshCycle(startedAt)) {
+    await step("revalidate site caches", () => revalidateSiteCaches(compositionChanged))
+  } else {
+    logger.info("skipping cache revalidation", { reason: "off-cycle", everyCycles: SITE_REFRESH_CYCLES })
+  }
 
   await prisma.$disconnect()
   logger.info("probe-once complete")
