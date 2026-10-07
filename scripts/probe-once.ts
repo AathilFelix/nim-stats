@@ -71,28 +71,41 @@ async function step<T>(
  * the hourly reliability rollup, so the model table and the SLA / latency panels
  * agree on fleet size as soon as models join or leave.
  *
+ * REVALIDATE_URL may list several origins, comma-separated, while the site runs
+ * on two hosts at once (Vercel and Cloudflare during the migration); each is
+ * told independently, so one being down doesn't leave the other stale.
+ *
  * Best-effort: without REVALIDATE_URL or INTERNAL_API_TOKEN this is skipped and
  * the site falls back to its 20-minute safety-net TTL. A failure here must never
  * fail the collector — the samples are already written by then.
  */
 async function revalidateSiteCaches(compositionChanged: boolean): Promise<void> {
-  const base = process.env.REVALIDATE_URL
+  const origins = (process.env.REVALIDATE_URL ?? "")
+    .split(",")
+    .map((o) => o.trim().replace(/\/$/, ""))
+    .filter(Boolean)
   const token = process.env.INTERNAL_API_TOKEN
-  if (!base || !token) {
+  if (origins.length === 0 || !token) {
     logger.info("skipping cache revalidation", {
-      reason: !base ? "REVALIDATE_URL not set" : "INTERNAL_API_TOKEN not set",
+      reason: origins.length === 0 ? "REVALIDATE_URL not set" : "INTERNAL_API_TOKEN not set",
     })
     return
   }
-  const res = await fetch(`${base.replace(/\/$/, "")}/api/internal/revalidate`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ compositionChanged }),
-    signal: AbortSignal.timeout(10_000),
-  })
-  // The guard answers 404 (not 401) when the token is wrong, so surface the
-  // status rather than assuming the route is missing.
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const results = await Promise.allSettled(
+    origins.map(async (origin) => {
+      const res = await fetch(`${origin}/api/internal/revalidate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ compositionChanged }),
+        signal: AbortSignal.timeout(10_000),
+      })
+      // The guard answers 404 (not 401) when the token is wrong, so surface the
+      // status rather than assuming the route is missing.
+      if (!res.ok) throw new Error(`${origin}: HTTP ${res.status}`)
+    }),
+  )
+  const failed = results.flatMap((r) => (r.status === "rejected" ? [String(r.reason?.message ?? r.reason)] : []))
+  if (failed.length) throw new Error(failed.join("; "))
 }
 
 /**
