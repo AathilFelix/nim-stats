@@ -19,9 +19,10 @@ export default defineConfig({
     // from the bindings below.
     compatibilityFlags: ["nodejs_compat"],
     assets: { notFoundHandling: "none" },
-    // Staging URL while Vercel still serves nimstats.aathil.com. The production
-    // route is added at cutover; turn this off once the domain has moved.
-    workersDev: true,
+    // No *.workers.dev copy of the site: staging runs on the nimstatsbeta.aathil.com
+    // Custom Domain (attached through the API, so not declared here), where a
+    // zone rule can mark it noindex. The production domain is added at cutover.
+    workersDev: false,
     observability: { enabled: true },
     env: {
       ...cache.env,
