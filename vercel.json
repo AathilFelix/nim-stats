@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "feat/cloudflare-migration": false
+    }
+  },
   "headers": [
     {
       "source": "/((?!_next/static|_next/image).*)",

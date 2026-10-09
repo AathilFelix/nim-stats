@@ -50,8 +50,10 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
     // Advertise the Markdown representation of this URL. A crawler that can't
-    // content-negotiate can still follow the `.md` alias.
-    types: { "text/markdown": [{ url: "/.md", title: TITLE }] },
+    // content-negotiate can still follow the `.md` alias. A plain URL, not the
+    // `[{ url, title }]` form: vinext's metadata resolver only accepts strings
+    // here and fails the whole render on the object form.
+    types: { "text/markdown": "/.md" },
   },
   robots: { index: true, follow: true },
   openGraph: {
