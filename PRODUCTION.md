@@ -6,14 +6,16 @@ How this runs in production for **$0/month**, and the optimizations that make it
 
 | Layer | Service | Free-tier limit | What we use |
 |---|---|---|---|
-| Frontend + SSR + API routes | **Vercel Hobby** | 100 GB bandwidth, serverless functions | the Next.js app |
+| Frontend + SSR + API routes | **Cloudflare Workers Free** (via [vinext](https://github.com/cloudflare/vinext)) | 100k requests/day, 10 ms CPU/request, 3 MB bundle | the Next.js app, route `nimstats.aathil.com/*` |
+| Edge data + page cache | **Workers KV** + Workers Cache | 1,000 KV writes/day | `unstable_cache` entries (KV), rendered pages (Cache API) |
+| DB connection pooling | **Hyperdrive** | included on Free | pools the Worker's connections to Supabase |
 | Database | **Supabase Postgres** | 500 MB storage; pauses after 7 days idle | `ModelSample`, `NIModel`, `Incident` |
 | Worker / probing | **GitHub Actions** (public repo) | **unlimited** Linux minutes | `scripts/probe-once.ts` on a schedule |
 | Redis | — | — | **not used** (rate limiter is in-process) |
 
-### Why GitHub Actions and not Vercel for the worker
+### Why GitHub Actions for the worker
 
-The collector must run on a schedule, forever. Vercel Hobby has **no always-on process**, and its Cron runs **at most once per day** — it cannot probe on a tight interval. GitHub Actions on a **public** repo gives unlimited minutes, so the probe cycle lives there as a one-shot job (`probe-once.ts`), while the long-running `worker.ts` stays for local dev only.
+The collector must run on a schedule, forever, and a full cycle takes ~80 s of mostly waiting on NIM. The web host is request-bound (Cloudflare Workers today, Vercel Hobby before it, whose Cron ran **at most once per day**), so it cannot probe on a tight interval. GitHub Actions on a **public** repo gives unlimited minutes, so the probe cycle lives there as a one-shot job (`probe-once.ts`), while the long-running `worker.ts` stays for local dev only.
 
 The cadence is **driven by the Cloudflare cron Worker** (`cloudflare/cron-worker`), which dispatches `probe.yml` every **10 minutes** — GitHub's own `schedule:` proved too unreliable to depend on and is kept only as an hourly fallback.
 
@@ -43,7 +45,7 @@ All TTLs are therefore anchored to the probe interval in `lib/config/cadence.ts`
 3. **10-minute interval** — keeps storage around ~30 MB and the probe well under NIM's rate cap.
 4. **Cadence anchored to the collector** — one source of truth in `lib/config/cadence.ts` drives the server cache TTLs, ISR windows, CDN `s-maxage`, and the client pollers. This is the single biggest lever on egress; see *The numbers* above.
 5. **Loud failures** — `probe-once.ts` exits non-zero if the probe cycle throws *or* records zero successes across a non-empty fleet, so a systemic outage turns the Actions run red instead of reporting success.
-6. **Right DB connection per consumer** — the Vercel app uses the Supabase **pooled** endpoint (port 6543) so serverless functions don't exhaust connections; the worker + migrations use the **direct** endpoint (port 5432), which the transaction pooler can't serve.
+6. **Right DB connection per consumer** — the web Worker reaches Supabase through **Hyperdrive**, pointed at the **session** pooler (port 5432) with an origin limit of **5**. Hyperdrive does its own pooling, the transaction pooler (6543) behind it timed out under load, and a higher limit starves Supabase's session slots. Each request opens its own short-lived client (`lib/db/prisma.workers.ts`), since a Worker can't reuse another request's socket. The collector + migrations use the **direct/session** endpoint (port 5432).
 7. **Locked-down internal APIs** — non-browser routes (`anomalies`, `quota`, `overview`, `models`, `providers`) require `INTERNAL_API_TOKEN`; only `trend`, `reliability`, and a minimal `health` are public.
 8. **Dropped Upstash** — it was referenced in env but never imported; one less service to provision.
 
@@ -51,9 +53,15 @@ All TTLs are therefore anchored to the probe interval in `lib/config/cadence.ts`
 
 1. **Supabase**: create a project. From *Project Settings → Database*, copy **both** connection strings — the **pooled** (Transaction, port 6543) and the **direct** (port 5432). Run migrations against the **direct** URL:
    `DATABASE_URL="<direct>" npx prisma migrate deploy`.
-2. **Vercel**: import the repo. Env: `DATABASE_URL` = **pooled**, `NIM_API_KEY`, `NIM_API_URL`, `INTERNAL_API_TOKEN` (`openssl rand -hex 32`). Deploy.
+2. **Cloudflare Worker (web)**: everything lives in `cloudflare.config.ts` (bindings, the production route) and builds with `vite build`; `next build` still works but is no longer deployed.
+   - Create the Hyperdrive config against the Supabase **session** pooler (5432), origin connection limit 5, and put its id in `HYPERDRIVE_ID`. Create the KV namespace bound as `VINEXT_KV_CACHE`.
+   - `wrangler secret put INTERNAL_API_TOKEN --name nim-stats` (`openssl rand -hex 32`); it must equal the GitHub secret of the same name.
+   - Deploys run on **Workers Builds** for every push to `main` (build `npm test`, deploy `npm run deploy:vinext`). By hand: `CLOUDFLARE_ACCOUNT_ID=<id> npm run deploy:vinext`.
+   - `cf deploy` replaces the Worker's routes with the ones declared in `cloudflare.config.ts`, so add or change routes there, never only in the dashboard.
 3. **GitHub** (public repo): add repo **secrets** `DATABASE_URL` = **direct** (the worker runs transactions), `NIM_API_KEY`, `NIM_API_URL`. Trigger `probe` once from the Actions tab to seed data.
    **Cloudflare cron Worker**: `cd cloudflare/cron-worker && wrangler deploy`, then `wrangler secret put GH_DISPATCH_TOKEN` with a PAT that can dispatch workflows. This is what actually drives the 10-min cadence.
-4. **(Optional) Cloudflare** in front of Vercel: add WAF/rate-limit rules on `/api/*`. Note this only protects the proxied domain — the raw `*.vercel.app` origin stays reachable, which is exactly why the internal routes also enforce `INTERNAL_API_TOKEN` in code.
+4. **(Optional)** WAF/rate-limit rules on `/api/*` in the `aathil.com` zone. The internal routes enforce `INTERNAL_API_TOKEN` in code regardless.
+
+**Rollback to Vercel** (while the Vercel project still exists): delete the `nimstats.aathil.com/*` route under *Workers & Pages → nim-stats → Domains & Routes*. The proxied `nimstats` CNAME to Vercel sits underneath, so traffic moves back within seconds.
 
 > Scheduled Actions only run on the **default branch** and can be delayed/dropped under GitHub load — which is why the Cloudflare Worker drives the real cadence and GitHub's `schedule:` is only an hourly fallback. Treat "every 10 min" as best-effort either way; the UI degrades to slightly-older data, never breaks.
