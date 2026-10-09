@@ -27,6 +27,13 @@ function connectionString(): string {
   return url
 }
 
+// vinext marks the body of an `unstable_cache()` function with this
+// AsyncLocalStorage and makes `after()` throw inside it. The first query of a
+// request often runs there (lib/dashboard-data.ts), so the disconnect is
+// registered from outside that scope; it belongs to the request, not the cache.
+type ScopeStorage = { exit<R>(fn: () => R): R }
+const UNSTABLE_CACHE_SCOPE = Symbol.for("vinext.unstableCache.als")
+
 const getPrisma = cacheForRequest(() => {
   const client = new PrismaClient({
     // Hyperdrive advises a small per-request pool; it does the real pooling.
@@ -36,7 +43,19 @@ const getPrisma = cacheForRequest(() => {
   // Close this request's connections once the response is sent. Left open, they
   // outlive the request and keep holding Hyperdrive's few origin connections
   // until every one is taken and later requests time out waiting for a slot.
-  after(() => client.$disconnect())
+  const closeAfterResponse = () => after(() => client.$disconnect())
+  // Read per call: vinext installs the storage when next/cache first loads.
+  const unstableCacheScope = (globalThis as Record<symbol, ScopeStorage | undefined>)[
+    UNSTABLE_CACHE_SCOPE
+  ]
+  try {
+    if (unstableCacheScope) unstableCacheScope.exit(closeAfterResponse)
+    else closeAfterResponse()
+  } catch (err) {
+    // Never fail the query over cleanup: the runtime drops the sockets when the
+    // request ends anyway, just later than an explicit disconnect would.
+    console.warn("prisma: could not schedule disconnect", (err as Error).message)
+  }
   return client
 })
 
