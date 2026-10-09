@@ -1,4 +1,4 @@
-import { bindings, defineConfig, defineWorker } from "cf/config";
+import { bindings, defineConfig, defineWorker, triggers } from "cf/config";
 import { createWorkersCacheConfig } from "@vinext/cloudflare/cache/config";
 
 const cache = await createWorkersCacheConfig();
@@ -19,9 +19,12 @@ export default defineConfig({
     // from the bindings below.
     compatibilityFlags: ["nodejs_compat"],
     assets: { notFoundHandling: "none" },
-    // No *.workers.dev copy of the site: staging runs on the nimstatsbeta.aathil.com
-    // Custom Domain (attached through the API, so not declared here), where a
-    // zone rule can mark it noindex. The production domain is added at cutover.
+    // Production. A zone route rather than a Custom Domain because the proxied
+    // nimstats CNAME (to Vercel) still sits underneath it: deleting this route
+    // in the dashboard sends traffic back to Vercel within seconds. Declared
+    // here so every deploy, including Workers Builds, keeps it attached.
+    triggers: [triggers.fetch({ pattern: "nimstats.aathil.com/*", zone: "aathil.com" })],
+    // No *.workers.dev copy of the site.
     workersDev: false,
     observability: { enabled: true },
     env: {

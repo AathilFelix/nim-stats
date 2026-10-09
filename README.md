@@ -39,7 +39,7 @@ The collector is decoupled from the web app: it writes telemetry to Postgres, an
 flowchart LR
     A["Worker<br/>(GitHub Actions, every 5 min)"] -->|streamed probe| B["NVIDIA NIM API"]
     A -->|write samples + incidents| C[("Postgres<br/>(Supabase)")]
-    D["Next.js app<br/>(Vercel)"] -->|read + cache| C
+    D["Next.js app<br/>(Cloudflare Workers)"] -->|read + cache, via Hyperdrive| C
     E["Browser"] -->|SSR dashboard| D
 ```
 
@@ -182,10 +182,10 @@ curl -sI https://nimstats.aathil.com/ | grep -i "^link"
 
 ## Deployment
 
-NIM Stats is designed to run on entirely free tiers — **Vercel** (web), **Supabase** (Postgres), and **GitHub Actions** (the worker, on a public repo). See [`PRODUCTION.md`](PRODUCTION.md) for the architecture, the data-volume math, and step-by-step deploy instructions.
+NIM Stats is designed to run on entirely free tiers — **Cloudflare Workers** (web, built with [vinext](https://github.com/cloudflare/vinext) and deployed by Workers Builds on every push to `main`), **Supabase** (Postgres), and **GitHub Actions** (the worker, on a public repo). See [`PRODUCTION.md`](PRODUCTION.md) for the architecture, the data-volume math, and step-by-step deploy instructions.
 
 > [!IMPORTANT]
-> The worker runs as a scheduled GitHub Actions job (Vercel has no always-on process). Use Supabase's **pooled** connection for the app and the **direct/session** connection for the worker and migrations.
+> The worker runs as a scheduled GitHub Actions job (the web host is request-bound). The web app reaches Supabase through Hyperdrive on the **session** pooler; the worker and migrations use the **direct/session** connection.
 
 ---
 

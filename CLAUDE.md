@@ -10,7 +10,14 @@ npm run build    # Production build (next build)
 npm run start    # Serve production build (next start)
 npm run lint     # Lint with eslint-config-next (core-web-vitals + typescript)
 npx next dev     # Alternative dev invocation
+npm run dev:vinext     # Dev server on the Workers runtime (localhost:3001)
+npm run build:vinext   # Production build for Cloudflare Workers (vite build)
+npm run deploy:vinext  # Build + deploy the nim-stats Worker (needs CLOUDFLARE_ACCOUNT_ID)
 ```
+
+## Hosting
+
+Production runs on **Cloudflare Workers** via vinext (`vite.config.ts`, `cloudflare.config.ts`), deployed by Workers Builds on push to `main`. The DB is reached through Hyperdrive; `vite.config.ts` swaps `lib/db/prisma.ts` for `lib/db/prisma.workers.ts` and `@prisma/client` for its edge entry. `cf deploy` replaces routes with those in `cloudflare.config.ts`. Vercel (`vercel.json`) is a standby until it is decommissioned.
 
 ## Tech Stack
 
