@@ -34,8 +34,19 @@ describe("classifyState", () => {
     expect(classifyState(samples, 0.3, { ...t, errorRateBusyMax: 1, errorRateHealthyMax: 1 })).toBe(OperationalState.busy)
   })
 
-  it("still jams an endpoint that keeps timing out", () => {
-    const samples = [...Array.from({ length: 5 }, () => fail(true)), ...Array.from({ length: 16 }, () => ok(300))]
-    expect(classifyState(samples, 0.2, t)).toBe(OperationalState.jammed)
+  // Regression: 3 timeouts in 21 probes used to jam an endpoint that answered
+  // the other 18, so intermittent endpoints read as dead and "busy" never showed.
+  it("calls an endpoint that times out intermittently busy, not jammed", () => {
+    const samples = [...Array.from({ length: 8 }, () => fail(true)), ...Array.from({ length: 13 }, () => ok(1500))]
+    expect(classifyState(samples, 0.4, t)).toBe(OperationalState.busy)
+  })
+
+  it("jams an endpoint that fails most of the time", () => {
+    const samples = [...Array.from({ length: 12 }, () => fail(true)), ...Array.from({ length: 9 }, () => ok(1500))]
+    expect(classifyState(samples, 0.44, t)).toBe(OperationalState.jammed)
+  })
+
+  it("jams an endpoint that never answers", () => {
+    expect(classifyState(Array.from({ length: 21 }, () => fail(true)), 0.6, t)).toBe(OperationalState.jammed)
   })
 })

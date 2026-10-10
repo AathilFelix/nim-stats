@@ -30,12 +30,18 @@ export interface OperationalThresholds {
 // ~0.1–2.2s; the old 500ms busy bar labelled almost all of them "busy" and left
 // the dashboard showing 2 healthy out of 17 serving. 3s on the MEDIAN marks the
 // genuinely slow ones without one cold-start outlier tipping a model over.
+//
+// Jammed means failing MOST of the time. At 20% errors / 10% timeouts, three
+// 15s timeouts in ~3.5h jammed an endpoint that answered the other 18 probes,
+// so "busy" never appeared and intermittent endpoints read as dead. Busy now
+// covers anything still answering most probes; timeouts are also errors, so
+// the timeout bar matches the error bar instead of sitting below it.
 export const DEFAULT_THRESHOLDS: OperationalThresholds = {
  ttftHealthyMax: 150,
  ttftBusyMax: 3000,
  errorRateHealthyMax: 0.05,
- errorRateBusyMax: 0.20,
- timeoutRateBusyMax: 0.10,
+ errorRateBusyMax: 0.5,
+ timeoutRateBusyMax: 0.5,
 }
 
 export interface ProbeTiming {
