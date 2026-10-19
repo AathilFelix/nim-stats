@@ -5,8 +5,8 @@ import { cacheForRequest } from "vinext/cache"
 import { after } from "next/server"
 
 // Cloudflare Workers build of lib/db/prisma.ts. vite.config.ts swaps this in
-// for every import of that module, so the Next.js build (Vercel), the GitHub
-// Actions collector and local `next dev` never see it.
+// for every import of that module, so the GitHub Actions collector and the
+// Node scripts never see it.
 //
 // Why a separate module: a Worker cannot reuse a socket opened by another
 // request ("Cannot perform I/O on behalf of a different request"), so the Node

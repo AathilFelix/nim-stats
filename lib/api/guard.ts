@@ -18,14 +18,14 @@ function safeEqual(a: string, b: string): boolean {
  * the request may proceed. Auth is a shared secret sent as `Authorization: Bearer <token>` or
  * the `x-internal-token` header, compared in constant time.
  *
- * If `INTERNAL_API_TOKEN` is unset (e.g. local dev) the guard is a no-op so the
- * routes stay usable. ALWAYS set it in production to actually lock these down —
- * Cloudflare/WAF rules in front are good, but this also protects the raw
- * *.vercel.app origin, which the edge proxy doesn't cover.
+ * If `INTERNAL_API_TOKEN` is unset the guard is a no-op in local dev and tests,
+ * so the routes stay usable there. A production build fails CLOSED instead:
+ * Worker Previews don't inherit production secrets, so a preview without its own
+ * token would otherwise expose every internal route on a public URL.
  */
 export function blockUnlessInternal(req: Request): NextResponse | null {
   const token = process.env.INTERNAL_API_TOKEN
-  if (!token) return null
+  if (!token) return process.env.NODE_ENV === "production" ? notFound(new URL(req.url).pathname) : null
 
   const auth = req.headers.get("authorization") ?? ""
   const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : ""

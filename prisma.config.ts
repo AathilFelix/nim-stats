@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // `prisma generate` (postinstall / build) needs a datasource URL to be present
 // but never connects, so fall back to a placeholder when DATABASE_URL is unset.
-// This keeps builds that lack the secret — e.g. Vercel preview deployments —
+// This keeps builds that lack the secret — e.g. Workers Builds —
 // from failing at generate time. Commands that actually connect (migrate, seed,
 // db push) still require the real DATABASE_URL and error clearly without it.
 const DATABASE_URL =

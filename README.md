@@ -95,7 +95,10 @@ Open [http://localhost:3000](http://localhost:3000). Data appears within a minut
 | Command | Description |
 |---|---|
 | `npm run dev` | Start the dev server on `localhost:3000` |
-| `npm run build` | Production build (runs `prisma generate` first) |
+| `npm run build` | Production build for Cloudflare Workers (runs `prisma generate` first) |
+| `npm run start` | Serve the production build locally on the Workers runtime |
+| `npm run deploy` | Build and deploy the `nim-stats` Worker (needs `CLOUDFLARE_ACCOUNT_ID`) |
+| `npm run deploy:preview` | Build and upload a branch-isolated Worker Preview |
 | `npm run worker` | Run the always-on collector (local dev) |
 | `npm run probe:once` | Run a single probe cycle and exit (used by CI) |
 | `npm run lint` | Lint with `eslint-config-next` |

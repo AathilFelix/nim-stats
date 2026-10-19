@@ -22,9 +22,9 @@ export async function GET(req: Request) {
     // for. The OpenAPI document declares this as an enum; say so instead.
     if (!cfg) return invalidParameter("range", range, TREND_RANGE_VALUES)
     const data = await getCachedFleetTrend(cfg.hours, cfg.bucketMinutes)
-    // Let Vercel's CDN serve repeat hits from the edge (s-maxage) so concurrent
-    // viewers collapse into ~one function call per 5-min window — matching the
-    // cache TTL beneath it and the 10-min probe cadence that produces new rows.
+    // Let a CDN serve repeat hits from the edge (s-maxage) so concurrent viewers
+    // collapse into ~one origin call per 5-min window — matching the cache TTL
+    // beneath it and the 10-min probe cadence that produces new rows.
     // `max-age=0` keeps the browser revalidating; `stale-while-revalidate` hides
     // refresh latency.
     return NextResponse.json(
