@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && next build",
-    "start": "next start",
+    "dev": "vite dev --port 3000",
+    "build": "prisma generate && vite build",
+    "start": "vite preview",
+    "deploy": "vinext-cloudflare deploy",
+    "deploy:preview": "cf previews deploy",
     "lint": "eslint",
     "postinstall": "prisma generate",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
@@ -14,11 +16,7 @@
     "probe:once": "tsx --env-file=.env scripts/probe-once.ts",
     "probe:once:ci": "tsx scripts/probe-once.ts",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "dev:vinext": "vite dev --port 3001",
-    "build:vinext": "vite build",
-    "start:vinext": "vite preview",
-    "deploy:vinext": "vinext-cloudflare deploy"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

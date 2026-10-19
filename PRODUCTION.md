@@ -48,20 +48,22 @@ All TTLs are therefore anchored to the probe interval in `lib/config/cadence.ts`
 6. **Right DB connection per consumer** — the web Worker reaches Supabase through **Hyperdrive**, pointed at the **session** pooler (port 5432) with an origin limit of **5**. Hyperdrive does its own pooling, the transaction pooler (6543) behind it timed out under load, and a higher limit starves Supabase's session slots. Each request opens its own short-lived client (`lib/db/prisma.workers.ts`), since a Worker can't reuse another request's socket. The collector + migrations use the **direct/session** endpoint (port 5432).
 7. **Locked-down internal APIs** — non-browser routes (`anomalies`, `quota`, `overview`, `models`, `providers`) require `INTERNAL_API_TOKEN`; only `trend`, `reliability`, and a minimal `health` are public.
 8. **Dropped Upstash** — it was referenced in env but never imported; one less service to provision.
+9. **One database read per refresh** — Workers Cache keeps a copy of each page per location and per variant (HTML, RSC, query strings), and vinext purges it outright on every revalidation, so one refresh fans out into many page regenerations. The page data therefore lives in KV (`unstable_cache`), and `/api/internal/revalidate` rebuilds it from Postgres once, right after invalidating, so those regenerations read KV instead of Supabase.
 
 ## Deploy steps
 
 1. **Supabase**: create a project. From *Project Settings → Database*, copy **both** connection strings — the **pooled** (Transaction, port 6543) and the **direct** (port 5432). Run migrations against the **direct** URL:
    `DATABASE_URL="<direct>" npx prisma migrate deploy`.
-2. **Cloudflare Worker (web)**: everything lives in `cloudflare.config.ts` (bindings, the production route) and builds with `vite build`; `next build` still works but is no longer deployed.
+2. **Cloudflare Worker (web)**: everything lives in `cloudflare.config.ts` (bindings, the production route) and builds with `npm run build` (`vite build`).
    - Create the Hyperdrive config against the Supabase **session** pooler (5432), origin connection limit 5, and put its id in `HYPERDRIVE_ID`. Create the KV namespace bound as `VINEXT_KV_CACHE`.
    - `wrangler secret put INTERNAL_API_TOKEN --name nim-stats` (`openssl rand -hex 32`); it must equal the GitHub secret of the same name.
-   - Deploys run on **Workers Builds** for every push to `main` (build `npm test`, deploy `npm run deploy:vinext`). By hand: `CLOUDFLARE_ACCOUNT_ID=<id> npm run deploy:vinext`.
+   - Deploys run on **Workers Builds** for every push to `main` (build `npm test`, deploy `npm run deploy`). By hand: `CLOUDFLARE_ACCOUNT_ID=<id> npm run deploy`. Plain `wrangler deploy` does not work: the project uses the typed `cf` config, whose Build Output (`.cloudflare/output/v0/`) Wrangler doesn't read.
+   - **Previews**: `npm run deploy:preview` (`cf previews deploy`) builds with `isPreview` and uploads a branch-isolated Worker Preview at `<branch>-nim-stats.<subdomain>.workers.dev` (Cloudflare adds `X-Robots-Tag: noindex` there). Previews get their own KV namespace (`PREVIEW_KV_ID`), no production route, and no production secrets, so the internal routes stay closed unless a preview `INTERNAL_API_TOKEN` is set. They read the production database through the same Hyperdrive. Never run `vinext-cloudflare deploy --preview`: it is a full production deploy in preview mode.
    - `cf deploy` replaces the Worker's routes with the ones declared in `cloudflare.config.ts`, so add or change routes there, never only in the dashboard.
 3. **GitHub** (public repo): add repo **secrets** `DATABASE_URL` = **direct** (the worker runs transactions), `NIM_API_KEY`, `NIM_API_URL`. Trigger `probe` once from the Actions tab to seed data.
    **Cloudflare cron Worker**: `cd cloudflare/cron-worker && wrangler deploy`, then `wrangler secret put GH_DISPATCH_TOKEN` with a PAT that can dispatch workflows. This is what actually drives the 10-min cadence.
 4. **(Optional)** WAF/rate-limit rules on `/api/*` in the `aathil.com` zone. The internal routes enforce `INTERNAL_API_TOKEN` in code regardless.
 
-**Rollback to Vercel** (while the Vercel project still exists): delete the `nimstats.aathil.com/*` route under *Workers & Pages → nim-stats → Domains & Routes*. The proxied `nimstats` CNAME to Vercel sits underneath, so traffic moves back within seconds.
+**Rollback**: roll the Worker back to an earlier version under *Workers & Pages → nim-stats → Deployments*. The Vercel project is paused (since 2026-10-19), so falling back to it means unpausing it first, then deleting the `nimstats.aathil.com/*` route; the proxied `nimstats` CNAME still points there.
 
 > Scheduled Actions only run on the **default branch** and can be delayed/dropped under GitHub load — which is why the Cloudflare Worker drives the real cadence and GitHub's `schedule:` is only an hourly fallback. Treat "every 10 min" as best-effort either way; the UI degrades to slightly-older data, never breaks.

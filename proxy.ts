@@ -35,7 +35,6 @@ const RESERVED_PREFIXES = [
   // exactly the right type with a 406.
   "/.well-known/",
   "/_next/",
-  "/_vercel/",
   "/opengraph-image",
   "/twitter-image",
   "/agent-instructions.md",
@@ -130,10 +129,10 @@ export function proxy(req: NextRequest) {
 
 export const config = {
   // Invoke the proxy ONLY for requests whose answer can differ from the cached
-  // HTML. On Vercel a proxy runs as a function in front of the CDN, so matching
-  // every page request meant a function invocation for every browser hit,
-  // prefetch and crawler burst — even when the page itself was a cache HIT.
-  // Production logs showed ~150 invocations/min, the bulk of Fluid Active CPU.
+  // HTML. Matching every page request ran it for every browser hit, prefetch and
+  // crawler burst, even when the page itself was a cache HIT: on Vercel that was
+  // ~150 function invocations/min, the bulk of Fluid Active CPU, and on Workers
+  // it would be proxy CPU added to every request.
   //
   // The `has`/`missing` conditions are evaluated by the routing layer, before
   // any function starts. Browsers and generic clients (`text/html…`, `*/*`, no
@@ -147,16 +146,16 @@ export const config = {
   // whether or not the router anchors them.
   matcher: [
     // Explicit `.md` alias — always Markdown, whatever the Accept header says.
-    { source: "/((?!api/|_next/|_vercel/|\\.well-known/|agent-instructions\\.md).*\\.md)" },
+    { source: "/((?!api/|_next/|\\.well-known/|agent-instructions\\.md).*\\.md)" },
     // Negotiated Markdown.
     {
-      source: "/((?!api/|_next/|_vercel/|\\.well-known/|favicon\\.ico|robots\\.txt|sitemap\\.xml|llms\\.txt|agent-instructions\\.md|opengraph-image|twitter-image).*)",
+      source: "/((?!api/|_next/|\\.well-known/|favicon\\.ico|robots\\.txt|sitemap\\.xml|llms\\.txt|agent-instructions\\.md|opengraph-image|twitter-image).*)",
       has: [{ type: "header", key: "accept", value: "^.*text/markdown.*$" }],
       missing: [{ type: "header", key: "rsc" }],
     },
     // Accept lists nothing that could mean HTML → the proxy may answer 406.
     {
-      source: "/((?!api/|_next/|_vercel/|\\.well-known/|favicon\\.ico|robots\\.txt|sitemap\\.xml|llms\\.txt|agent-instructions\\.md|opengraph-image|twitter-image).*)",
+      source: "/((?!api/|_next/|\\.well-known/|favicon\\.ico|robots\\.txt|sitemap\\.xml|llms\\.txt|agent-instructions\\.md|opengraph-image|twitter-image).*)",
       has: [{ type: "header", key: "accept", value: "^(?!.*(?:text/html|text/\\*|\\*/\\*)).*$" }],
       missing: [{ type: "header", key: "rsc" }],
     },

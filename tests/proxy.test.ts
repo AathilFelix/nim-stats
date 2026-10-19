@@ -111,8 +111,8 @@ describe("bypasses", () => {
   })
 })
 
-// The matcher decides whether the proxy function runs at all — on Vercel every
-// match is a billed invocation, even when the page is a CDN hit. Evaluated the
+// The matcher decides whether the proxy runs at all — every match costs proxy
+// work, even when the page itself is a cache hit. Evaluated the
 // way Next compiles `has` values (anchored RegExp).
 describe("matcher", () => {
   const acceptRules = config.matcher.flatMap((m) =>

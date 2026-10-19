@@ -16,10 +16,9 @@ import { computeFleetState, findBestModel, getAllIncidents } from "@/lib/operati
 import { getDashboardModels, getFleetTrend } from "@/lib/dashboard-data";
 import { TimeAgo } from "@/components/dashboard/time-ago";
 
-// ISR — render once, then serve cached HTML from Vercel's CDN and revalidate in
-// the background. Under a traffic spike (e.g. an X post), visitors are served
-// from the edge instead of each waking a function, so Fluid Active CPU stays
-// flat regardless of pageviews.
+// ISR — render once, then serve cached HTML from Workers Cache. Under a traffic
+// spike (e.g. an X post), visitors are served from the edge instead of each
+// running a full render, so Worker CPU stays flat regardless of pageviews.
 //
 // Freshness is ON DEMAND: every SITE_REFRESH_CYCLES probe cycles (20 min) the
 // collector POSTs /api/internal/revalidate, which marks this page stale, and the

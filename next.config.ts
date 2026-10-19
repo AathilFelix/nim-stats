@@ -6,7 +6,7 @@ import { renderLinkHeader, renderPageLinkHeader } from "./lib/agent/link-header"
 import { PUBLIC_ROUTES } from "./lib/site";
 
 // Baseline security response headers applied to every route. HSTS is already set
-// by the platform (Vercel/Cloudflare); these add the cheap, no-breakage wins.
+// by Cloudflare; these add the cheap, no-breakage wins.
 // A full Content-Security-Policy is intentionally left out for now — it would
 // need nonces for the inline theme script and Next's runtime, so it's a separate,
 // more careful pass.
@@ -31,14 +31,12 @@ const nextConfig: NextConfig = {
           // Every page has two representations (HTML and Markdown), selected
           // from the Accept header in proxy.ts, so caches must key on it.
           //
-          // Declared in three places on purpose, because no single one covers
-          // every response: the Markdown route handler sets it on its own
-          // response; this entry covers routes Next serves without clobbering
-          // it; and vercel.json sets it in the CDN layer, outside the render —
-          // which is the one that survives on a prerendered page, since Next's
-          // Node server overwrites Vary when it appends its own RSC vary.
-          // Vary is a union of its values, so declaring it more than once is
-          // harmless.
+          // Declared twice on purpose: the Markdown route handler sets it on
+          // its own response, and this entry covers routes that keep it.
+          // Rendered pages lose it to vinext's own RSC Vary, which is safe:
+          // proxy.ts negotiates before the page cache and rewrites Markdown
+          // requests to /api/markdown, a separate cache entry. Vary is a union
+          // of its values, so declaring it more than once is harmless.
           { key: "Vary", value: "Accept" },
           // RFC 8288 discovery links: the API catalog, the OpenAPI document,
           // the docs, the health endpoint and the agent-facing text files.
