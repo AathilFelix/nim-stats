@@ -1,0 +1,41 @@
+# Records each production deploy as a GitHub Deployment, so the repo's
+# "Deployments" panel shows Cloudflare. Workers Builds deploys on push to main
+# but only reports a check run; it never creates GitHub Deployments.
+#
+# check_run workflows only run from the default branch, and only for check runs
+# created by other apps (here the Cloudflare Workers & Pages app).
+name: Deployments
+
+on:
+  check_run:
+    types: [completed]
+
+permissions:
+  deployments: write
+
+jobs:
+  record:
+    if: >-
+      github.event.check_run.app.slug == 'cloudflare-workers-and-pages' &&
+      github.event.check_run.name == 'Workers Builds: nim-stats' &&
+      github.event.check_run.check_suite.head_branch == 'main' &&
+      github.event.check_run.conclusion != 'skipped' &&
+      github.event.check_run.conclusion != 'cancelled'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create deployment and status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.check_run.head_sha }}
+          CONCLUSION: ${{ github.event.check_run.conclusion }}
+          BUILD_URL: ${{ github.event.check_run.details_url }}
+        run: |
+          id=$(jq -n --arg ref "$SHA" \
+            '{ref: $ref, environment: "production", production_environment: true, auto_merge: false, required_contexts: [], description: "Workers Builds"}' \
+            | gh api "repos/$REPO/deployments" --input - --jq .id)
+          state=failure
+          [ "$CONCLUSION" = success ] && state=success
+          jq -n --arg state "$state" --arg log "$BUILD_URL" \
+            '{state: $state, environment_url: "https://nimstats.aathil.com", log_url: $log, auto_inactive: true}' \
+            | gh api "repos/$REPO/deployments/$id/statuses" --input - --jq '.state'
