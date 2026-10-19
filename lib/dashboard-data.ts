@@ -485,9 +485,10 @@ async function getQuotaStatsUncached(): Promise<QuotaStats> {
 }
 
 // ── Caching ──────────────────────────────────────────────────────────────────
-// `unstable_cache` on Vercel is durable storage billed exactly like ISR: every
-// entry written or read costs one unit per 8 KB. So it is used only where it
-// buys something the CDN can't, and never as a second copy of an ISR page.
+// On Cloudflare `unstable_cache` is Workers KV: global, and cheap to read. (On
+// Vercel it was durable storage billed like ISR, one unit per 8 KB, which is why
+// older notes here avoid it.) The Free plan allows 1,000 KV writes a day, so
+// entries are rewritten once per refresh, never per request.
 //
 // Freshness is ON DEMAND: the collector (GitHub Actions) POSTs
 // /api/internal/revalidate every SITE_REFRESH_CYCLES probe cycles, which marks
@@ -497,48 +498,62 @@ async function getQuotaStatsUncached(): Promise<QuotaStats> {
 // re-runs the same query against the same rows. A 30s TTL once drove ~2,880
 // cache misses/day and ~15 GB of Supabase egress against a 5 GB cap.
 
-/**
- * Tag the rendering ISR page with "fleet" without caching any fleet data.
- *
- * unstable_cache stamps its tags onto the page being prerendered (hit or miss),
- * which is how `revalidateTag("fleet", "max")` reaches /, /discover and /status.
- * The entry itself is a constant, so it costs ~1 write unit per refresh.
- */
-const tagFleetDependency = unstable_cache(
-  async () => true,
-  ["fleet-dependency"],
+// Page data: one shared copy in the data cache (Workers KV), written by the
+// refresh hook, read by every page render.
+//
+// On Vercel these went straight to the database, because its ISR page cache is
+// global: one regeneration per page per refresh. Workers Cache is not. Each
+// Cloudflare location keeps its own copy, and the HTML, RSC and query-string
+// variants (`?s=busy`, `?fav=1`) of a page are separate entries, so one refresh
+// fanned out into ~9 regenerations a cycle (~620/day for / and /discover
+// measured 2026-10-17/19), every one re-reading ~RECENT_SAMPLES × models rows
+// from Supabase. That roughly doubled the project's egress after the move.
+//
+// /api/internal/revalidate rebuilds these entries itself right after it
+// invalidates "fleet" (see warmFleetData), so the regenerations that follow
+// read KV, not Postgres. The "fleet" tag is also what reaches the pages:
+// unstable_cache stamps its tags onto the page being rendered, hit or miss,
+// which is how revalidateTag("fleet") purges /, /discover and /status.
+//
+// Note: `lastChecked` comes back from the cache as a JSON string, not a `Date`.
+// Consumers already coerce with `new Date(...)`.
+const getCachedDashboardModels = unstable_cache(
+  getDashboardModelsUncached,
+  ["dashboard-models"],
   { revalidate: PAGE_FALLBACK_REVALIDATE, tags: ["fleet"] },
 )
-
-// Page reads: straight to the database, deduplicated within one render.
-//
-// These used to be unstable_cache entries too, which put the same ~70 KB fleet
-// payload in durable storage twice: once as the cached query and again inside
-// the ISR page built from it. With on-demand revalidation every cycle rewrote
-// both, and every page regeneration also read the query back — data-cache
-// writes ran ~40 MB/day, the bulk of the project's ISR usage. The ISR page is
-// the cache; under it, each regeneration (at most one per page per refresh)
-// runs a few indexed queries over ~RECENT_SAMPLES × models rows.
-//
-// Note: `lastChecked` is a real `Date` here (cached reads used to hand back a
-// JSON string). Consumers already coerce with `new Date(...)`, so both work.
-export const getDashboardModels = cache(async (): Promise<NIMModel[]> => {
-  await tagFleetDependency()
-  return getDashboardModelsUncached()
-})
-export const getFleetTrend = cache(async (hours?: number, bucketMinutes?: number) => {
-  await tagFleetDependency()
-  return getFleetTrendUncached(hours, bucketMinutes)
-})
-
-// API reads: route handlers have no ISR page underneath, only a CDN entry per
-// region, so each regional miss would otherwise hit the database. These entries
-// are small (a trend series is a few KB).
+// Also backs /api/fleet/trend. Page renders use the 12h/10m defaults, the same
+// arguments as the API's default range, so the two share one entry.
 export const getCachedFleetTrend = unstable_cache(
-  getFleetTrendUncached,
+  (hours: number, bucketMinutes: number) => getFleetTrendUncached(hours, bucketMinutes),
   ["fleet-trend"],
   { revalidate: PAGE_FALLBACK_REVALIDATE, tags: ["fleet"] },
 )
+
+const DEFAULT_TREND_HOURS = 12
+const DEFAULT_TREND_BUCKET_MINUTES = 10
+
+// Deduplicated within one render.
+export const getDashboardModels = cache((): Promise<NIMModel[]> => getCachedDashboardModels())
+export const getFleetTrend = cache(
+  (hours = DEFAULT_TREND_HOURS, bucketMinutes = DEFAULT_TREND_BUCKET_MINUTES) =>
+    getCachedFleetTrend(hours, bucketMinutes),
+)
+
+/**
+ * Rebuild the page-data entries from the database, once, for the refresh hook.
+ *
+ * Call right after `revalidateTag("fleet")` in the same request: vinext then
+ * skips the entries that call invalidated and writes fresh ones. The pages,
+ * purged by the same call, regenerate from these instead of from Postgres.
+ */
+export async function warmFleetData(): Promise<void> {
+  await Promise.all([
+    getCachedDashboardModels(),
+    getCachedFleetTrend(DEFAULT_TREND_HOURS, DEFAULT_TREND_BUCKET_MINUTES),
+  ])
+}
+
 // 90-day / 30-day rollups (~90 KB, the largest entry) whose buckets are days and
 // hours, so a 10-minute probe barely moves them. Refreshed hourly, plus on
 // demand when the collector reports the fleet's COMPOSITION changed — that is

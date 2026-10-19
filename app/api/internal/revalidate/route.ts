@@ -1,6 +1,7 @@
 import { revalidateTag } from "next/cache"
 import { NextResponse } from "next/server"
 import { blockUnlessInternal } from "@/lib/api/guard"
+import { warmFleetData } from "@/lib/dashboard-data"
 import { api } from "@/lib/telemetry/logger"
 
 export const runtime = "nodejs"
@@ -28,16 +29,27 @@ export async function POST(req: Request) {
 
   // The ISR pages (/, /discover, /status) carry the "fleet" tag through a tiny
   // tagged marker in lib/dashboard-data.ts (unstable_cache adds its tags to the
-  // rendering page), and read the database directly when they regenerate. The
-  // API routes' cached queries carry the same tag.
+  // rendering page). The page data and the API routes' cached queries carry the
+  // same tag.
   //
-  // "max" = stale-while-revalidate: the next visitor gets the cached page
-  // instantly and ONE background regeneration runs, with fresh rows. Do NOT
-  // hard-expire here (`{ expire: 0 }`, or `revalidatePath`, which carries no
-  // profile and so expires immediately): that forces a blocking regeneration,
-  // and a crawler burst landing on a deleted page rebuilt it 3–5 times per
-  // cycle in production instead of once.
+  // "max" = stale-while-revalidate on Vercel: the next visitor gets the cached
+  // page instantly and ONE background regeneration runs. Do NOT hard-expire here
+  // (`{ expire: 0 }`, or `revalidatePath`): a crawler burst landing on a deleted
+  // page rebuilt it 3–5 times per cycle there. On Cloudflare vinext purges
+  // Workers Cache and KV outright whatever the profile, and every location
+  // regenerates its own copy, so the warm-up below is what keeps those
+  // regenerations off the database.
   revalidateTag("fleet", "max")
+
+  // Rebuild the page data now, from the database, exactly once. Within this
+  // request vinext skips the entries just invalidated and writes fresh ones, so
+  // the regenerations that follow read them from KV (see warmFleetData). If this
+  // fails, the pages fall back to querying the database themselves.
+  try {
+    await warmFleetData()
+  } catch (err) {
+    api.error("warming fleet data failed", { error: (err as Error).message })
+  }
 
   // The reliability rollup is cached for an hour rather than per cycle (its
   // buckets are days and hours), so it only needs dropping early when models
