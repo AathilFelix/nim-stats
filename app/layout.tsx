@@ -56,6 +56,9 @@ export const metadata: Metadata = {
     types: { "text/markdown": "/.md" },
   },
   robots: { index: true, follow: true },
+  // Served from public/ as a static asset, so browsers fetching it never wake the
+  // Worker. As app/favicon.ico it was a route: ~190 Worker invocations a day.
+  icons: { icon: "/favicon.ico" },
   openGraph: {
     type: "website",
     url: SITE_URL,
