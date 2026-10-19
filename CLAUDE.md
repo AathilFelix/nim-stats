@@ -16,7 +16,7 @@ npm test                # Unit tests (Vitest)
 
 ## Hosting
 
-Production runs on **Cloudflare Workers** via vinext (`vite.config.ts`, `cloudflare.config.ts`), deployed by Workers Builds on push to `main`. The DB is reached through Hyperdrive; `vite.config.ts` swaps `lib/db/prisma.ts` for `lib/db/prisma.workers.ts` and `@prisma/client` for its edge entry. `cf deploy` replaces routes with those in `cloudflare.config.ts`. Plain `wrangler deploy` doesn't work (Wrangler can't read the `cf` Build Output). Never run `vinext-cloudflare deploy --preview`: it is a full production deploy; previews go through `npm run deploy:preview`. The Vercel project is paused (2026-10-19).
+Production runs on **Cloudflare Workers** via vinext (`vite.config.ts`, `cloudflare.config.ts`), deployed by Workers Builds on push to `main`. The DB is reached through Hyperdrive; `vite.config.ts` swaps `lib/db/prisma.ts` for `lib/db/prisma.workers.ts` and `@prisma/client` for its edge entry. `cf deploy` replaces routes with those in `cloudflare.config.ts`. Plain `wrangler deploy` doesn't work (Wrangler can't read the `cf` Build Output). Never run `vinext-cloudflare deploy --preview`: `--preview` only means `--env preview` (a Vite/`cf` mode), so it runs `cf deploy --mode preview` on the same `nim-stats` Worker with `isPreview` false, i.e. a full production deploy. Previews go through `npm run deploy:preview` (`cf previews deploy`). The Vercel project is paused (2026-10-19).
 
 ## Tech Stack
 
