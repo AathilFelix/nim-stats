@@ -1,4 +1,5 @@
 import { type NIMModel } from "../dashboard/mock-data";
+import { meanMeasured } from "@/lib/utils";
 
 export type DiscoverCategory =
   | "fastest"
@@ -109,7 +110,7 @@ export function providerStats(
 ) {
   const group = models.filter((m) => m.provider === providerName);
   const avgThroughput =
-    group.reduce((acc, m) => acc + m.throughput, 0) / group.length;
+    meanMeasured(group.map((m) => m.throughput));
   const avgReliability =
     group.reduce((acc, m) => acc + m.reliability, 0) / group.length;
   const jammed = group.filter((m) => m.status === "jammed").length;
@@ -125,9 +126,7 @@ export function providerStats(
 }
 
 export function aggregateFleetStats(models: NIMModel[]) {
-  const avgThroughput = Math.round(
-    models.reduce((acc, m) => acc + m.throughput, 0) / models.length,
-  );
+  const avgThroughput = Math.round(meanMeasured(models.map((m) => m.throughput)));
   const avgReliability = (
     models.reduce((acc, m) => acc + m.reliability, 0) / models.length
   ).toFixed(1);

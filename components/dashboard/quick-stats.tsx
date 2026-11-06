@@ -1,6 +1,7 @@
 "use client";
 
 import { type NIMModel } from "./mock-data";
+import { meanMeasured } from "@/lib/utils";
 
 interface QuickStatsProps {
   models: NIMModel[];
@@ -10,9 +11,7 @@ export function QuickStats({ models }: QuickStatsProps) {
   const healthy = models.filter((m) => m.status === "healthy").length;
   const busy = models.filter((m) => m.status === "busy").length;
   const jammed = models.filter((m) => m.status === "jammed").length;
-  const avgThroughput = Math.round(
-    models.reduce((acc, m) => acc + m.throughput, 0) / models.length,
-  );
+  const avgThroughput = Math.round(meanMeasured(models.map((m) => m.throughput)));
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">

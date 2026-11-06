@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { type NIMModel } from "./mock-data";
+import { formatTput } from "@/lib/utils";
 
 interface BestModelSpotlightProps {
   model: NIMModel;
@@ -49,7 +50,7 @@ export function BestModelSpotlight({ model }: BestModelSpotlightProps) {
 
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
           {[
-            { label: "Throughput", value: model.throughput.toFixed(1), unit: "tok/s" },
+            { label: "Throughput", value: formatTput(model.throughput), unit: "tok/s" },
             { label: "TTFT", value: `${model.ttft}`, unit: "ms" },
             { label: "Uptime", value: model.uptime.toFixed(2), unit: "%" },
             { label: "Reliability", value: `${model.reliability}`, unit: "/100" },

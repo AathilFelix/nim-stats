@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import type { FleetStateResult } from "@/lib/operational-types";
+import { CatalogFunnel } from "./catalog-funnel";
 import { TimeAgo } from "./time-ago";
+import type { CatalogFunnel as CatalogCounts } from "@/lib/dashboard-data";
 
 interface Props {
   fleetState: FleetStateResult;
@@ -12,6 +14,7 @@ interface Props {
   avgThroughput: number;
   incidents24h: number;
   lastProbe: Date | null;
+  catalog?: CatalogCounts;
 }
 
 const STATE_META: Record<FleetStateResult["state"], { label: string; tone: "healthy" | "warn" | "critical" }> = {
@@ -28,7 +31,7 @@ const TONE_TEXT = {
 } as const;
 
 export function FleetSummary({
-  fleetState, total, healthy, busy, jammed, avgTtft, avgThroughput, incidents24h, lastProbe,
+  fleetState, total, healthy, busy, jammed, avgTtft, avgThroughput, incidents24h, lastProbe, catalog,
 }: Props) {
   const meta = STATE_META[fleetState.state];
   const pct = (n: number) => (total ? (n / total) * 100 : 0);
@@ -57,6 +60,7 @@ export function FleetSummary({
             <Legend tone="warn" label="Busy" n={busy} />
             <Legend tone="critical" label="Jammed" n={jammed} />
           </div>
+          {catalog && <CatalogFunnel className="mt-4" catalog={catalog} healthy={healthy} />}
         </div>
 
         <Tile label="Avg latency" value={Math.round(avgTtft).toString()} unit="ms" />

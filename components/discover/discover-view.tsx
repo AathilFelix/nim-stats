@@ -11,6 +11,7 @@ import { StatusDot } from "./discover-primitives";
 import { PanelHeader } from "./ops-primitives";
 import { HorizontalSparkline } from "./horizontal-sparkline";
 import { cn } from "@/lib/utils";
+import { formatTput } from "@/lib/utils";
 
 const CATEGORY_ICONS: Record<DiscoverCategory, React.ElementType> = {
   fastest: Zap,
@@ -199,7 +200,7 @@ function RegistryRow({
         </span>
       </span>
 
-      <Cell value={`${model.throughput.toFixed(0)}`} active={highlight === "throughput"} className="hidden sm:flex" />
+      <Cell value={formatTput(model.throughput, 0)} active={highlight === "throughput"} className="hidden sm:flex" />
       <Cell value={`${model.reliability}`} active={highlight === "reliability"} warn={model.reliability < 95} className="hidden sm:flex" />
       <Cell value={`${model.congestion}`} active={highlight === "congestion"} warn={model.congestion > 60} className="hidden sm:flex" />
 
@@ -210,7 +211,7 @@ function RegistryRow({
       {/* Mobile headline metric */}
       <span className="flex sm:hidden items-baseline gap-1 justify-end">
         <span className="metric-sm font-semibold text-text-primary">
-          {highlight === "throughput" ? model.throughput.toFixed(0) : highlight === "reliability" ? model.reliability : model.congestion}
+          {highlight === "throughput" ? formatTput(model.throughput, 0) : highlight === "reliability" ? model.reliability : model.congestion}
         </span>
         <span className="label-xs text-text-quaternary">
           {highlight === "throughput" ? "t/s" : "%"}
@@ -246,7 +247,7 @@ function ModelDetail({ model }: { model: NIMModel }) {
         <span className="heading-md truncate text-text-primary">{model.name}</span>
       </div>
       <div className="grid grid-cols-2 gap-2 mb-3">
-        <DetailTile label="Throughput" value={model.throughput.toFixed(1)} unit="tok/s" />
+        <DetailTile label="Throughput" value={formatTput(model.throughput)} unit={model.throughput > 0 ? "tok/s" : ""} />
         <DetailTile label="Reliability" value={`${model.reliability}`} unit="%" />
         <DetailTile label="TTFT" value={`${model.ttft}`} unit="ms" />
         <DetailTile label="Congestion" value={`${model.congestion}`} unit="%" warn={model.congestion > 60} />

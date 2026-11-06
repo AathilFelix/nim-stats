@@ -94,7 +94,7 @@ export function BestModelNow({ recommendation }: Props) {
           style={{ borderTop: '1px solid var(--border-subtle)' }}
         >
           <Metric label="TTFT" value={`${m.ttft}ms`} />
-          <Metric label="Throughput" value={`${m.throughput} tok/s`} />
+          <Metric label="Throughput" value={(m.throughput as number) > 0 ? `${m.throughput} tok/s` : "—"} />
           <Metric label="Uptime" value={`${m.uptime}%`} />
           <Metric label="Volatility" value={humanize((m.volatility as { measure: string })?.measure ?? "—")} />
           <Metric label="Queue" value={humanize(m.queuePressure as string)} />

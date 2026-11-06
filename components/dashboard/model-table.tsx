@@ -7,6 +7,7 @@ import { Sparkline } from "@/components/dashboard/sparkline";
 import { TimeAgo } from "@/components/dashboard/time-ago";
 import { cn } from "@/lib/utils";
 import type { NIMModel } from "./mock-data";
+import { formatTput } from "@/lib/utils";
 
 interface ModelTableProps {
   models: NIMModel[];
@@ -177,7 +178,7 @@ export function ModelTable({ models, favorites, onToggleFavorite, onSelect, pres
                   </TableCell>
                   <TableCell className="px-3 py-2.5">
                     <span className="metric-sm text-text-secondary">
-                      {model.throughput.toFixed(1)}<span className="text-text-tertiary metric-xs ml-0.5">tok/s</span>
+                      {formatTput(model.throughput)}{model.throughput > 0 && <span className="text-text-tertiary metric-xs ml-0.5">tok/s</span>}
                     </span>
                   </TableCell>
                   <TableCell className="px-3 py-2.5">

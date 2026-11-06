@@ -163,7 +163,7 @@ export function VerdictBanner({ models }: VerdictBannerProps) {
         {/* Evidence grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 border border-border-subtle rounded-xl overflow-hidden">
           <EvidenceCell
-            value={`${m.throughput.toFixed(1)} tok/s`}
+            value={m.throughput > 0 ? `${m.throughput.toFixed(1)} tok/s` : "—"}
             label="Throughput"
           />
           <EvidenceCell

@@ -11,7 +11,7 @@ export function StatusOverview({ models }: { models: NIMModel[] }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <MiniStatusCard label="Fastest Now" value={lowestTTFT.name} sub={`${lowestTTFT.ttft}ms TTFT`} />
-      <MiniStatusCard label="Highest Throughput" value={topThroughput.name} sub={`${topThroughput.throughput} tok/s`} />
+      <MiniStatusCard label="Highest Throughput" value={topThroughput.name} sub={topThroughput.throughput > 0 ? `${topThroughput.throughput} tok/s` : "not measured"} />
       <MiniStatusCard label="Least Congested" value={lowestCongestion.name} sub={`${lowestCongestion.congestion}% load`} />
       <MiniStatusCard label="Most Reliable" value={mostReliable.name} sub={`${mostReliable.reliability}/100 score`} />
     </div>
