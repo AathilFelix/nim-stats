@@ -1,8 +1,9 @@
-import { classFromStatus, classifyWithCongestion, OperationalState } from "./errors"
+import { classFromStatus, classifyWithCongestion, ErrorCode, OperationalState } from "./errors"
 import { probeModel } from "@/lib/config/nim"
 import { prisma } from "@/lib/db/prisma"
 import { prismaTransaction } from "@/lib/db/tx"
 import { probe } from "./logger"
+import { measureStream } from "./stream-measure"
 import type { Prisma } from "@prisma/client"
 
 // 4xx statuses that mean "this endpoint doesn't serve chat completions" rather
@@ -26,61 +27,6 @@ export interface RunProbeOpts {
   modelId: string
   modelName: string
   timeoutMs?: number
-}
-
-interface StreamMeasurement {
-  ttftMs: number
-  latencyMs: number
-  completionTokens: number
-  throughput: number // tokens/sec during decode
-}
-
-// Read an OpenAI-style SSE chat-completion stream, measuring time-to-first-token
-// and decode throughput from the actual generated tokens.
-async function readProbeStream(res: Response, startTime: number): Promise<StreamMeasurement> {
-  const reader = res.body!.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ""
-  let firstTokenAt = 0
-  let content = ""
-  let usageTokens = 0
-
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split("\n")
-    buffer = lines.pop() ?? ""
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed.startsWith("data:")) continue
-      const data = trimmed.slice(5).trim()
-      if (!data || data === "[DONE]") continue
-      try {
-        const json = JSON.parse(data)
-        const delta = json.choices?.[0]?.delta?.content
-        if (delta) {
-          if (!firstTokenAt) firstTokenAt = performance.now()
-          content += delta
-        }
-        const ct = json.usage?.completion_tokens
-        if (typeof ct === "number") usageTokens = ct
-      } catch {
-        // ignore keep-alives / partial frames
-      }
-    }
-  }
-
-  const endTime = performance.now()
-  const latencyMs = endTime - startTime
-  const completionTokens = usageTokens || Math.max(1, Math.ceil(content.length / 4))
-  const ttftMs = firstTokenAt ? firstTokenAt - startTime : latencyMs
-  // End-to-end generation rate. Decode-only rate (tokens / (latency - ttft))
-  // explodes when a server flushes the whole reply in one chunk (decodeMs ~ 0),
-  // so measure tokens over total latency — stable and comparable across models.
-  const throughput = (completionTokens / Math.max(1, latencyMs)) * 1000
-
-  return { ttftMs, latencyMs, completionTokens, throughput }
 }
 
 type IncidentSpec = { severity: string; eventType: string; message: string }
@@ -121,11 +67,38 @@ type ProbeReturn = {
   modelId: string
   modelName: string
   timing: { ttftMs: number; latencyMs: number; startTime: number; endTime: number }
-  measurement: { tokensIn: number; tokensOut: number; throughput: number }
+  measurement: { tokensIn: number; tokensOut: number; throughput: number | null }
   success: boolean
   errorCode: string
   errorMessage?: string
   timeout: boolean
+}
+
+/**
+ * Persist a failed probe: one sample, the model's latest snapshot, and the state
+ * transition. Shared by every failure path (HTTP error, bad stream, network) so
+ * they cannot drift apart.
+ */
+async function recordFailure(
+  modelId: string,
+  modelName: string,
+  f: { elapsedMs: number; errorCode: ErrorCode; errorMessage: string; timeout: boolean; detail: string },
+): Promise<void> {
+  await prismaTransaction(async (tx) => {
+    const prev = await tx.modelSampleLatest.findUnique({ where: { modelId }, select: { state: true } })
+    await tx.modelSample.create({ data: {
+      modelId, ttftMs: null, latencyMs: f.elapsedMs,
+      tokensIn: 0, tokensOut: 0, throughput: 0,
+      success: false, errorCode: f.errorCode, errorMessage: f.errorMessage,
+      timeout: f.timeout, congestion: 1, operationalState: "jammed",
+    }})
+    await tx.modelSampleLatest.upsert({
+      where: { modelId },
+      update: { lastProbeAt: new Date(), state: "jammed", ttftMs: null, throughput: null, latencyMs: f.elapsedMs, errorRate: 1, congestion: 1 },
+      create: { modelId, lastProbeAt: new Date(), state: "jammed", latencyMs: f.elapsedMs, errorRate: 1, congestion: 1 },
+    })
+    await recordTransition(tx, modelId, modelName, (prev?.state as OperationalState) ?? null, OperationalState.jammed, f.detail)
+  })
 }
 
 export async function runProbe(opts: RunProbeOpts): Promise<ProbeReturn | null> {
@@ -165,21 +138,9 @@ export async function runProbe(opts: RunProbeOpts): Promise<ProbeReturn | null> 
 
       // Always record the failure (so the strike history exists) and mark the
       // model jammed. Retirement, if warranted, happens after the write.
-      await prismaTransaction(async (tx) => {
-        const prev = await tx.modelSampleLatest.findUnique({ where: { modelId }, select: { state: true } })
-        await tx.modelSample.create({ data: {
-          modelId, ttftMs: null, latencyMs: elapsed,
-          tokensIn: 0, tokensOut: 0, throughput: 0,
-          success: false, errorCode, errorMessage: `HTTP ${res.status}`,
-          timeout: res.status === 504,
-          congestion: 1, operationalState: "jammed",
-        }})
-        await tx.modelSampleLatest.upsert({
-          where: { modelId },
-          update: { lastProbeAt: new Date(), state: "jammed", ttftMs: null, throughput: null, latencyMs: elapsed, errorRate: 1, congestion: 1 },
-          create: { modelId, lastProbeAt: new Date(), state: "jammed", latencyMs: elapsed, errorRate: 1, congestion: 1 },
-        })
-        await recordTransition(tx, modelId, modelName, (prev?.state as OperationalState) ?? null, OperationalState.jammed, ` (HTTP ${res.status})`)
+      await recordFailure(modelId, modelName, {
+        elapsedMs: elapsed, errorCode, errorMessage: `HTTP ${res.status}`,
+        timeout: res.status === 504, detail: ` (HTTP ${res.status})`,
       })
 
       if (retire) {
@@ -197,13 +158,44 @@ export async function runProbe(opts: RunProbeOpts): Promise<ProbeReturn | null> 
       }
     }
 
-    const { ttftMs, latencyMs, completionTokens, throughput } = await readProbeStream(res, startTime)
+    const m = await measureStream(res, startTime)
     const endTime = performance.now()
+
+    // HTTP 200 alone is not service: an empty stream or an in-stream error frame
+    // means the endpoint did not produce a reply. Count it as a failure rather
+    // than as a healthy sample.
+    if (m.outcome !== "ok") {
+      probe.warn(`probe failed: ${modelId} -> ${m.errorMessage}`, {
+        modelId, outcome: m.outcome, durationMs: Math.round(m.latencyMs),
+      })
+      await recordFailure(modelId, modelName, {
+        elapsedMs: m.latencyMs,
+        errorCode: m.outcome === "stream_error" ? ErrorCode.Server : ErrorCode.Unknown,
+        errorMessage: m.errorMessage ?? "bad stream",
+        timeout: false,
+        detail: ` (${m.errorMessage})`,
+      })
+      return {
+        modelId, modelName,
+        timing: { ttftMs: 0, latencyMs: m.latencyMs, startTime, endTime },
+        measurement: { tokensIn: 0, tokensOut: m.completionTokens, throughput: null },
+        success: false,
+        errorCode: m.outcome === "stream_error" ? ErrorCode.Server : ErrorCode.Unknown,
+        errorMessage: m.errorMessage, timeout: false,
+      }
+    }
+
+    // `ok` guarantees at least one token arrived, so TTFT is a real number.
+    const ttftMs = m.ttftMs as number
+    const { latencyMs, completionTokens } = m
+    const throughput = m.decodeTps // null when the reply is too short to measure decode speed
     const tokensIn = 8
 
     probe.debug(`probe ok: ${modelId}`, {
-      modelId, ttftMs: Math.round(ttftMs), latencyMs: Math.round(latencyMs),
-      tokensOut: completionTokens, throughput: Math.round(throughput),
+      modelId, ttftMs: Math.round(ttftMs),
+      firstAnswerMs: m.firstAnswerMs == null ? null : Math.round(m.firstAnswerMs),
+      latencyMs: Math.round(latencyMs), tokensOut: completionTokens,
+      decodeTps: throughput == null ? null : Math.round(throughput),
     })
 
     await prismaTransaction(async (tx) => {
@@ -221,7 +213,7 @@ export async function runProbe(opts: RunProbeOpts): Promise<ProbeReturn | null> 
       const currentSample = {
         modelId, modelName,
         timing: { ttftMs, latencyMs, startTime, endTime },
-        measurement: { tokensIn, tokensOut: completionTokens, throughput },
+        measurement: { tokensIn, tokensOut: completionTokens, throughput: throughput ?? 0 },
         success: true, errorCode: "none" as never, timeout: false,
       }
       const sampleProbeResults = [
@@ -269,26 +261,15 @@ export async function runProbe(opts: RunProbeOpts): Promise<ProbeReturn | null> 
     }
   } catch (err) {
     const elapsed = performance.now() - startTime
-    const code = "Network"
+    const code = ErrorCode.Network
     const message = err instanceof Error ? err.message : "Unknown error"
     const timeout = controller.signal.aborted
 
     probe.error(`probe error: ${modelId}`, { modelId, error: message, durationMs: Math.round(elapsed) })
 
-    await prismaTransaction(async (tx) => {
-      const prev = await tx.modelSampleLatest.findUnique({ where: { modelId }, select: { state: true } })
-      await tx.modelSample.create({ data: {
-        modelId, ttftMs: null, latencyMs: elapsed,
-        tokensIn: 0, tokensOut: 0, throughput: 0,
-        success: false, errorCode: code, errorMessage: message,
-        timeout, congestion: 1, operationalState: "jammed",
-      }})
-      await tx.modelSampleLatest.upsert({
-        where: { modelId },
-        update: { lastProbeAt: new Date(), state: "jammed", ttftMs: null, throughput: null, latencyMs: elapsed, errorRate: 1, congestion: 1 },
-        create: { modelId, lastProbeAt: new Date(), state: "jammed", latencyMs: elapsed, errorRate: 1, congestion: 1 },
-      })
-      await recordTransition(tx, modelId, modelName, (prev?.state as OperationalState) ?? null, OperationalState.jammed, timeout ? " (timeout)" : " (network)")
+    await recordFailure(modelId, modelName, {
+      elapsedMs: elapsed, errorCode: code, errorMessage: message, timeout,
+      detail: timeout ? " (timeout)" : " (network)",
     })
 
     return null
