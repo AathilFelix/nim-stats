@@ -484,6 +484,32 @@ async function getQuotaStatsUncached(): Promise<QuotaStats> {
   }
 }
 
+export interface CatalogFunnel {
+  /** Chat-capable models NVIDIA's /v1/models currently lists. */
+  listed: number
+  /** Of those, the ones we can call and therefore measure. */
+  callable: number
+}
+
+// The registry sync touches every catalogued row's `updatedAt` once a day, and
+// the daily maintenance pass deactivates anything untouched for 72 h. Using the
+// same window means "listed" tracks the catalog without a column of its own; a
+// model NVIDIA dropped can linger in the count for up to 3 days.
+const LISTED_WINDOW_MS = 72 * 3_600_000
+
+/**
+ * The dashboard only measures models that answer, so on its own it hides how
+ * many NVIDIA lists but doesn't serve. This is the missing denominator.
+ */
+async function getCatalogFunnelUncached(): Promise<CatalogFunnel> {
+  const since = new Date(Date.now() - LISTED_WINDOW_MS)
+  const [listed, callable] = await Promise.all([
+    prisma.nIModel.count({ where: { updatedAt: { gte: since } } }),
+    prisma.nIModel.count({ where: { isActive: true } }),
+  ])
+  return { listed: Math.max(listed, callable), callable }
+}
+
 // ── Caching ──────────────────────────────────────────────────────────────────
 // On Cloudflare `unstable_cache` is Workers KV: global, and cheap to read. (On
 // Vercel it was durable storage billed like ISR, one unit per 8 KB, which is why
@@ -522,6 +548,11 @@ const getCachedDashboardModels = unstable_cache(
   ["dashboard-models"],
   { revalidate: PAGE_FALLBACK_REVALIDATE, tags: ["fleet"] },
 )
+export const getCatalogFunnel = unstable_cache(
+  getCatalogFunnelUncached,
+  ["catalog-funnel"],
+  { revalidate: PAGE_FALLBACK_REVALIDATE, tags: ["fleet"] },
+)
 // Also backs /api/fleet/trend. Page renders use the 12h/10m defaults, the same
 // arguments as the API's default range, so the two share one entry.
 export const getCachedFleetTrend = unstable_cache(
@@ -551,6 +582,7 @@ export async function warmFleetData(): Promise<void> {
   await Promise.all([
     getCachedDashboardModels(),
     getCachedFleetTrend(DEFAULT_TREND_HOURS, DEFAULT_TREND_BUCKET_MINUTES),
+    getCatalogFunnel(),
   ])
 }
 

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BuiltBy } from "@/components/site/built-by";
-import { getDashboardModels } from "@/lib/dashboard-data";
+import { getCatalogFunnel, getDashboardModels } from "@/lib/dashboard-data";
+import { CatalogFunnel } from "@/components/dashboard/catalog-funnel";
 import { computeFleetState } from "@/lib/operational-engine";
 import { TimeAgo } from "@/components/dashboard/time-ago";
 import { SITE_NAME } from "@/lib/site";
@@ -31,7 +32,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default async function StatusPage() {
-  const models = await getDashboardModels();
+  const [models, catalog] = await Promise.all([getDashboardModels(), getCatalogFunnel()]);
   const enriched = models as unknown as Array<Record<string, unknown>>;
   const fleetState = computeFleetState(enriched);
 
@@ -133,6 +134,8 @@ export default async function StatusPage() {
               ))}
             </div>
           </div>
+
+          <CatalogFunnel className="mt-5" catalog={catalog} healthy={healthy} />
         </section>
 
         {/* Per-model status */}

@@ -13,7 +13,7 @@ import { SlaTracker } from "@/components/dashboard/sla-tracker";
 import { UptimeCalendar } from "@/components/dashboard/uptime-calendar";
 import { LatencyHeatmap } from "@/components/dashboard/latency-heatmap";
 import { computeFleetState, findBestModel, getAllIncidents } from "@/lib/operational-engine";
-import { getDashboardModels, getFleetTrend } from "@/lib/dashboard-data";
+import { getCatalogFunnel, getDashboardModels, getFleetTrend } from "@/lib/dashboard-data";
 import { TimeAgo } from "@/components/dashboard/time-ago";
 
 // ISR — render once, then serve cached HTML from Workers Cache. Under a traffic
@@ -33,7 +33,7 @@ import { TimeAgo } from "@/components/dashboard/time-ago";
 export const revalidate = 1800;
 
 export default async function Home() {
-  const [models, trend] = await Promise.all([getDashboardModels(), getFleetTrend()]);
+  const [models, trend, catalog] = await Promise.all([getDashboardModels(), getFleetTrend(), getCatalogFunnel()]);
 
   if (models.length === 0) return <EmptyState />;
 
@@ -106,6 +106,7 @@ export default async function Home() {
               avgThroughput={avgThroughput}
               incidents24h={incidents24h}
               lastProbe={lastChecked}
+              catalog={catalog}
             />
 
             <FleetTrendChart data={trend} />
