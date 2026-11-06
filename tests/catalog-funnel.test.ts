@@ -16,7 +16,7 @@ describe("CatalogFunnel", () => {
   it("shows listed → callable → healthy and explains what fell out", () => {
     const html = render({ listed: 65, callable: 22, healthy: 13 })
     expect(html).toContain("65")
-    expect(html).toContain("listed by nvidia")
+    expect(html).toContain("listed by NVIDIA")
     expect(html).toContain("22")
     expect(html).toContain("13")
     expect(html).toContain("43 listed models don")

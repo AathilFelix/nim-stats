@@ -95,15 +95,28 @@ describe("measureStream", () => {
     expect(m.decodeTps).toBeNull() // old behaviour: 2 tokens / total latency
   })
 
-  it("measures decode rate between first and last token, not over total latency", async () => {
+  it("measures decode rate after the first burst, not over total latency", async () => {
     const m = await measureStream(
-      sse(content("a"), content("b"), usage(MIN_DECODE_TOKENS * 2), DONE),
+      sse(content("a"), content("b"), content("c"), content("d"), usage(MIN_DECODE_TOKENS * 2), DONE),
       0,
-      clock(1_000, 2_000, 2_050),
+      clock(1_000, 1_500, 2_000, 2_500, 2_550),
     )
-    // 31 inter-token intervals over a 1000ms window = 31 tok/s. Dividing 32 tokens
-    // by the 2050ms total would say ~15.6 and blame decode for the slow TTFT.
-    expect(m.decodeTps).toBeCloseTo(31, 5)
+    // 3 of 4 equal-sized frames (24 of 32 tokens) arrived over the 1500ms after
+    // the first: 16 tok/s. Dividing 32 tokens by the 2550ms total would say ~12.5
+    // and blame decode for the slow TTFT.
+    expect(m.decodeTps).toBeCloseTo(16, 5)
+  })
+
+  it("reports no decode rate when a reply arrives in only two flushes", async () => {
+    // What nemotron-3.5-super streams: 4 frames, ~200ms pause, 6 frames. One
+    // interval is a burst gap, not a speed.
+    const m = await measureStream(
+      sse(...Array.from({ length: 10 }, () => reasoning("tok")), usage(32), DONE),
+      0,
+      clock(694, 695, 695, 696, 890, 890, 891, 891, 892, 892, 900),
+    )
+    expect(m.outcome).toBe("ok")
+    expect(m.decodeTps).toBeNull()
   })
 
   it("reports no decode rate when the whole reply arrives in one flush", async () => {

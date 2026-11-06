@@ -12,7 +12,7 @@ interface ComparisonPanelProps {
 
 const METRICS = [
   { label: "TTFT", getValue: (m: NIMModel) => `${m.ttft}ms`, warn: (m: NIMModel) => m.ttft > 500 },
-  { label: "Throughput", getValue: (m: NIMModel) => `${m.throughput.toFixed(1)} tok/s` },
+  { label: "Throughput", getValue: (m: NIMModel) => m.throughput > 0 ? `${m.throughput.toFixed(1)} tok/s` : "—" },
   { label: "Congestion", getValue: (m: NIMModel) => `${m.congestion}%`, warn: (m: NIMModel) => m.congestion > 50 },
   { label: "Reliability", getValue: (m: NIMModel) => `${m.reliability}%` },
   { label: "Uptime", getValue: (m: NIMModel) => `${m.uptime.toFixed(2)}%` },

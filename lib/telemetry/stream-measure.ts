@@ -18,6 +18,17 @@ export const MIN_DECODE_TOKENS = 16
 /** Decode intervals shorter than this mean the reply arrived in one flush. */
 const MIN_DECODE_WINDOW_MS = 50
 
+/** Frames closer together than this arrived in the same network flush. */
+const BURST_GAP_MS = 5
+
+/**
+ * A rate needs at least this many separate flushes. Some endpoints (speculative
+ * decoding, batching) deliver a 32-token reply as two or three bursts; with only
+ * two there is a single interval, and dividing by it reports the gap between
+ * bursts (e.g. 228 tok/s for a model that streams ~30), not a decode speed.
+ */
+const MIN_DECODE_BURSTS = 3
+
 export type StreamOutcome = "ok" | "empty" | "stream_error"
 
 export interface StreamMeasurement {
@@ -32,7 +43,7 @@ export interface StreamMeasurement {
   latencyMs: number
   /** Provider-reported when available, else estimated from characters. 0 when empty. */
   completionTokens: number
-  /** Tokens per second between the first and last token. Null when it cannot be measured honestly. */
+  /** Tokens per second after the first burst. Null when the reply was too short or too bursty to time. */
   decodeTps: number | null
 }
 
@@ -68,6 +79,8 @@ export async function measureStream(
   let firstAnswerAt = 0
   let chars = 0
   let usageTokens = 0
+  // Arrival bursts: [time, characters], frames within BURST_GAP_MS merged.
+  const bursts: Array<[number, number]> = []
   let streamError: string | null = null
 
   const handleLine = (line: string): void => {
@@ -94,7 +107,11 @@ export async function measureStream(
       if (!firstTokenAt) firstTokenAt = t
       lastTokenAt = t
       if (hasAnswer && !firstAnswerAt) firstAnswerAt = t
-      chars += (hasAnswer ? (answer as string).length : 0) + (hasReasoning ? (reasoning as string).length : 0)
+      const n = (hasAnswer ? (answer as string).length : 0) + (hasReasoning ? (reasoning as string).length : 0)
+      chars += n
+      const lastBurst = bursts[bursts.length - 1]
+      if (lastBurst && t - lastBurst[0] < BURST_GAP_MS) lastBurst[1] += n
+      else bursts.push([t, n])
     }
     const ct = json.usage?.completion_tokens
     if (typeof ct === "number") usageTokens = ct
@@ -117,10 +134,13 @@ export async function measureStream(
   const gotTokens = firstTokenAt > 0
   const completionTokens = gotTokens ? usageTokens || Math.max(1, Math.ceil(chars / 4)) : 0
 
+  // Decode speed = tokens that arrived AFTER the first burst / time since it.
+  // Tokens per burst aren't reported, so they are apportioned by characters.
   let decodeTps: number | null = null
-  if (gotTokens && completionTokens >= MIN_DECODE_TOKENS) {
-    const windowMs = lastTokenAt - firstTokenAt
-    if (windowMs >= MIN_DECODE_WINDOW_MS) decodeTps = ((completionTokens - 1) / windowMs) * 1000
+  if (gotTokens && completionTokens >= MIN_DECODE_TOKENS && bursts.length >= MIN_DECODE_BURSTS && chars > 0) {
+    const windowMs = lastTokenAt - bursts[0][0]
+    const tokensAfterFirst = completionTokens * (1 - bursts[0][1] / chars)
+    if (windowMs >= MIN_DECODE_WINDOW_MS) decodeTps = (tokensAfterFirst / windowMs) * 1000
   }
 
   const base = {

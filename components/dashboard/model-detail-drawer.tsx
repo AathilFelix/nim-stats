@@ -10,6 +10,7 @@ import { fmtDuration, slaBudget } from "@/lib/reliability-format";
 import { usePreferences } from "@/lib/client/preferences";
 import type { NIMModel } from "./mock-data";
 import { cn } from "@/lib/utils";
+import { formatTput } from "@/lib/utils";
 
 interface Props {
   model: NIMModel | null;
@@ -86,7 +87,7 @@ export function ModelDetailDrawer({ model, onClose, isFavorite, onToggleFavorite
           {/* Vitals */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Vital label="TTFT" value={`${model.ttft}`} unit="ms" />
-            <Vital label="Throughput" value={model.throughput.toFixed(1)} unit="tok/s" />
+            <Vital label="Throughput" value={formatTput(model.throughput)} unit={model.throughput > 0 ? "tok/s" : ""} />
             <Vital label="Congestion" value={`${model.congestion}`} unit="%" />
             <Vital label="Uptime" value={model.uptime.toFixed(2)} unit="%" />
             <Vital label="Reliability" value={`${model.reliability}`} unit="%" />

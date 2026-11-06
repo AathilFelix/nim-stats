@@ -2,6 +2,7 @@
 
 import { type NIMModel } from "@/components/dashboard/mock-data";
 import { cn } from "@/lib/utils";
+import { meanMeasured } from "@/lib/utils";
 
 interface LateralProps {
   models: NIMModel[];
@@ -12,9 +13,7 @@ export function Lateral({ models, className }: LateralProps) {
   const healthy = models.filter((m) => m.status === "healthy").length;
   const busy = models.filter((m) => m.status === "busy").length;
   const jammed = models.filter((m) => m.status === "jammed").length;
-  const avgThroughput = Math.round(
-    models.reduce((acc, m) => acc + m.throughput, 0) / models.length,
-  );
+  const avgThroughput = Math.round(meanMeasured(models.map((m) => m.throughput)));
   const avgUptime = (
     models.reduce((acc, m) => acc + m.uptime, 0) / models.length
   ).toFixed(2);

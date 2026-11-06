@@ -18,9 +18,9 @@ export function CatalogFunnel({ catalog, healthy, className = "" }: Props) {
   const { listed, callable } = catalog;
   const notCallable = Math.max(0, listed - callable);
   const steps = [
-    { label: "Listed by NVIDIA", n: listed },
-    { label: "Callable", n: callable },
-    { label: "Healthy", n: healthy },
+    { label: "listed by NVIDIA", n: listed },
+    { label: "callable", n: callable },
+    { label: "healthy", n: healthy },
   ];
 
   return (
@@ -30,7 +30,7 @@ export function CatalogFunnel({ catalog, healthy, className = "" }: Props) {
           <li key={s.label} className="flex items-center gap-2">
             {i > 0 && <span aria-hidden="true">→</span>}
             <span>
-              <span className="font-mono tabular-nums text-text-secondary">{s.n}</span> {s.label.toLowerCase()}
+              <span className="font-mono tabular-nums text-text-secondary">{s.n}</span> {s.label}
             </span>
           </li>
         ))}

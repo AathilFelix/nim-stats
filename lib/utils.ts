@@ -15,3 +15,18 @@ export function cn(...inputs: ClassValue[]) {
 export function svgPoint(x: number, y: number): string {
   return `${Math.round(x * 10) / 10},${Math.round(y * 10) / 10}`
 }
+
+/**
+ * Decode speed for display. 0 means "not measured": the reply was too short to
+ * time honestly (classifier/guard models answer in a token or two), so showing
+ * "0 tok/s" would read as a stalled endpoint rather than a missing figure.
+ */
+export function formatTput(tps: number, digits = 1): string {
+  return tps > 0 ? tps.toFixed(digits) : "—"
+}
+
+/** Mean of the measured (> 0) values; 0 when none were measured. */
+export function meanMeasured(values: number[]): number {
+  const measured = values.filter((v) => v > 0)
+  return measured.length ? measured.reduce((a, v) => a + v, 0) / measured.length : 0
+}
