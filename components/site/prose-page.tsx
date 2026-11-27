@@ -13,7 +13,7 @@ export function ProsePage({ page }: { page: StaticPage }) {
     <div className="min-h-screen bg-surface-base text-text-primary">
       <NavBar />
 
-      <main style={{ paddingTop: "calc(3.5rem + var(--safe-top))" }}>
+      <main>
         <header className="border-b border-border-subtle">
           <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
             <div className="mb-2 flex items-center gap-2">
@@ -31,7 +31,7 @@ export function ProsePage({ page }: { page: StaticPage }) {
               <h2 className="section-label mb-3">{section.heading}</h2>
               <div className="space-y-3 rounded-lg border border-border-base bg-surface-card px-5 py-5">
                 {section.body.map((paragraph, i) => (
-                  <p key={i} className="max-w-[68ch] body-sm leading-relaxed text-text-secondary">
+                  <p key={i} className="max-w-[64ch] body-sm leading-relaxed text-text-secondary">
                     <InlineProse text={paragraph} />
                   </p>
                 ))}

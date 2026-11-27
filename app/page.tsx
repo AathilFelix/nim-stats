@@ -1,20 +1,24 @@
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import { NavBar } from "@/components/navigation/nav-bar";
 import { BuiltBy } from "@/components/site/built-by";
 import { HomeExplainer } from "@/components/site/home-explainer";
 import { AutoRefresh } from "@/components/dashboard/auto-refresh";
-import { FleetSummary } from "@/components/dashboard/fleet-summary";
+import { FleetMetrics, FleetSummary } from "@/components/dashboard/fleet-summary";
+import { StatusGlyph } from "@/components/dashboard/status-glyph";
+import { TrendRangeProvider } from "@/components/dashboard/trend-range";
+import { SectionBar } from "@/components/navigation/section-bar";
 import { FleetTrendChart } from "@/components/dashboard/fleet-trend-chart";
 import { BestModelNow } from "@/components/dashboard/best-model-now";
 import { IncidentFeed } from "@/components/dashboard/incident-feed";
-import { ModelExplorer } from "@/components/dashboard/model-explorer";
+import { ModelExplorer, ModelExplorerSkeleton } from "@/components/dashboard/model-explorer";
 import { SlaTracker } from "@/components/dashboard/sla-tracker";
 import { UptimeCalendar } from "@/components/dashboard/uptime-calendar";
 import { LatencyHeatmap } from "@/components/dashboard/latency-heatmap";
-import { computeFleetState, findBestModel, getAllIncidents } from "@/lib/operational-engine";
+import { computeFleetState, findBestModel } from "@/lib/operational-engine";
+import type { Incident } from "@/lib/operational-types";
 import { getCatalogFunnel, getDashboardModels, getFleetTrend } from "@/lib/dashboard-data";
-import { TimeAgo } from "@/components/dashboard/time-ago";
+import { CLIENT_REFRESH_MS } from "@/lib/config/cadence";
 
 // ISR — render once, then serve cached HTML from Workers Cache. Under a traffic
 // spike (e.g. an X post), visitors are served from the edge instead of each
@@ -40,7 +44,10 @@ export default async function Home() {
   const enriched = models as unknown as Array<Record<string, unknown>>;
   const fleetState = computeFleetState(enriched);
   const bestModel = findBestModel(enriched);
-  const incidents = getAllIncidents(enriched);
+  // Every incident the models carry (the last 24 h, per model). getAllIncidents
+  // truncates to 20 and orders by the relative-time string, so it can neither
+  // count nor rank them.
+  const incidents = models.flatMap((m) => m.incidents as Incident[]);
 
   const healthy = models.filter((m) => m.status === "healthy").length;
   const busy = models.filter((m) => m.status === "busy").length;
@@ -53,7 +60,7 @@ export default async function Home() {
   const withTtft = models.filter((m) => m.ttft > 0);
   const avgTtft = withTtft.length ? withTtft.reduce((a, m) => a + m.ttft, 0) / withTtft.length : 0;
 
-  const incidents24h = incidents.filter((i) => i.severity === "critical").length;
+  const critical24h = incidents.filter((i) => i.severity === "critical").length;
   const lastChecked = models.reduce<Date | null>((latest, m) => {
     const d = m.lastChecked instanceof Date ? m.lastChecked : new Date(m.lastChecked);
     return !latest || d > latest ? d : latest;
@@ -70,50 +77,42 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen text-text-primary">
-      <NavBar />
+      <NavBar sticky={false} />
       <AutoRefresh />
 
-      <main style={{ paddingTop: "calc(3.5rem + var(--safe-top))" }}>
-        <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
-          {/* Command header */}
-          <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <span className="status-led status-led--healthy" style={{ width: 6, height: 6 }} aria-hidden="true" />
-                <span className="label-sm text-text-tertiary">NIM Stats · Command Center</span>
+      <TrendRangeProvider>
+        <SectionBar lastProbe={lastChecked} />
+
+        <main>
+          <div className="mx-auto max-w-(--page-max) px-4 pb-16 pt-4 md:px-6 md:pt-6">
+            <div id="fleet" className="grid scroll-mt-16 max-md:scroll-mt-4 grid-cols-12 gap-3 md:gap-4">
+              <FleetSummary
+                fleetState={fleetState}
+                total={models.length}
+                healthy={healthy}
+                busy={busy}
+                jammed={jammed}
+                catalog={catalog}
+              />
+              <BestModelNow recommendation={bestModel} />
+              <FleetMetrics
+                total={models.length}
+                healthy={healthy}
+                avgTtft={avgTtft}
+                ttftCount={withTtft.length}
+                avgThroughput={avgThroughput}
+                throughputCount={measuredTput.length}
+                critical24h={critical24h}
+              />
+              {/* One row for the chart and the changes list; the Incidents tab lands here. */}
+              <div
+                id="incidents"
+                className="reveal col-span-12 grid scroll-mt-16 grid-cols-12 gap-3 max-md:scroll-mt-4 md:gap-4"
+                style={{ "--i": 3 } as CSSProperties}
+              >
+                <FleetTrendChart data={trend} />
+                <IncidentFeed incidents={incidents} models={liteModels} />
               </div>
-              <h1 className="heading-xl text-text-primary">NVIDIA NIM Fleet Overview</h1>
-              <p className="mt-1.5 max-w-xl body-sm text-text-secondary">
-                Real-time status and reliability for every free NVIDIA NIM endpoint, probed continuously.
-              </p>
-            </div>
-            <dl className="flex items-center gap-5 sm:gap-6">
-              <HeaderStat label="Endpoints" value={`${models.length}`} />
-              <HeaderStat label="Healthy" value={`${healthy}`} tone="healthy" />
-              <HeaderStat label="Incidents" value={`${incidents24h}`} tone={incidents24h > 0 ? "critical" : "healthy"} />
-              <HeaderStat label="Last probe" value={lastChecked ? <TimeAgo date={lastChecked} /> : "—"} mono />
-            </dl>
-          </header>
-
-          <div className="space-y-5">
-            <FleetSummary
-              fleetState={fleetState}
-              total={models.length}
-              healthy={healthy}
-              busy={busy}
-              jammed={jammed}
-              avgTtft={avgTtft}
-              avgThroughput={avgThroughput}
-              incidents24h={incidents24h}
-              lastProbe={lastChecked}
-              catalog={catalog}
-            />
-
-            <FleetTrendChart data={trend} />
-
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
-              <BestModelNow recommendation={bestModel} models={enriched} />
-              <IncidentFeed incidents={incidents} />
             </div>
 
             {/* Anomaly detection and quota proximity are API-only for now
@@ -122,50 +121,45 @@ export default async function Home() {
                 in and shifted scroll position — bad UX. Re-enable once that layout
                 shift is solved (reserve space up front / render in a fixed layer). */}
 
-            <section>
-              <div className="mb-3 flex items-baseline justify-between">
-                <h2 className="section-label">Model Fleet</h2>
-                <p className="metric-xs text-text-tertiary">Search, filter, pin & export · {models.length} endpoints</p>
-              </div>
-              <Suspense fallback={null}>
+            <section
+              id="endpoints"
+              aria-label="Endpoints"
+              className="reveal mt-3 scroll-mt-16 max-md:scroll-mt-4 md:mt-4"
+              style={{ "--i": 4 } as CSSProperties}
+            >
+              <Suspense fallback={<ModelExplorerSkeleton />}>
                 <ModelExplorer models={models} />
               </Suspense>
             </section>
 
-            <section>
-              <div className="mb-3 flex items-baseline justify-between">
-                <h2 className="section-label">Reliability &amp; SLA</h2>
-                <p className="metric-xs text-text-tertiary">Uptime history · time-of-day latency · error budgets</p>
-              </div>
-              <div className="space-y-5">
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <SlaTracker />
-                  <UptimeCalendar models={liteModels} />
-                </div>
-                <LatencyHeatmap />
-              </div>
+            <section
+              id="reliability"
+              aria-label="Reliability and SLA"
+              className="reveal mt-3 grid scroll-mt-16 max-md:scroll-mt-4 grid-cols-12 gap-3 md:mt-4 md:gap-4"
+              style={{ "--i": 4 } as CSSProperties}
+            >
+              <SlaTracker />
+              <UptimeCalendar models={liteModels} />
+              <LatencyHeatmap />
             </section>
 
-            <HomeExplainer />
+            <div className="reveal mt-3 md:mt-4" style={{ "--i": 4 } as CSSProperties}>
+              <HomeExplainer />
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </TrendRangeProvider>
 
       <footer
-        className="mt-4 border-t border-border-subtle px-4 py-6 sm:px-6 lg:px-8"
+        className="border-t border-border-base py-6"
         style={{ paddingBottom: "max(1.5rem, var(--safe-bottom))" }}
       >
-        <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-between gap-2 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <span className="status-led status-led--healthy" style={{ width: 6, height: 6 }} aria-hidden="true" />
-            <p className="body-xs text-text-tertiary">
-              Live status of free NVIDIA NIM endpoints. Not affiliated with NVIDIA.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+        <div className="mx-auto flex max-w-(--page-max) flex-col px-4 md:px-6 gap-x-6 gap-y-3 body-sm text-text-muted lg:flex-row lg:items-center lg:justify-between">
+          <p>Live status of free NVIDIA NIM endpoints. Not affiliated with NVIDIA.</p>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             {/* Crawl path to the trust-anchor pages — agents check these before
                 treating a source as legitimate, and nothing linked to them. */}
-            <nav aria-label="Site information" className="flex items-center gap-x-4">
+            <nav aria-label="Site information" className="flex flex-wrap items-center gap-x-5 gap-y-2">
               <FooterLink href="/status" label="Status" />
               <FooterLink href="/api" label="API" />
               <FooterLink href="/about" label="About" />
@@ -173,7 +167,7 @@ export default async function Home() {
               <FooterLink href="/privacy" label="Privacy" />
             </nav>
             <BuiltBy />
-            <p className="metric-xs text-text-quaternary hidden sm:block">Auto-refresh · 30s</p>
+            <p>Auto-refresh every {refreshEvery(CLIENT_REFRESH_MS)}</p>
           </div>
         </div>
       </footer>
@@ -181,32 +175,16 @@ export default async function Home() {
   );
 }
 
-function FooterLink({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="label-xs text-text-tertiary underline-offset-2 transition-colors hover:text-text-secondary hover:underline"
-    >
-      {label}
-    </Link>
-  );
+/** "5 min" / "45 s", from the same constant AutoRefresh polls on. */
+function refreshEvery(ms: number): string {
+  return ms >= 60_000 ? `${Math.round(ms / 60_000)} min` : `${Math.round(ms / 1000)} s`;
 }
 
-function HeaderStat({
-  label, value, tone = "neutral", mono = false,
-}: {
-  label: string;
-  value: React.ReactNode;
-  tone?: "neutral" | "healthy" | "critical";
-  mono?: boolean;
-}) {
-  const base = mono ? "metric-sm" : "metric-lg";
-  const color = tone === "critical" ? "text-status-critical" : tone === "healthy" ? "text-status-healthy" : "text-text-primary";
+function FooterLink({ href, label }: { href: string; label: string }) {
   return (
-    <div className="flex flex-col items-end">
-      <dd className={`${base} ${color}`}>{value}</dd>
-      <dt className="label-xs text-text-tertiary mt-0.5">{label}</dt>
-    </div>
+    <Link href={href} className="foot-link">
+      {label}
+    </Link>
   );
 }
 
@@ -214,15 +192,14 @@ function EmptyState() {
   return (
     <div className="min-h-screen text-text-primary">
       <NavBar />
-      <main
-        className="flex min-h-screen flex-col items-center justify-center px-6 text-center"
-        style={{ paddingTop: "calc(3.5rem + var(--safe-top))" }}
-      >
-        <span className="status-led status-led--warn mb-4" aria-hidden="true" />
+      <main className="flex min-h-[70vh] flex-col items-center justify-center px-4 text-center sm:px-6">
+        <StatusGlyph state="busy" size={16} className="mb-4" />
         <h1 className="heading-lg text-text-primary">Fleet awaiting first probe</h1>
-        <p className="mt-2 max-w-md body-sm text-text-tertiary">
+        <p className="mt-2 max-w-[44ch] body-sm text-text-secondary">
           No endpoints have been measured yet. Start the collector with{" "}
-          <code className="rounded bg-surface-recessed px-1.5 py-0.5 font-mono text-text-secondary">npm run worker</code>{" "}
+          <code className="rounded-sm border border-border-base bg-surface-recessed px-1.5 py-0.5 font-mono text-xs text-text-primary">
+            npm run worker
+          </code>{" "}
           and data appears within a minute.
         </p>
       </main>

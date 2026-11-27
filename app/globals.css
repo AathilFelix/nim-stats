@@ -3,25 +3,20 @@
 @import "tw-animate-css";
 
 /* ==================================================================== */
-/*  NIM STATS — AI INFRASTRUCTURE OPERATIONS CENTER                      */
-/*  Dark-first. Geist (UI) + JetBrains Mono (data). Mission-control      */
-/*  density with Cloudflare-Radar narrative. Instrument-grade, calm.     */
+/*  NIM STATS — near-monochrome system, dark and light.                     */
+/*  Geist 400/500 for UI, Geist Mono for code and table numerals.        */
+/*  Near-monochrome neutrals, one emerald primary, status colours only   */
+/*  for status. Values and rationale live in DESIGN.md — keep in sync.   */
+/*  Dark is the default (`.dark` / `data-theme="dark"` on <html>);       */
+/*  light is `:root` with no `.dark` class (`data-theme="light"`).       */
 /* ==================================================================== */
 
 @theme inline {
   /* shadcn / radix bridge ------------------------------------------- */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--ff-sans, ui-sans-serif, system-ui, sans-serif);
-  --font-mono: var(--ff-mono, ui-monospace, monospace);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
+  --font-sans: var(--ff-sans, Geist), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: var(--ff-mono, "Geist Mono"), ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -46,9 +41,8 @@
 
   /* Semantic surfaces / text / borders as first-class color utilities
      so `bg-surface-base`, `text-text-secondary`, `border-border-strong`
-     all generate (alongside the arbitrary `[--token]` syntax).          */
+     all generate (alongside the arbitrary `(--token)` syntax).          */
   --color-surface-base: var(--surface-base);
-  --color-surface-sunken: var(--surface-sunken);
   --color-surface-card: var(--surface-card);
   --color-surface-elevated: var(--surface-elevated);
   --color-surface-overlay: var(--surface-overlay);
@@ -60,8 +54,9 @@
   --color-text-secondary: var(--text-secondary);
   --color-text-tertiary: var(--text-tertiary);
   --color-text-quaternary: var(--text-quaternary);
+  --color-text-muted: var(--text-muted);
+  --color-text-disabled: var(--text-disabled);
   --color-text-accent: var(--text-accent);
-  --color-primary-strong: var(--primary-strong);
 
   --color-status-healthy: var(--status-healthy);
   --color-status-warn: var(--status-warn);
@@ -69,148 +64,249 @@
   --color-status-info: var(--status-info);
   --color-status-neutral: var(--status-neutral);
 
-  /* legacy aliases (kept so existing class names resolve) ------------ */
-  --surface-base: var(--surface-base);
-  --surface-card: var(--surface-card);
-  --surface-elevated: var(--surface-elevated);
-  --surface-recessed: var(--surface-recessed);
-  --border-base: var(--border-base);
-  --border-subtle: var(--border-subtle);
-  --text-primary: var(--text-primary);
-  --text-secondary: var(--text-secondary);
-  --text-tertiary: var(--text-tertiary);
-  --text-accent: var(--text-accent);
-  --text-notice: var(--text-notice, var(--text-tertiary));
-  --fade-color: var(--fade-color);
+  /* System semantics (see DESIGN.md) */
+  --color-primary-deep: var(--primary-deep);
+  --color-accent-2: var(--accent-2);
+  --color-accent-soft: var(--accent-soft);
+  --color-chip: var(--chip);
+  --color-btn-bg: var(--btn-bg);
+  --color-btn-line: var(--btn-line);
+  --color-sel-bg: var(--sel-bg);
+  --color-sel-text: var(--sel-text);
+  --color-sel-mute: var(--sel-mute);
+  --color-feat-bg: var(--feat-bg);
+  --color-feat-text: var(--feat-text);
+  --color-feat-mute: var(--feat-mute);
+  --color-feat-code: var(--feat-code);
+  --color-feat-line: var(--feat-line);
+  --color-feat-btn-bg: var(--feat-btn-bg);
+  --color-feat-btn-text: var(--feat-btn-text);
+  --color-feat-btn-hover: var(--feat-btn-hover);
 
-  --card-radius: 12px;
-  --card-radius-sm: 9px;
-  --surface-glass: var(--glass-bg);
-  --border-glow: color-mix(in srgb, var(--primary) 22%, transparent);
-  --spacing-section: 1.5rem;
-  --radius: 0.625rem;
+  --radius: 0.5rem;
+}
+
+/* Radii: the radius scale. xs inputs/tags, sm buttons/code, md compact
+   cards, lg panels, xl modals. Static values, so they live outside `inline`.
+   Remaps the Tailwind scale (rounded-sm/md/lg/xl...).                     */
+@theme {
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 16px;
+  --radius-3xl: 16px;
+  --radius-4xl: 16px;
 }
 
 /* ================================================================== */
-/*  SAFE AREAS                                                          */
+/*  SHARED (theme-independent) TOKENS                                   */
 /* ================================================================== */
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Motion. out = enter / reveal / travel; in = every exit; standard = colour
+     hovers; snap = critically damped spring (stiffness 520, damping 34, mass
+     0.45) sampled to 17 points, falling back to `out` where linear() is not
+     supported. Only transform, opacity, clip-path and colour are ever animated. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-snap: cubic-bezier(0.23, 1, 0.32, 1);
+
+  --dur-press: 120ms;   /* :active translate */
+  --dur-fast: 120ms;    /* exits, hover-out of tight controls */
+  --dur: 150ms;         /* colour / background hovers */
+  --dur-pop: 160ms;     /* menu, new rows, label swaps */
+  --dur-slow: 200ms;    /* fades, scrim in, drawer out */
+  --dur-enter: 280ms;   /* travel: thumb, underline, value roll */
+  --dur-reveal: 360ms;  /* first-load panels, chart bars, drawer in */
+  --dur-spin: 850ms;    /* refresh spinner, linear */
+  --stagger: 45ms;      /* panel step, capped at 4 steps */
+  --stagger-bar: 6ms;   /* per chart column; the whole run is clamped to 240ms */
+
+  /* Spacing scale (8px base) */
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
+  --space-huge: 64px;
+
+  /* Brand — the primary does not change between themes */
+  --primary: #3ecf8e;
+  --primary-deep: #24b47e;
+  --primary-foreground: #171717;
+  --accent-soft: rgba(62, 207, 142, 0.12);
+  --primary-glow: rgba(62, 207, 142, 0.22); /* input focus ring */
+
+  /* Page container */
+  --page-max: 1328px;
 }
 
 /* ================================================================== */
-/*  LIGHT THEME — instrument light (cool, clean, low-glare)            */
+/*  LIGHT THEME                                                         */
 /* ================================================================== */
 :root {
   color-scheme: light;
-  --background: #f6f7f9;
-  --foreground: #14161c;
+  --background: #ffffff;
+  --foreground: #171717;
   --card: #ffffff;
-  --card-foreground: #14161c;
+  --card-foreground: #171717;
   --popover: #ffffff;
-  --popover-foreground: #14161c;
-  --primary: #5b6cf0;
-  --primary-strong: #4a5ae8;
-  --primary-foreground: #ffffff;
-  --secondary: #eef0f3;
-  --secondary-foreground: #2a2d36;
-  --muted: #eef0f3;
-  --muted-foreground: #6b7280;
-  --accent: #eef0f3;
-  --accent-foreground: #2a2d36;
-  --destructive: #e0445a;
-  --border: #e3e6ea;
-  --input: #e3e6ea;
-  --ring: #5b6cf0;
-  --chart-1: #5b6cf0;
-  --chart-2: #12a974;
-  --chart-3: #d9870b;
-  --chart-4: #e0445a;
-  --chart-5: #8b90a0;
+  --popover-foreground: #171717;
+  --secondary: #fafafa;
+  --secondary-foreground: #171717;
+  --muted: #fafafa;
+  --muted-foreground: #707070;
+  --accent: #fafafa;
+  --accent-foreground: #171717;
+  --destructive: #dc2626;
+  --border: #dfdfdf;
+  --input: #dfdfdf;
+  --ring: #171717;
 
-  --surface-base: #f6f7f9;
-  --surface-sunken: #eceef2;
+  --surface-base: #ffffff;
   --surface-card: #ffffff;
-  --surface-elevated: #ffffff;
+  --surface-elevated: #fafafa;
   --surface-overlay: #ffffff;
-  --surface-recessed: #f2f3f6;
-  --border-subtle: #ebedf1;
-  --border-base: #e0e3e8;
-  --border-strong: #cfd3da;
-  --text-primary: #14161c;
-  --text-secondary: #474d5c;
-  --text-tertiary: #767c8b;
-  --text-quaternary: #a3a8b4;
-  --text-accent: #4a5ae8;
-  --fade-color: #f6f7f9;
+  --surface-recessed: #fafafa;
+  --border-subtle: #ededed;
+  --border-base: #dfdfdf;
+  --border-strong: #c7c7c7;
 
-  --status-healthy: #12a974;
-  --status-warn: #d9870b;
-  --status-critical: #e0445a;
-  --status-info: #5b6cf0;
-  --status-neutral: #9aa0ad;
+  /* Two text levels: ink and muted. secondary/tertiary/quaternary are
+     aliases of muted, kept until every component collapses to two.     */
+  --text-primary: #171717;
+  --text-muted: #707070;
+  --text-secondary: var(--text-muted);
+  --text-tertiary: var(--text-muted);
+  --text-quaternary: var(--text-muted);
+  --text-disabled: #b2b2b2;
+  --text-accent: #171717; /* links are ink + underline; emerald is never text */
 
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --grid-line: rgba(20, 22, 28, 0.04);
-  --grid-glow: rgba(91, 108, 240, 0.05);
+  --status-healthy: #16a34a;
+  --status-warn: #b66c00;
+  --status-critical: #dc2626;
+  --status-info: #6b01c2;
+  --status-neutral: #707070;
+
+  --accent-2: #6b01c2;
+
+  /* Chart: stacked state series use status colours; a single series is
+     muted grey; emerald marks the one highlighted series.              */
+  --chart-1: #24b47e;
+  --chart-2: #644fc1;
+  --chart-3: #b66c00;
+  --chart-4: #dc2626;
+  --chart-5: #9a9a9a;
+
+  --chip: rgba(0, 0, 0, 0.06);
+  --btn-bg: #ffffff;
+  --btn-line: #c7c7c7;
+  /* selected / inverse control (segmented active, filter on) */
+  --sel-bg: #1c1c1c;
+  --sel-text: #ffffff;
+  --sel-mute: #9a9a9a;
+  /* featured card ("Call this now"): inverted ink card + green action */
+  --feat-bg: #1c1c1c;
+  --feat-text: #ffffff;
+  --feat-mute: #9a9a9a;
+  --feat-code: #202020;
+  --feat-line: rgba(255, 255, 255, 0.14);
+  --feat-btn-bg: #3ecf8e;
+  --feat-btn-text: #171717;
+  --feat-btn-hover: #24b47e;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 /* ================================================================== */
-/*  DARK THEME — operations console (near-black, signal-grade hues)    */
+/*  DARK THEME — default                                                */
 /* ================================================================== */
-.dark {
+.dark,
+[data-theme="dark"] {
   color-scheme: dark;
-  --background: #08090b;
-  --foreground: #eef0f3;
-  --card: #0d0f12;
-  --card-foreground: #eef0f3;
-  --popover: #0c0e11;
-  --popover-foreground: #eef0f3;
-  --primary: #6e7bff;
-  --primary-strong: #8b95ff;
-  --primary-foreground: #080a14;
-  --secondary: #16181d;
-  --secondary-foreground: #d4d6dc;
-  --muted: #131519;
-  --muted-foreground: #80858f;
-  --accent: #16181d;
-  --accent-foreground: #d4d6dc;
-  --destructive: #fb6a78;
-  --border: #232631;
-  --input: #16181d;
-  --ring: #6e7bff;
-  --chart-1: #6e7bff;
-  --chart-2: #2fd98a;
-  --chart-3: #f5b13d;
-  --chart-4: #fb6a78;
-  --chart-5: #7a8090;
+  --background: #1c1c1c;
+  --foreground: #ffffff;
+  --card: #1c1c1c;
+  --card-foreground: #ffffff;
+  --popover: #202020;
+  --popover-foreground: #ffffff;
+  --secondary: #202020;
+  --secondary-foreground: #ffffff;
+  --muted: #202020;
+  --muted-foreground: #9a9a9a;
+  --accent: #202020;
+  --accent-foreground: #ffffff;
+  --destructive: #f87171;
+  --border: #3a3a3a;
+  --input: #3a3a3a;
+  --ring: #ffffff;
 
-  --surface-base: #08090b;
-  --surface-sunken: #050608;
-  --surface-card: #0d0f12;
-  --surface-elevated: #14161b;
-  --surface-overlay: #181b21;
-  --surface-recessed: #0a0b0e;
-  --border-subtle: #17191f;
-  --border-base: #232631;
-  --border-strong: #313542;
-  --text-primary: #eef0f3;
-  --text-secondary: #a4a9b4;
-  --text-tertiary: #6b7080;
-  --text-quaternary: #494e5b;
-  --text-accent: #99a4ff;
-  --fade-color: #08090b;
+  --surface-base: #1c1c1c;
+  --surface-card: #1c1c1c;
+  --surface-elevated: #202020;
+  --surface-overlay: #202020;
+  --surface-recessed: #202020;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-base: #3a3a3a;
+  --border-strong: #3a3a3a; /* the dark system has a single hairline step */
 
-  --status-healthy: #2fd98a;
-  --status-warn: #f5b13d;
-  --status-critical: #fb6a78;
-  --status-info: #6e7bff;
-  --status-neutral: #565b68;
+  --text-primary: #ffffff;
+  --text-muted: #9a9a9a;
+  --text-secondary: var(--text-muted);
+  --text-tertiary: var(--text-muted);
+  --text-quaternary: var(--text-muted);
+  --text-disabled: #3a3a3a;
+  --text-accent: #ffffff;
 
-  --glass-bg: rgba(13, 15, 18, 0.66);
-  --grid-line: rgba(255, 255, 255, 0.022);
-  --grid-glow: rgba(110, 123, 255, 0.06);
+  --status-healthy: #34d399;
+  --status-warn: #f59e0b;
+  --status-critical: #f87171;
+  --status-info: #a36cd8;
+  --status-neutral: #9a9a9a;
+
+  --accent-2: #a36cd8;
+
+  --chart-1: #3ecf8e;
+  --chart-2: #a36cd8;
+  --chart-3: #f59e0b;
+  --chart-4: #f87171;
+  --chart-5: #707070;
+
+  --chip: rgba(255, 255, 255, 0.08);
+  --btn-bg: #202020;
+  --btn-line: #3a3a3a;
+  --sel-bg: #ffffff;
+  --sel-text: #1c1c1c;
+  --sel-mute: #707070;
+  /* polarity flips: the featured card is the emerald one in dark */
+  --feat-bg: #3ecf8e;
+  --feat-text: #171717;
+  --feat-mute: rgba(23, 23, 23, 0.72);
+  --feat-code: #1c1c1c;
+  --feat-line: transparent;
+  --feat-btn-bg: #ffffff;
+  --feat-btn-text: #1c1c1c;
+  --feat-btn-hover: #ededed;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --ease-snap: linear(0, 0.099, 0.269, 0.435, 0.574, 0.683, 0.766, 0.829, 0.874, 0.908, 0.933, 0.951, 0.964, 0.974, 0.981, 0.986, 1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-enter: 0ms; --dur-reveal: 0ms; --stagger: 0ms; --stagger-bar: 0ms; }
 }
 
 /* ================================================================== */
@@ -224,8 +320,12 @@
   html {
     @apply font-sans;
     scroll-behavior: smooth;
+    /* Reserve the scrollbar lane so the page does not shift sideways when the
+       drawer locks body scroll (R10). */
+    scrollbar-gutter: stable;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
   }
 
@@ -233,16 +333,22 @@
     @apply bg-background text-foreground antialiased;
     background-color: var(--surface-base);
     color: var(--text-primary);
-    font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
-    font-feature-settings: "cv01", "cv03", "ss03";
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    caret-color: var(--primary);
   }
+
+  h1, h2, h3 { text-wrap: balance; }
+  p { text-wrap: pretty; }
 
   ::selection {
-    background: color-mix(in srgb, var(--primary) 30%, transparent);
-    color: var(--text-primary);
+    background: var(--primary);
+    color: var(--primary-foreground);
   }
 
-  /* Thin instrument scrollbars */
+  /* Thin scrollbars, themed */
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--border-strong) transparent;
@@ -254,383 +360,269 @@
     border-radius: 99px;
     border: 2px solid var(--surface-base);
   }
-  *::-webkit-scrollbar-thumb:hover { background: var(--text-quaternary); }
+  *::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
+  /* Focus is ink, never emerald: the green is for actions. */
   :focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--primary) 70%, transparent);
+    outline: 2px solid var(--text-primary);
     outline-offset: 2px;
   }
 }
 
 /* ================================================================== */
-/*  ATMOSPHERE — mission-control grid + console glow                   */
+/*  UTILITIES — motion, type scale                                      */
 /* ================================================================== */
 @layer utilities {
-  /* Fine engineering grid behind everything (applied to <body>).       */
-  .ops-grid {
-    position: relative;
-    background-color: var(--surface-base);
-    background-image:
-      linear-gradient(var(--grid-line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-    background-size: 44px 44px;
-    background-position: center top;
-  }
-  .ops-grid::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    background:
-      radial-gradient(120% 60% at 50% -10%, var(--grid-glow), transparent 60%),
-      radial-gradient(80% 50% at 100% 0%, color-mix(in srgb, var(--status-healthy) 4%, transparent), transparent 55%);
-  }
-  .ops-grid > * { position: relative; z-index: 1; }
-
-  /* Lighter localized radial glow for individual surfaces.             */
-  .surface-texture {
-    position: relative;
-    background-image:
-      radial-gradient(100% 100% at 50% 0%, var(--grid-glow), transparent 70%);
-  }
-
-  /* ── Animations ──────────────────────────────────────────────────── */
-  .animate-fade-up { animation: fadeUp 0.5s ease-out both; }
-  .animate-fade-in { animation: fadeIn 0.4s ease-out both; }
-  .animate-slide-up { animation: slideUp 0.45s cubic-bezier(0.16,1,0.3,1) both; }
-  .animate-pulse-soft { animation: pulseSoft 2.8s ease-in-out infinite; }
+  /* ── Motion utilities (the full set lives in the Motion block below) ── */
+  .animate-fade-in { animation: fadeIn var(--dur-slow) var(--ease-out) both; }
+  .animate-slide-up { animation: slideUp var(--dur-slow) var(--ease-out) both; }
+  .animate-pulse-soft { animation: pulseSoft 1.8s ease-in-out infinite; }
 
   .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
 
-  .delay-100 { animation-delay: 100ms; }
-  .delay-200 { animation-delay: 200ms; }
-  .delay-300 { animation-delay: 300ms; }
-  .delay-400 { animation-delay: 400ms; }
-  .delay-500 { animation-delay: 500ms; }
+  /* Stagger for lists on the other pages: the M1 reveal, capped at 4 steps. */
+  .animate-stagger > * { animation: reveal var(--dur-reveal) var(--ease-out) backwards; }
+  .animate-stagger > *:nth-child(2) { animation-delay: var(--stagger); }
+  .animate-stagger > *:nth-child(3) { animation-delay: calc(2 * var(--stagger)); }
+  .animate-stagger > *:nth-child(4) { animation-delay: calc(3 * var(--stagger)); }
+  .animate-stagger > *:nth-child(n+5) { animation-delay: calc(4 * var(--stagger)); }
 
-  .animate-stagger > * { animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both; }
-  .animate-stagger > *:nth-child(1) { animation-delay: 20ms; }
-  .animate-stagger > *:nth-child(2) { animation-delay: 60ms; }
-  .animate-stagger > *:nth-child(3) { animation-delay: 100ms; }
-  .animate-stagger > *:nth-child(4) { animation-delay: 140ms; }
-  .animate-stagger > *:nth-child(5) { animation-delay: 180ms; }
-  .animate-stagger > *:nth-child(6) { animation-delay: 220ms; }
-  .animate-stagger > *:nth-child(7) { animation-delay: 260ms; }
-  .animate-stagger > *:nth-child(8) { animation-delay: 300ms; }
-  .animate-stagger > *:nth-child(9) { animation-delay: 340ms; }
-  .animate-stagger > *:nth-child(10) { animation-delay: 380ms; }
+  /* ── Type scale (Geist 400/500 + Geist Mono) ─────────────────────── */
+  /* Sans carries hierarchy; weight is 400 or 500, never above. Display  */
+  /* tiers use negative tracking. Numerals are tabular everywhere.       */
 
-  /* ── Type scale ──────────────────────────────────────────────────── */
-  /* Mono labels (machine-readable, tracked-out caps).                  */
-  .label-md { font-family: var(--font-mono), ui-monospace, monospace; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
-  .label-sm { font-family: var(--font-mono), ui-monospace, monospace; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.11em; text-transform: uppercase; }
-  .label-xs { font-family: var(--font-mono), ui-monospace, monospace; font-size: 0.64rem; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; }
+  /* Headings */
+  .heading-xl { font-family: var(--font-sans); font-size: 2.25rem; line-height: 1.15; font-weight: 500; letter-spacing: -0.72px; }
+  .heading-lg { font-family: var(--font-sans); font-size: 1.375rem; line-height: 1.2; font-weight: 500; letter-spacing: 0; }
+  .heading-md { font-family: var(--font-sans); font-size: 1.125rem; line-height: 1.4; font-weight: 500; letter-spacing: 0; }
 
-  /* Mono metrics (tabular figures).                                    */
-  .metric-xs { font-family: var(--font-mono), ui-monospace, monospace; font-size: 0.72rem; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-  .metric-sm { font-family: var(--font-mono), ui-monospace, monospace; font-size: 0.82rem; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-  .metric-md { font-family: var(--font-mono), ui-monospace, monospace; font-size: 0.9rem; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-  .metric-lg { font-family: var(--font-mono), ui-monospace, monospace; font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.05; }
-  .metric-xl { font-family: var(--font-mono), ui-monospace, monospace; font-size: 1.85rem; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; line-height: 1; }
-  .metric-hero { font-family: var(--font-mono), ui-monospace, monospace; font-size: 2.6rem; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.04em; line-height: 0.95; }
-  .metric-value { font-family: var(--font-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.015em; font-weight: 600; }
+  /* Body: lg 18 lead · md 16 default · sm 13 caption · xs 12 micro */
+  .body-lg { font-family: var(--font-sans); font-size: 1.125rem; line-height: 1.55; }
+  .body-md { font-family: var(--font-sans); font-size: 1rem; line-height: 1.5; }
+  .body-sm { font-family: var(--font-sans); font-size: 0.8125rem; line-height: 1.45; }
+  .body-xs { font-family: var(--font-sans); font-size: 0.75rem; line-height: 1.45; }
 
-  /* Geist body / headings.                                             */
-  .body-xs { font-family: var(--font-sans), system-ui, sans-serif; font-size: 0.72rem; }
-  .body-sm { font-family: var(--font-sans), system-ui, sans-serif; font-size: 0.8rem; }
-  .body-md { font-family: var(--font-sans), system-ui, sans-serif; font-size: 0.9rem; }
-  .body-lg { font-family: var(--font-sans), system-ui, sans-serif; font-size: 1rem; }
-  .heading-md { font-family: var(--font-sans), system-ui, sans-serif; font-size: 1.05rem; font-weight: 600; letter-spacing: -0.015em; }
-  .heading-lg { font-family: var(--font-sans), system-ui, sans-serif; font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; }
-  .heading-xl { font-family: var(--font-sans), system-ui, sans-serif; font-size: 1.6rem; font-weight: 650; letter-spacing: -0.025em; }
+  /* Labels: caption (13) and micro (12), regular weight, sentence case. */
+  .label-sm { font-family: var(--font-sans); font-size: 0.8125rem; line-height: 1.45; font-weight: 400; }
+  .label-xs { font-family: var(--font-sans); font-size: 0.75rem; line-height: 1.45; font-weight: 400; }
 
-  .nav-item { font-family: var(--font-mono), ui-monospace, monospace; font-size: 0.74rem; font-weight: 500; letter-spacing: 0.08em; }
-  .mono-xs { font-family: var(--font-mono), ui-monospace, monospace; font-size: 0.72rem; letter-spacing: 0.02em; }
-  .data-text { font-family: var(--font-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
-  .cell-metric { font-family: var(--font-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-  .tnum { font-variant-numeric: tabular-nums; }
+  /* Metrics. Big values are sans (display-md / display-lg); table and    */
+  /* inline numerals are mono 14 (a deliberate deviation, see DESIGN.md). */
+  .metric-hero { font-family: var(--font-sans); font-size: 2.25rem; line-height: 1.15; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -0.72px; }
+  .metric-xl { font-family: var(--font-sans); font-size: 1.75rem; line-height: 1.2; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -0.42px; }
+  .metric-lg { font-family: var(--font-sans); font-size: 1.375rem; line-height: 1.2; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+  .metric-md { font-family: var(--font-sans); font-size: 1.125rem; line-height: 1.4; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+  .metric-sm { font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.5; font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+  .metric-xs { font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.45; font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+  .metric-value { font-family: var(--font-sans); font-variant-numeric: tabular-nums; font-weight: 500; }
+
+  /* Code: ids, model names, snippets. System mono, 14. */
+  .code { font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.5; font-weight: 400; letter-spacing: 0; }
+
+  .nav-item { font-family: var(--font-sans); font-size: 0.875rem; line-height: 1; font-weight: 500; }
+  .data-text { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .cell-metric { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 }
 
 /* ================================================================== */
 /*  KEYFRAMES                                                          */
 /* ================================================================== */
-@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes pulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-@keyframes ledPulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--led-color) 40%, transparent); } 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--led-color) 0%, transparent); } }
-@keyframes fadeScale { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
-@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
-@keyframes tickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-@keyframes sweepLine { 0% { transform: translateX(-100%); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateX(100%); opacity: 0; } }
+@keyframes pulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+/* Kebab alias: status-dot.tsx and quick-stats.tsx animate `pulse-soft` inline. */
+@keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
 /* ================================================================== */
-/*  MOBILE                                                             */
+/*  MOBILE (< 768: display steps down 36 -> 28, 1-up, 16px gutter)      */
 /* ================================================================== */
-@media (max-width: 639px) {
-  .metric-xs { font-size: 0.64rem; }
-  .body-xs { font-size: 0.64rem; }
-  .label-xs { font-size: 0.58rem; }
-  .metric-hero { font-size: 2rem; }
-  .metric-xl { font-size: 1.5rem; }
+@media (max-width: 767px) {
+  .heading-xl { font-size: 1.75rem; line-height: 1.2; letter-spacing: -0.42px; }
+  .metric-hero { font-size: 1.75rem; line-height: 1.2; letter-spacing: -0.42px; }
 }
 
 @media (hover: none) and (pointer: coarse) {
-  .tl-row:active, .ops-table-row:active { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
-  .rank-card:active { transform: translateY(0); }
-  .cat-btn:active { background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
+  .tl-row:active, .ops-table-row:active { background: var(--surface-recessed); }
+  .cat-btn:active { background: var(--chip); }
 }
 
 /* ================================================================== */
-/*  COMPONENTS — operations-center system                             */
+/*  COMPONENTS                                                         */
 /* ================================================================== */
 @layer components {
 
-  /* ── Status LED ─────────────────────────────────────────────────── */
+  /* ── Status LED — shape encodes state, never colour alone ────────── */
+  /* healthy = circle · warn = diamond · critical = triangle · neutral = ring */
   .status-led, .status-dot {
     --led-color: var(--status-neutral);
     display: inline-block;
-    width: 9px; height: 9px;
+    width: 8px; height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
-    background: var(--led-color);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--led-color) 13%, transparent),
-                0 0 7px color-mix(in srgb, var(--led-color) 35%, transparent);
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--led-color);
   }
-  .status-led--healthy, .status-dot--healthy { --led-color: var(--status-healthy); }
-  .status-led--warn, .status-dot--warn, .status-dot--busy { --led-color: var(--status-warn); }
+  .status-led--healthy, .status-dot--healthy {
+    --led-color: var(--status-healthy);
+    background: var(--led-color);
+    box-shadow: none;
+  }
+  .status-led--warn, .status-dot--warn, .status-dot--busy {
+    --led-color: var(--status-warn);
+    background: var(--led-color);
+    border-radius: 1.5px;
+    box-shadow: none;
+    transform: rotate(45deg) scale(0.8);
+  }
   .status-led--critical, .status-dot--critical, .status-dot--jammed {
     --led-color: var(--status-critical);
-    animation: pulseSoft 1.7s ease-in-out infinite;
+    background: var(--led-color);
+    border-radius: 0;
+    box-shadow: none;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
   }
-  .status-led--info, .status-dot--info { --led-color: var(--status-info); }
+  .status-led--info, .status-dot--info {
+    --led-color: var(--status-info);
+    background: var(--led-color);
+    box-shadow: none;
+  }
 
-  /* ── Panel — the primary container ──────────────────────────────── */
+  /* ── Panel — the primary container: 1px hairline, radius 12, flat ─── */
   .ops-card, .panel {
     background: var(--surface-card);
     border: 1px solid var(--border-base);
-    border-radius: var(--card-radius-sm);
+    border-radius: var(--radius-lg);
     position: relative;
-    transition: border-color 0.2s ease, background 0.2s ease;
+    min-width: 0;
   }
-  .ops-card::after, .panel::after {
-    content: "";
-    position: absolute; inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 3%, transparent);
-  }
-  .ops-card:hover, .panel:hover { border-color: var(--border-strong); }
-  .ops-card--bracketed::before, .ops-card--bracketed::after { content: none; }
 
+  /* Inner gutter: 24px, 16px below 768. */
   .panel-pad { padding: 16px; }
-  @media (min-width: 640px) { .panel-pad { padding: 18px 20px; } }
+  @media (min-width: 768px) { .panel-pad { padding: 24px; } }
 
-  /* ── Panel header — hairline strip with title + meta ────────────── */
-  .hdiv, .panel-header {
+  /* ── Panel header — title + meta over a soft hairline ────────────── */
+  .hdiv {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    gap: 8px 12px;
+    min-height: 60px;
     padding: 12px 16px;
     border-bottom: 1px solid var(--border-subtle);
   }
-  @media (min-width: 640px) { .hdiv, .panel-header { padding: 13px 20px; } }
+  @media (min-width: 768px) { .hdiv { min-height: 68px; padding: 16px 24px; } }
 
-  /* ── Section label ──────────────────────────────────────────────── */
+  /* ── Group title inside a page ───────────────────────────────────── */
   .section-label {
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--text-tertiary);
+    font-family: var(--font-sans);
+    font-size: 1.125rem;
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--text-primary);
   }
 
-  /* ── Command bar (top app shell) ────────────────────────────────── */
+  /* ── Command bar (top app shell) — solid, hairline, no blur ──────── */
   .command-bar {
-    background: color-mix(in srgb, var(--surface-base) 82%, transparent);
-    backdrop-filter: blur(14px) saturate(1.3);
-    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+    background: var(--surface-base);
     border-bottom: 1px solid var(--border-base);
   }
 
-  /* ── Eyebrow rule with leading LED ──────────────────────────────── */
-  .rule-dot, .accent-sep {
-    display: flex; align-items: center; gap: 10px;
-    height: 1px; color: var(--border-subtle);
-  }
-  .rule-dot::before {
-    content: ""; width: 4px; height: 4px; border-radius: 50%;
-    background: var(--status-healthy); flex-shrink: 0;
-    box-shadow: 0 0 5px var(--status-healthy);
-  }
-  .rule-dot::after, .accent-sep::after { content: ""; flex: 1; height: 1px; background: currentColor; }
-  .accent-sep::before { content: ""; flex: 1; height: 1px; background: currentColor; }
+  .accent-sep { display: flex; align-items: center; height: 1px; background: var(--border-subtle); }
 
-  .divider-thin { height: 1px; background: var(--border-subtle); }
-  .col-divider { width: 1px; background: var(--border-subtle); }
-
-  /* ── Metric mono ────────────────────────────────────────────────── */
-  .metric-mono {
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 1rem; font-variant-numeric: tabular-nums;
-    letter-spacing: -0.015em; font-weight: 600; line-height: 1;
-  }
-
-  /* ── HUD stat block ─────────────────────────────────────────────── */
+  /* ── Stat block ──────────────────────────────────────────────────── */
   .hud-block {
     display: flex; flex-direction: column; gap: 4px;
-    padding: 10px 13px; border-radius: 8px;
+    padding: 10px 12px; border-radius: var(--radius-md);
     border: 1px solid var(--border-subtle);
     background: var(--surface-recessed);
-    transition: border-color 0.18s, background 0.18s;
   }
-  .hud-block:hover { border-color: var(--border-base); }
 
-  /* ── Status chip ────────────────────────────────────────────────── */
+  /* ── Status chip — a .pill: chip fill, ink word. The state shape (a        */
+  /* StatusDot inside) carries the colour; the text never does (R16).    */
   .status-chip {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 3px 9px; border-radius: 6px;
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 0.66rem; font-weight: 600;
-    letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 9999px;
+    font-family: var(--font-sans);
+    font-size: 0.75rem; line-height: 1.45; font-weight: 400;
+    color: var(--text-primary); background: var(--chip);
+    border: 1px solid transparent;
     white-space: nowrap;
   }
-  .status-chip--healthy { color: var(--status-healthy); background: color-mix(in srgb, var(--status-healthy) 9%, transparent); border: 1px solid color-mix(in srgb, var(--status-healthy) 24%, transparent); }
-  .status-chip--warn, .status-chip--degraded { color: var(--status-warn); background: color-mix(in srgb, var(--status-warn) 9%, transparent); border: 1px solid color-mix(in srgb, var(--status-warn) 24%, transparent); }
-  .status-chip--critical { color: var(--status-critical); background: color-mix(in srgb, var(--status-critical) 10%, transparent); border: 1px solid color-mix(in srgb, var(--status-critical) 26%, transparent); }
-  .status-chip--info { color: var(--status-info); background: color-mix(in srgb, var(--status-info) 9%, transparent); border: 1px solid color-mix(in srgb, var(--status-info) 24%, transparent); }
-  .status-chip--neutral { color: var(--text-tertiary); background: var(--surface-recessed); border: 1px solid var(--border-base); }
+  .status-chip--neutral { color: var(--text-muted); }
 
-  /* ── Grade badge ────────────────────────────────────────────────── */
-  .grade-badge {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 21px; height: 21px; border-radius: 6px;
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 0.74rem; font-weight: 700; flex-shrink: 0;
-  }
-  .grade-badge--A { background: color-mix(in srgb, var(--status-healthy) 11%, transparent); color: var(--status-healthy); border: 1px solid color-mix(in srgb, var(--status-healthy) 24%, transparent); }
-  .grade-badge--B { background: color-mix(in srgb, var(--status-warn) 11%, transparent); color: var(--status-warn); border: 1px solid color-mix(in srgb, var(--status-warn) 24%, transparent); }
-  .grade-badge--C { background: color-mix(in srgb, var(--status-info) 11%, transparent); color: var(--status-info); border: 1px solid color-mix(in srgb, var(--status-info) 24%, transparent); }
-  .grade-badge--D { background: color-mix(in srgb, var(--status-critical) 11%, transparent); color: var(--status-critical); border: 1px solid color-mix(in srgb, var(--status-critical) 24%, transparent); }
-
-  /* ── Trend quadrant ─────────────────────────────────────────────── */
-  .trend-quad {
-    position: relative; padding: 14px 15px 16px;
-    background: var(--surface-recessed);
-    border: 1px solid var(--border-subtle);
-    border-left: 3px solid transparent;
-    border-radius: 0 8px 8px 0;
-    transition: background 0.18s, border-color 0.18s;
-  }
-  .trend-quad:hover { border-color: var(--border-base); }
-  .trend-quad--healthy { border-left-color: var(--status-healthy); }
-  .trend-quad--warn { border-left-color: var(--status-warn); }
-  .trend-quad--critical { border-left-color: var(--status-critical); }
-  .trend-quad--info { border-left-color: var(--status-info); }
-
-  /* ── Heatmap cell ───────────────────────────────────────────────── */
-  .hm-cell {
-    display: flex; align-items: center; justify-content: center;
-    height: 30px;
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 0.72rem; font-variant-numeric: tabular-nums;
-    border-radius: 5px; transition: filter 0.12s, transform 0.12s;
-  }
-  .hm-cell:hover { filter: brightness(1.35); transform: scale(1.04); }
-  .hm-band-high { background: color-mix(in srgb, var(--status-healthy) 16%, transparent); color: color-mix(in srgb, var(--status-healthy) 80%, white); }
-  .hm-band-mid { background: color-mix(in srgb, var(--status-healthy) 9%, transparent); color: color-mix(in srgb, var(--status-healthy) 70%, white); }
-  .hm-band-low { background: color-mix(in srgb, var(--status-warn) 14%, transparent); color: color-mix(in srgb, var(--status-warn) 80%, white); }
-  .hm-band-critical { background: color-mix(in srgb, var(--status-critical) 14%, transparent); color: color-mix(in srgb, var(--status-critical) 80%, white); }
-  .hm-band-empty { background: var(--surface-recessed); color: var(--text-quaternary); }
-
-  /* ── Timeline row ───────────────────────────────────────────────── */
+  /* ── Timeline row ────────────────────────────────────────────────── */
   .tl-row {
-    display: grid; grid-template-columns: 9px 1fr auto; gap: 12px;
+    display: grid; grid-template-columns: 8px 1fr auto; gap: 12px;
     align-items: center; padding: 12px 16px;
     border-bottom: 1px solid var(--border-subtle);
-    transition: background 0.14s;
+    transition: background var(--dur-fast) var(--ease-out);
   }
   .tl-row:last-child { border-bottom: none; }
-  .tl-row:hover { background: color-mix(in srgb, var(--text-primary) 1.5%, transparent); }
+  .tl-row:hover { background: var(--surface-recessed); }
 
-  /* ── Data table ─────────────────────────────────────────────────── */
+  /* ── Data table ──────────────────────────────────────────────────── */
   .ops-table-header {
-    display: grid; align-items: center; gap: 10px;
-    padding: 9px 16px;
+    display: grid; align-items: center; gap: 12px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--border-base);
     background: var(--surface-recessed);
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 0.64rem; font-weight: 600;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--text-tertiary);
+    font-family: var(--font-sans);
+    font-size: 0.8125rem; line-height: 1.45; font-weight: 400;
+    color: var(--text-muted);
   }
   .ops-table-row {
-    display: grid; align-items: center; gap: 10px;
-    padding: 0 16px; min-height: 44px;
+    display: grid; align-items: center; gap: 12px;
+    padding: 0 16px; min-height: 56px;
     border-bottom: 1px solid var(--border-subtle);
-    border-left: 2px solid transparent;
-    transition: background 0.14s, border-color 0.14s;
+    transition: background var(--dur-fast) var(--ease-out);
   }
   .ops-table-row:last-child { border-bottom: none; }
-  .ops-table-row:hover {
-    background: color-mix(in srgb, var(--text-primary) 2%, transparent);
-    border-left-color: var(--text-accent);
-  }
+  .ops-table-row:hover { background: var(--surface-recessed); }
 
-  /* ── Fleet hero ─────────────────────────────────────────────────── */
+  /* ── Fleet hero panel (discover) ─────────────────────────────────── */
   .fleet-hero {
     background: var(--surface-card);
     border: 1px solid var(--border-base);
-    border-radius: var(--card-radius);
+    border-radius: var(--radius-lg);
     position: relative; overflow: hidden;
   }
 
-  /* ── Glass surface ──────────────────────────────────────────────── */
-  .surface-glass {
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px) saturate(1.2);
-    -webkit-backdrop-filter: blur(12px) saturate(1.2);
-    border: 1px solid var(--border-base);
-    border-radius: var(--card-radius-sm);
-  }
-
-  /* ── Mini bar (in-cell percentage) ──────────────────────────────── */
+  /* ── Mini bar (in-cell percentage) ───────────────────────────────── */
   .mini-bar, .severity-bar {
-    height: 4px; border-radius: 99px;
-    background: var(--border-base); overflow: hidden; margin-top: 5px;
+    height: 4px; border-radius: 9999px;
+    background: var(--border-subtle); overflow: hidden; margin-top: 6px;
   }
   .mini-bar > span, .severity-bar > span {
-    display: block; height: 100%; border-radius: 99px;
-    transition: width 0.4s cubic-bezier(0.16,1,0.3,1);
+    display: block; height: 100%; border-radius: 9999px;
   }
 
-  /* ── Rank badge ─────────────────────────────────────────────────── */
+  /* ── Rank badge ──────────────────────────────────────────────────── */
   .rank-badge {
     display: inline-flex; align-items: center; justify-content: center;
-    min-width: 30px; height: 28px; padding: 0 8px; border-radius: 7px;
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 0.78rem; font-weight: 700; font-variant-numeric: tabular-nums;
-    background: var(--surface-recessed); color: var(--text-tertiary);
-    border: 1px solid var(--border-base); line-height: 1;
+    min-width: 28px; height: 24px; padding: 0 6px; border-radius: var(--radius-xs);
+    font-family: var(--font-mono);
+    font-size: 0.75rem; font-weight: 400; font-variant-numeric: tabular-nums;
+    background: var(--chip); color: var(--text-muted);
+    border: 1px solid transparent; line-height: 1;
   }
   .rank-badge--top {
-    background: color-mix(in srgb, var(--primary) 12%, transparent);
-    color: var(--text-accent);
-    border-color: color-mix(in srgb, var(--primary) 28%, transparent);
+    background: var(--accent-soft);
+    color: var(--text-primary);
+    border-color: var(--primary);
   }
 
-  /* ── Severity left-border ───────────────────────────────────────── */
-  .severity-line { border-left: 2px solid transparent; transition: border-color 0.14s, background 0.14s; }
-  .severity-line--critical { border-left-color: var(--status-critical); }
-  .severity-line--warning { border-left-color: var(--status-warn); }
-  .severity-line--info { border-left-color: var(--status-info); }
+  /* ── Severity row: 1px leading rule + faint tint ─────────────────── */
+  .severity-line { border-left: 1px solid transparent; }
+  .severity-line--critical { border-left-color: var(--status-critical); background: color-mix(in srgb, var(--status-critical) 4%, transparent); }
+  .severity-line--warning { border-left-color: var(--status-warn); background: color-mix(in srgb, var(--status-warn) 4%, transparent); }
+  .severity-line--info { border-left-color: var(--status-info); background: color-mix(in srgb, var(--status-info) 4%, transparent); }
 
-  /* ── Signal strength ────────────────────────────────────────────── */
-  .signal-bar { display: inline-flex; align-items: flex-end; gap: 2px; height: 13px; }
-  .signal-bar > span { display: block; width: 3px; border-radius: 1px; background: var(--border-strong); transition: background 0.2s; }
+  /* ── Signal strength ─────────────────────────────────────────────── */
+  .signal-bar { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+  .signal-bar > span { display: block; width: 3px; border-radius: 1px; background: var(--border-strong); }
   .signal-bar > span:nth-child(1) { height: 5px; }
   .signal-bar > span:nth-child(2) { height: 8px; }
   .signal-bar > span:nth-child(3) { height: 12px; }
@@ -638,67 +630,492 @@
   .signal-bar--2 > span:nth-child(-n+2) { background: var(--status-warn); }
   .signal-bar--1 > span:nth-child(1) { background: var(--status-critical); }
 
-  /* ── Fleet composition bar ──────────────────────────────────────── */
-  .fleet-bar { display: flex; height: 6px; border-radius: 99px; overflow: hidden; background: var(--surface-recessed); gap: 1.5px; }
-  .fleet-bar > span { height: 100%; border-radius: 1px; transition: width 0.5s cubic-bezier(0.16,1,0.3,1); }
+  /* ── Fleet composition bar ───────────────────────────────────────── */
+  .fleet-bar { display: flex; height: 12px; border-radius: var(--radius-xs); overflow: hidden; background: var(--surface-recessed); gap: 2px; }
+  .fleet-bar > span { height: 100%; }
 
-  /* ── Rank card ──────────────────────────────────────────────────── */
+  /* ── Rank card (interactive) ─────────────────────────────────────── */
   .rank-card {
     background: var(--surface-card);
     border: 1px solid var(--border-base);
-    border-radius: 10px; width: 100%; padding: 13px;
+    border-radius: var(--radius-lg); width: 100%; padding: 12px;
     cursor: pointer; text-align: left;
-    transition: border-color 0.2s, background 0.2s, transform 0.2s;
-    animation: fadeScale 0.35s ease-out both;
+    transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
   }
-  .rank-card:hover { border-color: var(--border-strong); background: var(--surface-elevated); transform: translateY(-2px); }
+  .rank-card:hover { background: var(--surface-elevated); }
   .rank-card[data-selected="true"] {
-    border-color: color-mix(in srgb, var(--primary) 55%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 28%, transparent),
-                0 0 24px color-mix(in srgb, var(--primary) 10%, transparent);
+    border-color: var(--text-primary);
     background: var(--surface-elevated);
   }
 
-  /* ── Category / segmented button ────────────────────────────────── */
+  /* ── Segmented / filter button ───────────────────────────────────── */
   .cat-btn {
     display: inline-flex; align-items: center; gap: 6px;
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 0.72rem; font-weight: 500; letter-spacing: 0.03em;
-    padding: 6px 12px; border-radius: 7px;
+    font-family: var(--font-sans);
+    font-size: 0.875rem; line-height: 1; font-weight: 500;
+    padding: 8px 12px; border-radius: var(--radius-sm);
     border: 1px solid transparent; background: transparent;
-    color: var(--text-tertiary); cursor: pointer; white-space: nowrap;
-    transition: color 0.16s, background 0.16s, border-color 0.16s;
+    color: var(--text-muted); cursor: pointer; white-space: nowrap;
+    transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   }
-  .cat-btn:hover:not([data-active="true"]) { color: var(--text-secondary); background: color-mix(in srgb, var(--text-primary) 3%, transparent); }
+  .cat-btn:hover:not([data-active="true"]) { color: var(--text-primary); background: var(--chip); }
   .cat-btn[data-active="true"] {
-    color: var(--text-accent);
-    background: color-mix(in srgb, var(--primary) 10%, transparent);
-    border-color: color-mix(in srgb, var(--primary) 26%, transparent);
+    color: var(--sel-text);
+    background: var(--sel-bg);
   }
   .cat-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
 
-  /* ── Keyboard hint ──────────────────────────────────────────────── */
+  /* ── Keyboard hint ───────────────────────────────────────────────── */
   .kbd {
     display: inline-flex; align-items: center; justify-content: center;
-    min-width: 18px; height: 18px; padding: 0 5px;
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 0.64rem; font-weight: 600;
-    color: var(--text-tertiary);
-    background: var(--surface-recessed);
+    min-width: 18px; height: 20px; padding: 0 6px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem; font-weight: 400;
+    color: var(--text-muted);
+    background: transparent;
     border: 1px solid var(--border-base);
-    border-radius: 5px; line-height: 1;
+    border-radius: var(--radius-xs); line-height: 1;
   }
 
-  /* ── Empty state ────────────────────────────────────────────────── */
+  /* ── Empty state ─────────────────────────────────────────────────── */
   .empty-state {
     display: flex; align-items: center; justify-content: center;
-    padding: 28px 16px; text-align: center;
+    padding: 32px 16px; text-align: center;
   }
 
-  /* ── Ticker (live readout strip) ────────────────────────────────── */
-  .ticker-mask { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
-  .ticker-track { display: inline-flex; white-space: nowrap; animation: tickerScroll 42s linear infinite; }
-  .ticker-track:hover { animation-play-state: paused; }
+  /* ================================================================ */
+  /*  New shared primitives for the redesign (used from S2 on)         */
+  /* ================================================================ */
+
+  /* Buttons: 14/500, 8px 16px, radius 6, min height 36 for touch. */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: var(--font-sans); font-size: 0.875rem; line-height: 1; font-weight: 500;
+    padding: 8px 16px; min-height: 36px;
+    border-radius: var(--radius-sm); border: 1px solid transparent;
+    cursor: pointer; white-space: nowrap;
+    transition: background-color var(--dur) var(--ease-standard), border-color var(--dur) var(--ease-standard), color var(--dur) var(--ease-standard), transform var(--dur-press) var(--ease-out);
+  }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn-primary { background: var(--primary); color: var(--primary-foreground); }
+  .btn-primary:hover, .btn-primary:active { background: var(--primary-deep); }
+  .btn-outline { background: var(--btn-bg); color: var(--text-primary); border-color: var(--btn-line); }
+  .btn-outline:hover { background: var(--chip); }
+  .btn-outline[aria-pressed="true"] { background: var(--sel-bg); color: var(--sel-text); border-color: var(--sel-bg); }
+  .btn-icon { padding: 0; width: 36px; }
+  .btn-icon svg { width: 16px; height: 16px; }
+
+  /* Segmented control: 2px track, equal columns, one thumb carried between
+     them (see components/ui/seg.tsx). Active = inverse. Before the thumb is
+     measured (SSR, no JS) the pressed button paints its own background. */
+  .seg {
+    position: relative;
+    display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 2px;
+    border: 1px solid var(--btn-line); border-radius: var(--radius-md);
+    background: var(--btn-bg);
+  }
+  .seg > button {
+    position: relative; z-index: 1;
+    border: 0; background: none; padding: 0 12px; height: 30px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-sans); font-size: 0.875rem; line-height: 1; font-weight: 500;
+    color: var(--text-muted); cursor: pointer;
+    transition: color var(--dur) var(--ease-standard), background-color var(--dur) var(--ease-standard), transform var(--dur-press) var(--ease-out);
+  }
+  .seg > button:hover { color: var(--text-primary); }
+  .seg > button:active { transform: translateY(1px); }
+  .seg > button[aria-pressed="true"], .seg > button[aria-selected="true"] { background: var(--sel-bg); color: var(--sel-text); }
+  .seg-thumb {
+    position: absolute; top: 2px; bottom: 2px; left: 0; width: var(--thumb-w, 0px);
+    border-radius: var(--radius-sm); background: var(--sel-bg);
+    transform: translateX(var(--thumb-x, 0px)); opacity: 0; pointer-events: none;
+  }
+  .seg[data-thumb] .seg-thumb { opacity: 1; }
+  .seg[data-thumb] > button[aria-pressed="true"], .seg[data-thumb] > button[aria-selected="true"] { background: transparent; }
+  .seg[data-anim] .seg-thumb { transition: transform var(--dur-enter) var(--ease-snap); }
+  .seg[data-anim] > button[aria-pressed="true"] { transition-delay: 40ms, 0s, 0s; }
+
+  /* Pill tag (neutral): chip fill, 12/400, 2px 8px, full radius. */
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-sans); font-size: 0.75rem; line-height: 1.45; font-weight: 400;
+    color: var(--text-primary); background: var(--chip);
+    border-radius: 9999px; padding: 2px 8px;
+  }
+
+  /* Featured card (inverted): ink in light, emerald in dark. */
+  .panel-featured {
+    background: var(--feat-bg); color: var(--feat-text);
+    border-color: var(--feat-bg);
+  }
+  .panel-featured .cap, .panel-featured .feat-mute { color: var(--feat-mute); }
+  .code-block {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--feat-code); color: #ffffff;
+    border: 1px solid var(--feat-line); border-radius: var(--radius-sm);
+    padding: 12px 12px 12px 16px;
+  }
+  .btn-feat { background: var(--feat-btn-bg); color: var(--feat-btn-text); }
+  .btn-feat:hover, .btn-feat:active { background: var(--feat-btn-hover); }
+
+  /* Text input: canvas fill, hairline, focus = emerald border + soft ring. */
+  .field {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface-card); color: var(--text-primary);
+    border: 1px solid var(--border-base); border-radius: var(--radius-sm);
+    padding: 8px 12px;
+  }
+  .field:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+  .field input { border: 0; background: none; outline: 0; color: inherit; font: inherit; width: 100%; min-width: 0; }
+  .field input::placeholder { color: var(--text-muted); }
+}
+
+/* ================================================================== */
+/*  S2 — top of the page (nav, section bar, verdict, chart)            */
+/* ================================================================== */
+@layer components {
+  /* Theme toggle glyph names the action: sun in dark, moon in light. Both are
+     stacked in one grid cell and cross-fade (opacity + a 45deg turn); which one
+     is on comes off the theme class that ThemeScript sets before first paint. */
+  .theme-toggle { display: inline-grid; place-items: center; }
+  .theme-toggle > svg { grid-area: 1 / 1; }
+  .theme-glyph--sun, .theme-glyph--moon {
+    transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+  }
+  .theme-glyph--sun { opacity: 0; transform: rotate(45deg); }
+  .theme-glyph--moon { opacity: 1; transform: none; }
+  .dark .theme-glyph--sun, [data-theme="dark"] .theme-glyph--sun { opacity: 1; transform: none; }
+  .dark .theme-glyph--moon, [data-theme="dark"] .theme-glyph--moon { opacity: 0; transform: rotate(-45deg); }
+
+  /* Section tab: 14/500 muted, active = ink + 2px ink underline. */
+  .tab {
+    display: flex; align-items: center; white-space: nowrap;
+    position: relative; padding: 0 12px; margin-bottom: -1px;
+    font-family: var(--font-sans); font-size: 0.875rem; line-height: 1; font-weight: 500;
+    color: var(--text-muted);
+    transition: color var(--dur-fast) var(--ease-standard);
+  }
+  .tab:hover { color: var(--text-primary); }
+  .tab[aria-current="true"] { color: var(--text-primary); }
+  /* Pre-measure fallback underline: spans the label text (inside the 12px padding). */
+  .tab[aria-current="true"]::after {
+    content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 2px; background: var(--text-primary);
+  }
+  /* One underline carried between tabs (section-bar.tsx). Until it is measured
+     the active tab keeps its own border, so there is no flash on hydration. */
+  .tabs-nav { position: relative; }
+  .tab-line {
+    position: absolute; left: 0; bottom: var(--tab-y, 0px); width: 1px; height: 2px; background: var(--text-primary);
+    transform-origin: left center; transform: translateX(var(--tab-x, 0px)) scaleX(var(--tab-w, 1));
+    opacity: 0; pointer-events: none;
+  }
+  .tabs-nav[data-ready] .tab-line { opacity: 1; }
+  .tabs-nav[data-ready] .tab[aria-current="true"]::after { content: none; }
+  .tabs-nav[data-anim] .tab-line { transition: transform var(--dur-enter) var(--ease-snap); }
+
+  /* Chart column hover wash (text-primary at 8%). */
+  .chart-col::after {
+    content: ""; position: absolute; inset: 0; background: var(--text-primary); opacity: 0; pointer-events: none;
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+  .chart-col[data-active="true"]::after { opacity: 0.08; transition-duration: 0ms; }
+}
+
+/* S2: lead text steps down to 16px on phones. Unlayered so it beats the
+   .body-lg rule in @layer utilities. */
+@media (max-width: 767px) { .body-lg { font-size: 1rem; line-height: 1.55; } }
+
+/* ================================================================== */
+/*  S3 — endpoints table, reliability, explainer, footer                */
+/* ================================================================== */
+@layer components {
+  /* ── Data table: quiet header, hairline rows, mono numerals ───────── */
+  /* Header on surface-recessed, 13/400 muted. Body rows 56px (72 on     */
+  /* mobile, where secondary columns fold under the name). First and     */
+  /* last cells carry the panel gutter. Scroll lives in the caller's     */
+  /* overflow-x-auto wrapper, never on the page.                         */
+  .dtable { width: 100%; border-collapse: collapse; }
+  .dtable thead th {
+    padding: 12px 12px; text-align: left; white-space: nowrap;
+    font-family: var(--font-sans); font-size: 0.8125rem; line-height: 1.45; font-weight: 400;
+    color: var(--text-muted);
+    background: var(--surface-recessed);
+    border-bottom: 1px solid var(--border-base);
+  }
+  /* Body cells; the model name is a row header (<th scope="row" class="nm">). */
+  .dtable td, .dtable tbody th {
+    height: 56px; padding: 0 12px; white-space: nowrap; text-align: left;
+    border-bottom: 1px solid var(--border-subtle);
+    font-family: var(--font-sans); font-size: 0.8125rem; line-height: 1.45; font-weight: 400; color: var(--text-muted);
+  }
+  .dtable thead th.r, .dtable td.r { text-align: right; }
+  .dtable th:first-child, .dtable td:first-child { padding-left: 16px; }
+  .dtable th:last-child, .dtable td:last-child { padding-right: 16px; }
+  .dtable tbody tr:last-child :is(td, th) { border-bottom: 0; }
+  /* Row hover is asymmetric: in fast, out slow, so scanning down a column
+     leaves a short fading trail instead of a strobe. */
+  .dtable tbody :is(td, th) { transition: background-color 180ms var(--ease-out); }
+  .dtable tbody tr:hover :is(td, th) { background: var(--surface-recessed); transition-duration: 60ms; }
+  .dtable .nm { font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.4; color: var(--text-primary); }
+  .dtable td.num { font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.5; color: var(--text-primary); }
+  .dtable .u { margin-left: 4px; font-family: var(--font-sans); font-size: 0.75rem; line-height: 1; color: var(--text-muted); }
+  .dtable .stick { position: sticky; z-index: 1; }
+  .dtable tbody .stick { background: var(--surface-card); }
+  .dtable thead .stick { background: var(--surface-recessed); }
+  @media (min-width: 768px) {
+    .dtable th:first-child, .dtable td:first-child { padding-left: 24px; }
+    .dtable th:last-child, .dtable td:last-child { padding-right: 24px; }
+  }
+  @media (max-width: 767px) {
+    .dtable thead th { padding: 12px 8px; white-space: normal; line-height: 1.3; vertical-align: bottom; }
+    .dtable td, .dtable tbody th { height: 72px; padding: 0 8px; }
+    .dtable--sm td, .dtable--sm tbody th { height: 64px; }
+    .dtable .nm { font-size: 0.8125rem; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+    .dtable .u { display: block; margin: 2px 0 0; }
+    .dtable td.num { line-height: 1.2; }
+  }
+
+  /* In-cell magnitude bar: 64 x 4, hairline track, muted fill. */
+  .mbar { display: inline-flex; align-items: center; justify-content: flex-end; gap: 12px; }
+  .mbar > i { display: block; position: relative; width: 64px; height: 4px; overflow: hidden; border-radius: 9999px; background: var(--border-subtle); }
+  .mbar > i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: 9999px; background: var(--text-muted); }
+
+  /* Status pill (table, drawer): the .pill with the state shape first. */
+  .stc {
+    display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+    padding: 2px 12px 2px 8px; border-radius: 9999px;
+    font-family: var(--font-sans); font-size: 0.8125rem; line-height: 1.45; font-weight: 400;
+    color: var(--text-primary); background: var(--chip);
+  }
+
+  /* The native clear button would sit under the "/" hint; Escape and Clear do that job. */
+  .field input[type="search"]::-webkit-search-cancel-button { display: none; }
+
+  /* Quiet action: 14/500 muted text button, ink on hover. */
+  .btn-quiet {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px;
+    border: 0; border-radius: var(--radius-sm); background: none; cursor: pointer; white-space: nowrap;
+    font-family: var(--font-sans); font-size: 0.875rem; line-height: 1; font-weight: 500;
+    color: var(--text-muted);
+    transition: background-color var(--dur) var(--ease-standard), color var(--dur) var(--ease-standard), transform var(--dur-press) var(--ease-out);
+  }
+  .btn-quiet:active:not(:disabled) { transform: translateY(1px); }
+  .btn-quiet:hover, .btn-quiet[aria-expanded="true"] { color: var(--text-primary); background: var(--chip); }
+  .btn-quiet:disabled { opacity: 0.5; background: none; cursor: not-allowed; }
+  .btn-quiet svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .btn .n { font-weight: 400; color: var(--text-muted); min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
+  .btn[aria-pressed="true"] .n { color: var(--sel-mute); }
+
+  /* Floating menu (export, save preset): overlay surface, hairline, float shadow. */
+  .menu {
+    background: var(--surface-overlay); color: var(--text-primary);
+    border: 1px solid var(--border-base); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-float);
+  }
+  .menu-item {
+    display: flex; width: 100%; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px;
+    font-family: var(--font-sans); font-size: 0.875rem; line-height: 1; font-weight: 400; text-align: left;
+    color: var(--text-primary); background: none; border: 0; cursor: pointer;
+  }
+  .menu-item:hover { background: var(--chip); }
+
+  /* ── Heat cells (calendar, latency heatmap) ─────────────────────────── */
+  /* Two single-hue ramps, light to strong, so they read the same for any   */
+  /* colour vision (adjacent steps differ by OKLab L of 0.06 or more in both  */
+  /* themes). Uptime: emerald, stronger = more uptime. Latency: ink, stronger */
+  /* = slower. Below 95% uptime is a hatch, not just a hue.                 */
+  .heat-up {
+    --h-1: color-mix(in srgb, var(--primary-deep) 30%, var(--surface-card));
+    --h-2: color-mix(in srgb, var(--primary-deep) 52%, var(--surface-card));
+    --h-3: color-mix(in srgb, var(--primary-deep) 76%, var(--surface-card));
+    --h-4: var(--primary-deep);
+  }
+  .dark .heat-up, [data-theme="dark"] .heat-up {
+    --h-1: color-mix(in srgb, var(--primary) 38%, var(--surface-card));
+    --h-2: color-mix(in srgb, var(--primary) 60%, var(--surface-card));
+    --h-3: color-mix(in srgb, var(--primary) 80%, var(--surface-card));
+    --h-4: var(--primary);
+  }
+  .heat-lat {
+    --h-1: color-mix(in srgb, var(--text-primary) 12%, var(--surface-card));
+    --h-2: color-mix(in srgb, var(--text-primary) 26%, var(--surface-card));
+    --h-3: color-mix(in srgb, var(--text-primary) 44%, var(--surface-card));
+    --h-4: color-mix(in srgb, var(--text-primary) 66%, var(--surface-card));
+    --h-5: color-mix(in srgb, var(--text-primary) 90%, var(--surface-card));
+  }
+  .heat { display: block; flex-shrink: 0; border-radius: 2px; box-shadow: inset 0 0 0 1px var(--border-base); }
+  .heat[data-lv="1"] { background: var(--h-1); box-shadow: none; }
+  .heat[data-lv="2"] { background: var(--h-2); box-shadow: none; }
+  .heat[data-lv="3"] { background: var(--h-3); box-shadow: none; }
+  .heat[data-lv="4"] { background: var(--h-4); box-shadow: none; }
+  .heat[data-lv="5"] { background: var(--h-5); box-shadow: none; }
+  .heat[data-lv="bad"] {
+    background: repeating-linear-gradient(135deg, var(--status-critical) 0 2px, transparent 2px 4px);
+    box-shadow: inset 0 0 0 1px var(--status-critical);
+  }
+
+  /* Modal scrim (drawer backdrop). */
+  :root { --scrim: rgba(23, 23, 23, 0.4); }
+  .dark, [data-theme="dark"] { --scrim: rgba(0, 0, 0, 0.6); }
+
+  /* Calendar: fixed cell size per breakpoint (14px, 26px from 640) so the grid is
+     the same height in every state and at every width (R10a). */
+  .cal { --cell: 14px; }
+  @media (min-width: 640px) { .cal { --cell: 26px; } }
+  .cal .heat { width: var(--cell); height: var(--cell); }
+
+  /* Score cell (discover reliability matrix): faint emerald tint, ink text. */
+  .score-cell { display: flex; align-items: center; justify-content: center; border-radius: var(--radius-xs); background: var(--surface-recessed); }
+  .score-cell[data-lv="2"] { background: color-mix(in srgb, var(--primary) 10%, var(--surface-card)); }
+  .score-cell[data-lv="3"] { background: color-mix(in srgb, var(--primary) 20%, var(--surface-card)); }
+  .score-cell[data-lv="4"] { background: color-mix(in srgb, var(--primary) 32%, var(--surface-card)); }
+  .score-cell[data-lv="bad"] {
+    background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--status-critical) 55%, transparent) 0 2px, transparent 2px 4px);
+    box-shadow: inset 0 0 0 1px var(--status-critical);
+  }
+
+  /* Page footer links: muted, ink and underlined on hover. */
+  .foot-link { color: var(--text-muted); text-underline-offset: 3px; transition: color var(--dur) var(--ease-standard); }
+  .foot-link:hover { color: var(--text-primary); text-decoration: underline; }
+}
+
+/* ================================================================== */
+/*  MOTION (M1 to M12). Reference: interior.dev, adapted to an ops page.  */
+/*  Rules: animate only transform, opacity, clip-path and colour; no blur, */
+/*  no bounce, no idle loops; exits are shorter than enters; every moment  */
+/*  has a reduced-motion form (bottom of this block). Tokens are in :root. */
+/* ================================================================== */
+@keyframes reveal { from { opacity: 0; transform: translateY(6px); } }
+@keyframes bar-draw { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0); } }
+@keyframes bar-scale { from { transform: scaleX(0); } }
+@keyframes tick-roll-up { from { opacity: 0; transform: translateY(0.5em); } }
+@keyframes tick-roll-down { from { opacity: 0; transform: translateY(-0.5em); } }
+@keyframes tick-fade { from { opacity: 0; } }
+/* Wash: in 150ms, hold to 900ms, out 160ms (1060ms in all), once, never a loop. */
+@keyframes tick-wash {
+  0% { opacity: 0; animation-timing-function: var(--ease-out); }
+  14.15% { opacity: 1; }
+  84.9% { opacity: 1; animation-timing-function: var(--ease-in); }
+  100% { opacity: 0; }
+}
+@keyframes ghost-out { to { opacity: 0; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(var(--pop-y, -6px)) scale(0.94); } }
+@keyframes pop-out { to { opacity: 0; transform: scale(0.97); } }
+@keyframes spin-turn { to { transform: rotate(360deg); } }
+@keyframes skel-wait { from { opacity: 0; } }
+@keyframes row-in { from { opacity: 0; } }
+
+@layer components {
+  /* M1: first-load reveal. Panel 1 (the verdict, the LCP) is never animated.
+     `backwards` fill, not `both`: a held transform would make the panel the
+     containing block of the fixed drawer inside it. A CSS animation does not
+     replay when router.refresh() reconciles the same node in place. */
+  .reveal {
+    animation: reveal var(--dur-reveal) var(--ease-out) backwards;
+    animation-delay: calc(min(var(--i, 1), 4) * var(--stagger));
+  }
+
+  /* M2: value change. <Tick> (components/ui/tick.tsx) mounts these only when a
+     rendered value differs from the previous render of the same cell. */
+  .tick { position: relative; display: inline-block; }
+  .tick-v { position: relative; display: inline-block; }
+  .tick--inline, .tick--inline > .tick-v { display: inline; }
+  .tick-v[data-fx="roll"][data-dir="up"] { animation: tick-roll-up var(--dur-enter) var(--ease-out) backwards; }
+  .tick-v[data-fx="roll"][data-dir="down"] { animation: tick-roll-down var(--dur-enter) var(--ease-out) backwards; }
+  .tick-v[data-fx="roll"][data-dir="none"], .tick-v[data-fx="fade"] { animation: tick-fade var(--dur-pop) var(--ease-out) backwards; }
+  /* Colour-neutral on purpose: latency down is good, throughput down is bad. */
+  .tick-wash {
+    position: absolute; inset: -1px -4px; border-radius: var(--radius-xs); background: var(--chip);
+    opacity: 0; pointer-events: none; animation: tick-wash 1060ms linear both;
+  }
+
+  /* M3: chart. The bars sweep up from the baseline with clip-path (corners never
+     stretch), staggered across columns; --bar-step is set so the run is clamped
+     to 240ms for any column count. `intro` waits for the panel's own reveal. */
+  .chart-bars[data-draw] .chart-bar {
+    animation: bar-draw var(--dur-reveal) var(--ease-out) backwards;
+    animation-delay: calc(var(--draw-base, 0ms) + var(--i, 0) * var(--bar-step, 0ms));
+  }
+  .chart-bars[data-draw="intro"] { --draw-base: calc(3 * var(--stagger)); }
+  .chart-bars[data-draw="swap"] { --draw-base: var(--dur-fast); }
+  .chart-fade[data-draw="swap"] { animation: tick-fade var(--dur-slow) var(--ease-out) var(--dur-fast) backwards; }
+  .chart-ghost { position: absolute; inset: 0; pointer-events: none; }
+  /* The distribution bar: each segment scales out from the left inside its own
+     slot, so widths never animate. */
+  .fleet-bar > span { transform-origin: left center; animation: bar-scale var(--dur-reveal) var(--ease-out) calc(2 * var(--stagger)) backwards; }
+
+  /* M6: stacked labels. Every state sits in one grid cell, so the button is as
+     wide as its widest label and never resizes. The tick is drawn with a
+     clip-path wipe (R10 allows clip-path, not stroke-dashoffset). */
+  .lbl-stack { display: inline-grid; place-items: center; }
+  .lbl-stack > .lbl {
+    grid-area: 1 / 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    opacity: 0; transform: scale(0.92);
+    transition: opacity var(--dur-fast) var(--ease-in), transform var(--dur-fast) var(--ease-in);
+  }
+  .lbl-stack > .lbl[data-on="true"] {
+    opacity: 1; transform: none;
+    transition: opacity var(--dur-pop) var(--ease-out), transform var(--dur-pop) var(--ease-out);
+  }
+  .tick-draw { clip-path: inset(0 100% 0 0); }
+  .lbl[data-on="true"] .tick-draw { clip-path: inset(0); transition: clip-path 260ms var(--ease-out); }
+
+  /* M7: drawer. Panel travels on transform, the scrim on opacity; closing is
+     shorter than opening and interruptible (a transition retargets from where
+     it is). The panel leaves 32px past its own width so its shadow clears the edge. */
+  .drawer-scrim { opacity: 0; transition: opacity 150ms var(--ease-in); }
+  .drawer-panel { transform: translateX(calc(100% + 32px)); transition: transform var(--dur-slow) var(--ease-in); }
+  .drawer[data-open="true"] .drawer-scrim { opacity: 1; transition: opacity var(--dur-slow) var(--ease-out); }
+  .drawer[data-open="true"] .drawer-panel { transform: none; transition: transform var(--dur-reveal) var(--ease-out); }
+
+  /* M8: press and spinner. */
+  .press { transition: color var(--dur) var(--ease-standard), background-color var(--dur) var(--ease-standard), transform var(--dur-press) var(--ease-out); }
+  .press:active { transform: translateY(1px); }
+  .spin { animation: spin-turn var(--dur-spin) linear infinite; }
+
+  /* M9: overlays (select, popovers). Enter 160ms ease-out from the trigger edge; exit
+     120ms ease-in and smaller. Radix keeps the node mounted until the exit ends. */
+  .menu { animation: pop-in var(--dur-pop) var(--ease-out) backwards; transform-origin: top right; }
+  [data-slot="select-content"] { transform-origin: var(--radix-select-content-transform-origin); }
+  [data-slot="select-content"][data-side="top"] { --pop-y: 6px; }
+  [data-slot="select-content"][data-state="open"] { animation: pop-in var(--dur-pop) var(--ease-out); }
+  [data-slot="select-content"][data-state="closed"] { animation: pop-out var(--dur-fast) var(--ease-in) forwards; }
+  .sel-chev { transition: transform var(--dur-slow) var(--ease-out); }
+
+  /* M10: skeleton. Placeholders are static (no shimmer) and only paint once the
+     wait passes 120ms, so a fast response shows none. The loaded content fades in
+     inside a panel whose chrome stays put. */
+  .skel { animation: skel-wait 1ms linear 120ms backwards; }
+  .explorer-in > :not(.drawer) { animation: tick-fade var(--dur-slow) var(--ease-out) backwards; }
+
+  /* M12: the endpoints body keeps the height of its page-size rows while a filter
+     narrows the list (header + rows), so the footer line does not jump. */
+  .dtable-reserve { min-height: calc(44px + var(--rows, 0) * 56px); }
+  @media (max-width: 767px) { .dtable-reserve { min-height: calc(58px + var(--rows, 0) * 72px); } }
+
+  /* M12: rows that were not in the previous render. */
+  .row-new { animation: row-in var(--dur-pop) var(--ease-out) backwards; }
+
+  /* M11: suppress every transition for two frames while the theme class flips,
+     so nothing changes colour at a different moment from anything else. The
+     toggle glyphs are exempt: their cross-fade is the one thing that animates. */
+  .theme-switching *:not(.theme-glyph--sun):not(.theme-glyph--moon),
+  .theme-switching *::before, .theme-switching *::after { transition: none !important; }
+}
+
+/* Reduced motion: drop the trip, keep the destination. Values, labels, bars,
+   the drawer and the underline all land in their final state; colour changes
+   stay (they are not motion). */
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .animate-stagger > *, .chart-bars[data-draw] .chart-bar, .chart-fade[data-draw],
+  .fleet-bar > span, .tick-v, .menu, .explorer-in > :not(.drawer), .row-new { animation: none !important; }
+  .tick-wash, .chart-ghost { display: none !important; }
+  .btn:active:not(:disabled), .btn-quiet:active:not(:disabled), .seg > button:active, .press:active { transform: none; }
+  .seg-thumb, .tab-line, .drawer-panel, .drawer-scrim, .lbl-stack > .lbl, .lbl[data-on="true"] .tick-draw,
+  .theme-glyph--sun, .theme-glyph--moon, .sel-chev, .chart-col::after { transition: none !important; }
+  .lbl-stack > .lbl { transform: none; }
+  .spin { animation: none; }
+  [data-slot="select-content"][data-state] { animation: none !important; }
 }
 
 /* ================================================================== */
@@ -711,5 +1128,31 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .ticker-track { animation: none !important; }
+}
+
+
+/* CLS: nothing may resize when a control is clicked (R10). Classic (always-visible)
+   scrollbars take 15px; these rules make that space constant instead of conditional. */
+@layer utilities {
+  /* The page reserves its own scrollbar lane (html { scrollbar-gutter: stable }), so
+     cancel Radix's scroll-lock margin compensation, which would shift the page a
+     second time whenever a Select or popover opens. */
+  html body[data-scroll-locked] { margin-right: 0 !important; padding-right: 0 !important; }
+
+  /* Horizontal scroller whose overflow flips with a click (the "All metrics" toggle):
+     the track is always present, so the bar appearing changes nothing. */
+  .scroll-x-lane { overflow-x: scroll; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+  .scroll-x-lane::-webkit-scrollbar { height: 10px; }
+  .scroll-x-lane::-webkit-scrollbar-track { background: transparent; }
+  .scroll-x-lane::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 9999px; border: 2px solid transparent; background-clip: content-box; }
+
+  /* Vertical scrollers of fixed height: reserve the lane so content width does not
+     change when the bar appears. */
+  .scroll-y-lane { scrollbar-gutter: stable; }
+
+  /* Auto table layout re-derives column widths from the visible rows, so a filter that
+     hides every "Not responding" row narrowed Status by 28px and slid every column to its
+     right. Fixed floors sized for the longest label keep the columns put. */
+  .dtable .col-status { min-width: 9.75rem; }
+  .dtable .col-provider { min-width: 7.5rem; }
 }

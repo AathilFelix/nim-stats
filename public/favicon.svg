@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <style>
+    .c{fill:#16a34a}.d{fill:#b66c00}.t{fill:#dc2626}
+    @media (prefers-color-scheme: dark){.c{fill:#34d399}.d{fill:#f59e0b}.t{fill:#f87171}}
+  </style>
+  <g transform="translate(0 11.2) scale(0.8)"><circle class="c" cx="6" cy="6" r="5.2"/></g>
+  <g transform="translate(11.2 11.2) scale(0.8)"><path class="d" d="M6 .4 11.6 6 6 11.6.4 6z"/></g>
+  <g transform="translate(22.4 11.2) scale(0.8)"><path class="t" d="M6 .8 11.7 11.2H.3z"/></g>
+</svg>

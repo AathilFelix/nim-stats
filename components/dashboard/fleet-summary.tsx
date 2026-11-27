@@ -1,110 +1,170 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { FleetStateResult } from "@/lib/operational-types";
-import { CatalogFunnel } from "./catalog-funnel";
-import { TimeAgo } from "./time-ago";
-import type { CatalogFunnel as CatalogCounts } from "@/lib/dashboard-data";
+import type { CatalogFunnel } from "@/lib/dashboard-data";
+import { StatusGlyph, type GlyphState } from "./status-glyph";
+import { Tick } from "@/components/ui/tick";
 
-interface Props {
+interface SummaryProps {
   fleetState: FleetStateResult;
   total: number;
   healthy: number;
   busy: number;
   jammed: number;
-  avgTtft: number;
-  avgThroughput: number;
-  incidents24h: number;
-  lastProbe: Date | null;
-  catalog?: CatalogCounts;
+  catalog?: CatalogFunnel;
 }
 
-const STATE_META: Record<FleetStateResult["state"], { label: string; tone: "healthy" | "warn" | "critical" }> = {
-  healthy: { label: "Operational", tone: "healthy" },
-  recovery_in_progress: { label: "Recovering", tone: "warn" },
-  elevated_congestion: { label: "Elevated congestion", tone: "warn" },
-  partial_degradation: { label: "Partial degradation", tone: "critical" },
+const STATE_META: Record<FleetStateResult["state"], { label: string; glyph: GlyphState }> = {
+  healthy: { label: "Operational", glyph: "healthy" },
+  recovery_in_progress: { label: "Recovering", glyph: "busy" },
+  elevated_congestion: { label: "Elevated congestion", glyph: "busy" },
+  partial_degradation: { label: "Partial degradation", glyph: "jammed" },
 };
 
-const TONE_TEXT = {
-  healthy: "text-(--status-healthy)",
-  warn: "text-(--status-warn)",
-  critical: "text-(--status-critical)",
-} as const;
+const em = (n: number) => (
+  <b className="font-medium text-text-primary">
+    <Tick value={n} />
+  </b>
+);
 
-export function FleetSummary({
-  fleetState, total, healthy, busy, jammed, avgTtft, avgThroughput, incidents24h, lastProbe, catalog,
-}: Props) {
+/**
+ * The five-second read: one verdict (shape + ink word), a sentence, the
+ * distribution bar and a counted legend. The shape carries the status colour;
+ * the word is ink.
+ */
+export function FleetSummary({ fleetState, total, healthy, busy, jammed, catalog }: SummaryProps) {
   const meta = STATE_META[fleetState.state];
-  const pct = (n: number) => (total ? (n / total) * 100 : 0);
+  const barLabel = `${healthy} answering, ${busy} busy, ${jammed} not responding of ${total} endpoints`;
+
+  let tail: ReactNode = null;
+  if (jammed > 0) tail = <> and {em(jammed)} {jammed === 1 ? "is" : "are"} not responding</>;
+  else if (busy > 0) tail = <> and {em(busy)} {busy === 1 ? "is" : "are"} busy</>;
+
+  const notCallable = catalog ? Math.max(0, catalog.listed - catalog.callable) : 0;
 
   return (
-    <section className="ops-card overflow-hidden">
-      <div className="grid gap-px bg-border-subtle md:grid-cols-[1.6fr_1fr_1fr_1fr]">
-        {/* Status */}
-        <div className="bg-surface-card p-4 sm:p-5">
-          <div className="flex items-center gap-2">
-            <span className={`status-led status-led--${meta.tone}`} aria-hidden="true" />
-            <span className="label-xs text-text-tertiary">Fleet status</span>
-          </div>
-          <p className={`mt-2.5 heading-lg ${TONE_TEXT[meta.tone]}`}>{meta.label}</p>
-          <p className="mt-1 body-sm text-text-secondary">
-            {healthy} of {total} endpoints healthy
-          </p>
-
-          <div className="mt-4 flex h-1.5 gap-0.5 overflow-hidden rounded-full" aria-hidden="true">
-            <span className="bg-(--status-healthy)" style={{ width: `${pct(healthy)}%` }} />
-            <span className="bg-(--status-warn)" style={{ width: `${pct(busy)}%` }} />
-            <span className="bg-(--status-critical)" style={{ width: `${pct(jammed)}%` }} />
-          </div>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-tertiary">
-            <Legend tone="healthy" label="Healthy" n={healthy} />
-            <Legend tone="warn" label="Busy" n={busy} />
-            <Legend tone="critical" label="Jammed" n={jammed} />
-          </div>
-          {catalog && <CatalogFunnel className="mt-4" catalog={catalog} healthy={healthy} />}
-        </div>
-
-        <Tile label="Avg latency" value={Math.round(avgTtft).toString()} unit="ms" />
-        <Tile label="Avg throughput" value={avgThroughput.toFixed(1)} unit="tok/s" />
-        <Tile
-          label="Incidents 24h"
-          value={incidents24h.toString()}
-          unit={incidents24h === 0 ? "all clear" : "critical"}
-          tone={incidents24h > 0 ? "critical" : undefined}
-          sub={lastProbe ? <>Updated <TimeAgo date={lastProbe} /></> : undefined}
-        />
+    <section
+      aria-label="Fleet status"
+      className="panel col-span-12 flex flex-col gap-4 p-4 md:p-6 min-[1100px]:col-span-8"
+    >
+      <div className="flex items-center gap-3">
+        <Tick value={fleetState.state} variant="fade" className="flex">
+          <StatusGlyph state={meta.glyph} size={24} className="max-md:h-5 max-md:w-5" />
+        </Tick>
+        <h1 className="heading-xl text-text-primary">
+          <span className="sr-only">NVIDIA NIM fleet status: </span>
+          <Tick value={fleetState.state} variant="fade" className="tick--inline">
+            {meta.label}
+          </Tick>
+        </h1>
       </div>
+
+      <div className="max-w-[56ch] body-lg text-text-muted">
+        <p>
+          {healthy === total ? (
+            <>All {em(total)} endpoints are answering cleanly.</>
+          ) : (
+            <>
+              {em(healthy)} of {em(total)} endpoints {healthy === 1 ? "is" : "are"} answering cleanly{tail}.
+            </>
+          )}
+        </p>
+        {catalog && (
+          <p>
+            NVIDIA lists {catalog.listed};{" "}
+            {notCallable === 0
+              ? `all ${catalog.callable} are callable.`
+              : `${catalog.callable} are callable, the other ${notCallable} don’t answer chat requests.`}
+          </p>
+        )}
+      </div>
+
+      <div className="fleet-bar mt-auto" role="img" aria-label={barLabel}>
+        {healthy > 0 && <Segment className="bg-status-healthy" n={healthy} />}
+        {busy > 0 && <Segment className="bg-status-warn" n={busy} />}
+        {jammed > 0 && <Segment className="bg-status-critical" n={jammed} />}
+      </div>
+
+      <ul className="flex flex-wrap gap-x-6 gap-y-2 body-sm text-text-muted">
+        <Legend glyph="healthy" word="Answering" n={healthy} />
+        <Legend glyph="busy" word="Busy" n={busy} />
+        <Legend glyph="jammed" word="Not responding" n={jammed} />
+      </ul>
     </section>
   );
 }
 
-function Tile({
-  label, value, unit, tone, sub,
-}: { label: string; value: string; unit: string; tone?: "critical"; sub?: ReactNode }) {
+function Segment({ className, n }: { className: string; n: number }) {
+  return <span className={className} style={{ flex: `${n} 1 0`, minWidth: 3 }} />;
+}
+
+function Legend({ glyph, word, n }: { glyph: GlyphState; word: string; n: number }) {
+  // A zero count shows the neutral ring, so a status shape never sits next to "0".
   return (
-    <div className="flex flex-col justify-center bg-surface-card p-4 sm:p-5">
-      <p className="label-xs text-text-tertiary">{label}</p>
-      <p className="mt-1.5 metric-xl text-text-primary">
-        {value}
-        <span className={`ml-1.5 metric-xs font-normal ${tone === "critical" ? "text-(--status-critical)" : "text-text-tertiary"}`}>
-          {unit}
-        </span>
-      </p>
-      {sub && <p className="mt-1 body-xs text-text-tertiary">{sub}</p>}
-    </div>
+    <li className="flex items-center gap-2">
+      <StatusGlyph state={n > 0 ? glyph : "neutral"} />
+      <b className="font-medium text-text-primary">
+        <Tick value={n} />
+      </b>
+      {word}
+    </li>
   );
 }
 
-const DOT_BG = {
-  healthy: "bg-(--status-healthy)",
-  warn: "bg-(--status-warn)",
-  critical: "bg-(--status-critical)",
-} as const;
+interface MetricsProps {
+  total: number;
+  healthy: number;
+  avgTtft: number;
+  /** Endpoints that reported a first-token time. */
+  ttftCount: number;
+  avgThroughput: number;
+  /** Endpoints that reported a throughput. */
+  throughputCount: number;
+  /** Critical incidents in the last 24 h. */
+  critical24h: number;
+}
 
-function Legend({ tone, label, n }: { tone: "healthy" | "warn" | "critical"; label: string; n: number }) {
+const basis = (n: number, total: number) => (n >= total ? `Across all ${total} endpoints` : `Across ${n} of ${total} endpoints`);
+
+/**
+ * Four metric cards. No change-versus-previous-window chips: the app keeps no
+ * previous-window aggregate, so none is shown (a fake delta would be worse than
+ * none). Each card states its basis instead, so an average over a subset says so.
+ */
+export function FleetMetrics({
+  total, healthy, avgTtft, ttftCount, avgThroughput, throughputCount, critical24h,
+}: MetricsProps) {
   return (
-    <span className="flex items-center gap-1.5">
-      <span className={`h-1.5 w-1.5 rounded-full ${DOT_BG[tone]}`} aria-hidden="true" />
-      {label} <span className="font-mono tabular-nums text-text-secondary">{n}</span>
-    </span>
+    <>
+      <Metric label="Answering endpoints" value={String(healthy)} unit={`of ${total}`} basis="At the latest probe" />
+      <Metric
+        label="Average first token"
+        value={avgTtft > 0 ? String(Math.round(avgTtft)) : "—"}
+        unit={avgTtft > 0 ? "ms" : undefined}
+        basis={basis(ttftCount, total)}
+      />
+      <Metric
+        label="Average throughput"
+        value={avgThroughput > 0 ? avgThroughput.toFixed(1) : "—"}
+        unit={avgThroughput > 0 ? "tok/s" : undefined}
+        basis={basis(throughputCount, total)}
+      />
+      <Metric label="Critical incidents" value={String(critical24h)} basis="Last 24 h" />
+    </>
+  );
+}
+
+function Metric({ label, value, unit, basis: basisText }: { label: string; value: string; unit?: string; basis: string }) {
+  return (
+    <section
+      className="reveal panel col-span-6 flex flex-col gap-2 p-4 md:p-6 min-[1100px]:col-span-3"
+      style={{ "--i": 2 } as CSSProperties}
+    >
+      <p className="body-sm text-text-muted">{label}</p>
+      <p className="metric-xl text-text-primary">
+        <Tick value={value} />
+        {unit && <small className="body-sm ml-1 tracking-normal text-text-muted max-md:block max-md:ml-0">{unit}</small>}
+      </p>
+      <p className="body-sm text-text-muted">{basisText}</p>
+    </section>
   );
 }

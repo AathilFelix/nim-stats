@@ -1,73 +1,84 @@
-"use client";
-
 import type { Incident } from "@/lib/operational-types";
+import { StatusGlyph, type GlyphState } from "./status-glyph";
 
 interface Props {
   incidents: Incident[];
+  /** id → display name, so the incident's model can be split off its message. */
+  models?: Array<{ id: string; name: string }>;
 }
 
-const SEVERITY_STYLES: Record<
-  string,
-  { dot: string; label: string }
-> = {
-  critical: { dot: "var(--status-critical)", label: "CRITICAL" },
-  warning: { dot: "var(--status-warn)", label: "WARN" },
-  info: { dot: "var(--status-healthy)", label: "INFO" },
-};
+const SHOWN = 5;
 
-export function IncidentFeed({ incidents }: Props) {
-  const display = incidents.slice(0, 6);
+const GLYPH: Record<string, GlyphState> = { critical: "jammed", warning: "busy", info: "healthy" };
+const RANK: Record<string, number> = { critical: 0, warning: 1, info: 2 };
+
+/** "5m ago" / "2h ago" / "12s ago" / "1d ago" → seconds; unknown → Infinity. */
+function ageSeconds(time: string): number {
+  const m = /^(\d+)\s*([smhd])/.exec(time);
+  if (!m) return Infinity;
+  return Number(m[1]) * { s: 1, m: 60, h: 3600, d: 86400 }[m[2] as "s" | "m" | "h" | "d"];
+}
+
+/**
+ * Biggest changes: the recent state transitions the probe runner logged, worst
+ * first (critical, then warning, then recoveries), newest first within a
+ * severity, one row per endpoint and event.
+ */
+export function IncidentFeed({ incidents, models = [] }: Props) {
+  const names = new Map(models.map((m) => [m.id, m.name]));
+
+  const seen = new Set<string>();
+  const ranked = [...incidents]
+    .sort((a, b) => (RANK[a.severity] ?? 3) - (RANK[b.severity] ?? 3) || ageSeconds(a.time) - ageSeconds(b.time))
+    .filter((inc) => {
+      const key = `${inc.modelId ?? ""}|${inc.message}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  const rows = ranked.slice(0, SHOWN);
 
   return (
-    <section className="ops-card overflow-hidden">
+    <section
+      aria-label="Biggest changes"
+      className="panel col-span-12 flex flex-col min-[1100px]:col-span-4"
+    >
       <div className="hdiv">
-        <p className="section-label">Active Incidents</p>
-        {incidents.length > 0 && (
-          <span className="status-chip status-chip--critical">{incidents.length}</span>
-        )}
+        <h2 className="heading-md">Biggest changes</h2>
+        <span className="body-sm text-text-muted">Last 24 h</span>
       </div>
 
-      <div className="p-2">
-        {display.length === 0 ? (
-          <div className="flex items-center gap-2 py-6 justify-center">
-            <span className="status-led status-led--healthy" style={{ width: 6, height: 6 }} aria-hidden="true" />
-            <p className="body-sm text-text-tertiary">No active incidents</p>
-          </div>
-        ) : (
-          <div className="space-y-0.5">
-            {display.map((inc) => {
-              const sev = SEVERITY_STYLES[inc.severity] ?? SEVERITY_STYLES.info;
-              return (
-                <div
-                  key={inc.id}
-                  className="tl-row flex items-start gap-2.5 py-2 px-2 rounded-sm"
-                >
-                  <span
-                    className="h-1.5 w-1.5 rounded-full shrink-0 mt-1.5"
-                    style={{ backgroundColor: sev.dot }}
-                    aria-hidden="true"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="body-sm leading-snug text-text-primary break-words [overflow-wrap:anywhere]">{inc.message}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <p className="metric-sm text-text-tertiary">{inc.time}</p>
-                      <span
-                        className="px-1 py-0.5 rounded-sm label-xs"
-                        style={{
-                          color: sev.dot,
-                          backgroundColor: `${sev.dot}15`,
-                        }}
-                      >
-                        {sev.label}
-                      </span>
-                    </div>
-                  </div>
+      {rows.length === 0 ? (
+        <p className="px-4 py-6 body-sm text-text-muted md:px-6">No changes in the last 24 h</p>
+      ) : (
+        <ul>
+          {rows.map((inc) => {
+            const name = inc.modelId ? names.get(inc.modelId) : undefined;
+            const hasName = name && inc.message.startsWith(name);
+            const what = hasName ? inc.message.slice(name.length).trim() : inc.message;
+            return (
+              <li
+                key={inc.id}
+                className="grid min-h-16 grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 border-b border-border-subtle px-4 py-3 last:border-b-0 md:px-6"
+              >
+                <div className="min-w-0">
+                  {hasName && <p className="code [overflow-wrap:anywhere]">{name}</p>}
+                  <p className="mt-1 flex items-center gap-2 body-sm text-text-muted">
+                    <StatusGlyph state={GLYPH[inc.severity] ?? "neutral"} />
+                    <span className="min-w-0 [overflow-wrap:anywhere]">{what}</span>
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                <span className="body-sm whitespace-nowrap text-text-muted">{inc.time}</span>
+              </li>
+            );
+          })}
+          {ranked.length > SHOWN && (
+            <li className="px-4 py-3 body-sm text-text-muted md:px-6">
+              Showing {SHOWN} of {ranked.length}
+            </li>
+          )}
+        </ul>
+      )}
     </section>
   );
 }

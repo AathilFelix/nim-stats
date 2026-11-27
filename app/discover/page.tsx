@@ -45,64 +45,66 @@ export default async function DiscoverPage() {
     <div className="min-h-screen text-text-primary">
       <NavBar />
       <AutoRefresh />
-      <main className="relative" style={{ paddingTop: "calc(3.5rem + var(--safe-top))" }}>
-        <div className="mx-auto max-w-[1600px] px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+      <main className="relative">
+        <div className="mx-auto max-w-(--page-max) px-4 pb-16 pt-6 md:px-6">
 
           {/* Command header */}
           <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="status-led status-led--info" style={{ width: 6, height: 6 }} aria-hidden="true" />
-                <span className="label-sm text-text-tertiary">Fleet Operations</span>
-              </div>
               <h1 className="heading-xl text-text-primary">Discover</h1>
-              <p className="body-sm text-text-secondary mt-1.5 max-w-xl">
+              <p className="mt-1.5 max-w-xl body-sm text-text-muted">
                 Live operational intelligence across every free NVIDIA NIM endpoint — ranked by
                 throughput, reliability, and congestion, refreshed continuously.
               </p>
             </div>
-            <dl className="flex items-center gap-5 sm:gap-6">
+            <dl className="flex flex-wrap items-center gap-x-5 gap-y-3 sm:gap-x-6">
               <HeaderStat label="Endpoints" value={`${models.length}`} />
               <HeaderStat label="Providers" value={`${providers}`} />
-              <HeaderStat
-                label="Degraded"
-                value={`${degraded}`}
-                tone={degraded > 0 ? "critical" : "healthy"}
-              />
+              <HeaderStat label="Degraded" value={`${degraded}`} />
               <HeaderStat
                 label="Last probe"
-                value={lastChecked ? <TimeAgo date={lastChecked} /> : "—"}
-                mono
+                value={
+                  lastChecked ? (
+                    // The widest value is reserved, so the placeholder swapping for the
+                    // real "x min ago" at hydration moves nothing.
+                    <span className="grid">
+                      <span className="invisible col-start-1 row-start-1" aria-hidden="true">59 min ago</span>
+                      <span className="col-start-1 row-start-1 text-right"><TimeAgo date={lastChecked} hidePlaceholder /></span>
+                    </span>
+                  ) : (
+                    "—"
+                  )
+                }
               />
             </dl>
           </header>
 
           <div className="space-y-4">
-            <RevealSection>
+            <RevealSection step={1}>
               <FleetIntelligence models={models} />
             </RevealSection>
 
-            <RevealSection>
+            <RevealSection step={2}>
               <DiscoverView models={models} />
             </RevealSection>
 
-            <RevealSection>
+            <RevealSection step={3}>
               <FleetTrendChart data={trend} />
             </RevealSection>
 
-            <RevealSection>
+            <RevealSection step={4}>
               <ProviderIntelligence models={models} />
             </RevealSection>
 
-            <RevealSection>
+            <RevealSection step={4}>
               <UseCaseRankings models={models} />
             </RevealSection>
 
-            <RevealSection>
+            <RevealSection step={4}>
               <TrendAnalysis models={models} />
             </RevealSection>
 
-            <RevealSection>
+            <RevealSection step={4}>
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <ReliabilityHeatmap models={models} />
                 <IncidentTimeline models={models} />
@@ -116,45 +118,30 @@ export default async function DiscoverPage() {
 }
 
 function HeaderStat({
-  label, value, tone = "neutral", mono = false,
+  label, value,
 }: {
   label: string;
   value: React.ReactNode;
-  tone?: "neutral" | "healthy" | "critical";
-  mono?: boolean;
 }) {
   return (
     <div className="flex flex-col items-end">
-      <dd
-        className={cnTone(tone, mono)}
-      >
-        {value}
-      </dd>
-      <dt className="label-xs text-text-tertiary mt-0.5">{label}</dt>
+      {/* Always ink: status colour never sets text. The state shapes and words below carry it. */}
+      <dd className="metric-lg text-text-primary">{value}</dd>
+      <dt className="mt-0.5 body-sm text-text-muted">{label}</dt>
     </div>
   );
-}
-
-function cnTone(tone: "neutral" | "healthy" | "critical", mono: boolean) {
-  const base = mono ? "metric-sm" : "metric-lg";
-  if (tone === "critical") return `${base} text-status-critical`;
-  if (tone === "healthy") return `${base} text-status-healthy`;
-  return `${base} text-text-primary`;
 }
 
 function EmptyState() {
   return (
     <div className="min-h-screen text-text-primary">
       <NavBar />
-      <main
-        className="flex min-h-screen flex-col items-center justify-center px-6 text-center"
-        style={{ paddingTop: "calc(3.5rem + var(--safe-top))" }}
-      >
+      <main className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
         <span className="status-led status-led--warn mb-4" aria-hidden="true" />
         <h1 className="heading-lg text-text-primary">Fleet awaiting first probe</h1>
-        <p className="mt-2 max-w-md body-sm text-text-tertiary">
+        <p className="mt-2 max-w-md body-sm text-text-muted">
           No telemetry yet. Start the collector with{" "}
-          <code className="rounded bg-surface-recessed px-1.5 py-0.5 font-mono text-text-secondary">npm run worker</code>{" "}
+          <code className="rounded-xs bg-chip px-1.5 py-0.5 font-mono text-sm text-text-primary">npm run worker</code>{" "}
           and discovery data appears within a minute.
         </p>
       </main>

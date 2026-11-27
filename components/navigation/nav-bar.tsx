@@ -2,151 +2,150 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { Menu, X } from "lucide-react";
+import { StatusGlyph } from "@/components/dashboard/status-glyph";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 
 interface NavBarProps {
   className?: string;
+  /**
+   * Stay pinned to the top while scrolling (default). The overview turns this
+   * off because its section bar is the sticky element there.
+   */
+  sticky?: boolean;
 }
 
+const LINKS = [
+  { href: "/", label: "Overview" },
+  { href: "/discover", label: "Discover" },
+];
+
 /**
- * Operations-center command bar. Fixed top shell shared by every page:
- * radar brand mark, live fleet status, primary nav, a ticking UTC clock,
- * and the theme toggle. Height is 3.5rem — pages offset by the same.
+ * Site nav, in the page flow (68px, 60px on mobile) with a hairline below.
+ * Brand = the three state shapes plus the name, then Overview / Discover, a UTC
+ * clock and the theme toggle. Below 768px the links collapse behind a menu
+ * button and the clock drops out.
  */
-export function NavBar({ className }: NavBarProps) {
+export function NavBar({ className, sticky = true }: NavBarProps) {
   const pathname = usePathname();
+  // The menu records the path it was opened on, so navigating closes it
+  // without an effect.
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  const open = openOn === pathname;
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenOn(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   return (
     <header
-      className={cn(
-        "command-bar fixed inset-x-0 top-0 z-50 h-14",
-        className,
-      )}
+      className={cn("command-bar z-50", sticky ? "sticky top-0" : "relative", className)}
       style={{ paddingTop: "var(--safe-top)" }}
-      role="banner"
     >
-      <div className="mx-auto flex h-full max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        {/* Brand + live status */}
-        <div className="flex items-center gap-3">
-          <Link href="/" className="group flex items-center gap-2.5" aria-label="NIM Stats home">
-            <RadarMark />
-            <span className="flex items-baseline gap-1.5">
-              <span className="text-[0.95rem] font-semibold tracking-tight text-text-primary">
-                NIM
-              </span>
-              <span className="text-[0.95rem] font-semibold tracking-tight text-text-tertiary group-hover:text-text-secondary transition-colors">
-                STATS
-              </span>
-            </span>
-          </Link>
-
-          <span className="hidden h-4 w-px bg-border-base sm:block" aria-hidden="true" />
-
-          <span className="hidden items-center gap-1.5 sm:inline-flex" aria-label="System status: operational">
-            <span className="status-led status-led--healthy" style={{ width: 7, height: 7 }} aria-hidden="true" />
-            <span className="label-xs text-status-healthy">OPERATIONAL</span>
+      <div className="mx-auto flex min-h-[60px] max-w-(--page-max) flex-wrap items-center gap-x-3 gap-y-0 px-4 py-3 md:min-h-[68px] md:gap-x-6 md:px-6 md:py-4">
+        <Link
+          href="/"
+          aria-label="NIM Stats home"
+          className="flex shrink-0 items-center gap-2 rounded-xs text-lg leading-none font-medium text-text-primary"
+        >
+          <span className="flex items-center gap-1" aria-hidden="true">
+            <StatusGlyph state="healthy" size={10} />
+            <StatusGlyph state="busy" size={10} />
+            <StatusGlyph state="jammed" size={10} />
           </span>
-        </div>
+          NIM Stats
+        </Link>
 
-        {/* Primary nav + instruments */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <nav className="flex items-center gap-1" aria-label="Primary navigation">
-            {/* Exact match: the shell is shared by /about, /contact, /privacy and
-                the 404 too, and none of those is the command view. */}
-            <NavLink href="/" label="COMMAND" active={pathname === "/"} />
-            <NavLink href="/discover" label="DISCOVER" active={pathname === "/discover"} />
-          </nav>
+        <nav
+          id="primary-nav"
+          aria-label="Primary navigation"
+          className={cn(
+            "order-last basis-full flex-col border-t border-border-subtle pt-2 md:order-none md:flex md:basis-auto md:flex-row md:gap-1 md:border-0 md:pt-0",
+            open ? "mt-3 flex md:mt-0" : "hidden",
+          )}
+        >
+          {LINKS.map((l) => {
+            // Exact match: the shell is shared by /about, /contact, /privacy and
+            // the 404 too, and none of those is a section of the overview.
+            const active = pathname === l.href;
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "rounded-xs px-1 py-3 text-base leading-none font-medium transition-colors duration-150 hover:text-text-primary md:px-3 md:py-2 md:text-sm",
+                  active ? "text-text-primary" : "text-text-muted",
+                )}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
+        </nav>
 
-          <span className="hidden h-4 w-px bg-border-base md:block" aria-hidden="true" />
-          <UTCClock className="hidden md:block" />
-          <span className="h-4 w-px bg-border-base" aria-hidden="true" />
+        <div className="ml-auto flex items-center gap-2 md:gap-4">
+          <UtcClock className="hidden md:grid" />
           <ThemeToggle />
+          <button
+            type="button"
+            className="btn btn-outline btn-icon md:hidden"
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
+            aria-controls="primary-nav"
+            onClick={() => setOpenOn(open ? null : pathname)}
+          >
+            {open ? <X strokeWidth={1.8} aria-hidden="true" /> : <Menu strokeWidth={1.8} aria-hidden="true" />}
+          </button>
         </div>
       </div>
     </header>
   );
 }
 
-function NavLink({ href, label, active }: { href: string; label: string; active?: boolean }) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "nav-item relative rounded-md px-3 py-1.5 transition-colors duration-150",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base",
-        active ? "text-text-primary" : "text-text-tertiary hover:text-text-secondary",
-      )}
-    >
-      {label}
-      {active && (
-        <span
-          className="absolute -bottom-[1px] left-3 right-3 h-[2px] rounded-full bg-text-accent"
-          aria-hidden="true"
-        />
-      )}
-    </Link>
-  );
+// One tick per minute boundary: the clock shows HH:MM, so a 1s timer would
+// re-render sixty times for one visible change.
+function subscribeMinute(notify: () => void) {
+  let id: ReturnType<typeof setTimeout>;
+  const schedule = () => {
+    id = setTimeout(() => {
+      notify();
+      schedule();
+    }, 60_000 - (Date.now() % 60_000) + 50);
+  };
+  schedule();
+  return () => clearTimeout(id);
 }
+const currentMinute = () => Math.floor(Date.now() / 60_000);
+const serverMinute = () => null;
 
-/** Radar/telemetry brand mark — center node with two outgoing signal arcs. */
-function RadarMark() {
+/** UTC clock, HH:MM. Hydration-safe: the server and first client render show a placeholder. */
+function UtcClock({ className }: { className?: string }) {
+  const minute = useSyncExternalStore(subscribeMinute, currentMinute, serverMinute);
+  const time =
+    minute == null
+      ? "--:--"
+      : new Date(minute * 60_000).toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "UTC",
+          hour12: false,
+        });
   return (
-    <span className="relative inline-flex h-6 w-6 items-center justify-center">
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
-        <circle cx="12" cy="12" r="11" stroke="var(--border-strong)" strokeWidth="1" />
-        <circle cx="12" cy="12" r="6.5" stroke="var(--border-base)" strokeWidth="1" />
-        <path d="M12 12 L12 2.2" stroke="var(--text-accent)" strokeWidth="1.4" strokeLinecap="round" />
-        <path
-          d="M12 12 L19 8"
-          stroke="var(--status-healthy)"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          opacity="0.85"
-        />
-        <circle cx="12" cy="12" r="2.4" fill="var(--text-accent)" />
-      </svg>
-      <span
-        className="absolute inset-0 rounded-full"
-        style={{ boxShadow: "0 0 14px color-mix(in srgb, var(--primary) 35%, transparent)" }}
-        aria-hidden="true"
-      />
-    </span>
-  );
-}
-
-/** Live UTC clock — the mission-control heartbeat. Hydration-safe. */
-function UTCClock({ className }: { className?: string }) {
-  // Server and the client's first render both show the placeholder (they match,
-  // so no hydration mismatch). The interval then begins ticking after mount —
-  // no setState in the effect body, just the interval callback.
-  const [now, setNow] = useState<Date | null>(null);
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const time = now
-    ? now.toLocaleTimeString("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        timeZone: "UTC",
-        hour12: false,
-      })
-    : "--:--:--";
-
-  return (
-    <span
-      className={cn("flex items-center gap-1.5 tabular-nums", className)}
-      suppressHydrationWarning
-      title="Coordinated Universal Time"
-    >
-      <span className="metric-xs text-text-secondary">{time}</span>
-      <span className="label-xs text-text-quaternary">UTC</span>
+    // Tabular digits make every HH:MM the same width; the sizer is that width, so the
+    // "--:--" placeholder becoming the real time at hydration moves nothing (R10).
+    <span className={cn("body-sm text-text-muted", className)} title="Coordinated Universal Time">
+      <span className="invisible col-start-1 row-start-1" aria-hidden="true">00:00 UTC</span>
+      <span className={cn("col-start-1 row-start-1 text-right", minute == null && "invisible")} suppressHydrationWarning>
+        {time} UTC
+      </span>
     </span>
   );
 }

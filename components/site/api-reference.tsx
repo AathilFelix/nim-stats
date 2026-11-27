@@ -14,7 +14,7 @@ export function ApiReferenceView({ reference }: { reference: ApiReference }) {
     <div className="min-h-screen bg-surface-base text-text-primary">
       <NavBar />
 
-      <main style={{ paddingTop: "calc(3.5rem + var(--safe-top))" }}>
+      <main>
         <header className="border-b border-border-subtle">
           <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
             <div className="mb-2 flex items-center gap-2">
@@ -57,11 +57,11 @@ export function ApiReferenceView({ reference }: { reference: ApiReference }) {
                 .split("\n")
                 .filter(Boolean)
                 .map((paragraph, i) => (
-                  <p key={i} className="max-w-[68ch] body-sm leading-relaxed text-text-secondary">
+                  <p key={i} className="max-w-[64ch] body-sm leading-relaxed text-text-secondary">
                     {paragraph}
                   </p>
                 ))}
-              <p className="max-w-[68ch] body-sm leading-relaxed text-text-tertiary">
+              <p className="max-w-[64ch] body-sm leading-relaxed text-text-tertiary">
                 Base URL{" "}
                 <code className="rounded bg-surface-recessed px-1.5 py-0.5 font-mono text-text-secondary">
                   {reference.serverUrl}
@@ -76,7 +76,7 @@ export function ApiReferenceView({ reference }: { reference: ApiReference }) {
               {reference.operations.map((op) => (
                 <article key={op.operationId} className="rounded-lg border border-border-base bg-surface-card">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-border-subtle px-5 py-3">
-                    <span className="metric-xs rounded-sm border border-border-base px-1.5 py-0.5 text-status-healthy">
+                    <span className="metric-xs rounded-sm border border-border-base px-1.5 py-0.5 text-text-primary">
                       {op.method}
                     </span>
                     <code className="metric-sm text-text-primary">{op.path}</code>
@@ -84,7 +84,7 @@ export function ApiReferenceView({ reference }: { reference: ApiReference }) {
                   </div>
 
                   <div className="space-y-4 px-5 py-4">
-                    <p className="max-w-[68ch] body-sm leading-relaxed text-text-secondary">{op.description}</p>
+                    <p className="max-w-[64ch] body-sm leading-relaxed text-text-secondary">{op.description}</p>
 
                     {op.parameters.length > 0 && (
                       <div>

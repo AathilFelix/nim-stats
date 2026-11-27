@@ -34,17 +34,11 @@ function classify(model: NIMModel): TrendGrade {
   return "improving";
 }
 
-const GRADE_CONFIG: Record<TrendGrade, {
-  label: string;
-  color: string;
-  border: string;
-  bg: string;
-  icon: React.ElementType;
-}> = {
-  rising: { label: "Rising", color: "text-[--status-healthy]", border: "border-[--status-healthy]/20", bg: "bg-[--status-healthy]/5", icon: TrendingUp },
-  improving: { label: "Improving", color: "text-[--status-info]", border: "border-[--status-info]/20", bg: "bg-[--status-info]/5", icon: TrendingUp },
-  stable: { label: "Stable", color: "text-[--status-warn]", border: "border-[--status-warn]/20", bg: "bg-[--status-warn]/5", icon: Minus },
-  declining: { label: "Declining", color: "text-[--status-critical]", border: "border-[--status-critical]/20", bg: "bg-[--status-critical]/5", icon: TrendingUp },
+const GRADE_CONFIG: Record<TrendGrade, { label: string; icon: React.ElementType }> = {
+  rising: { label: "Rising", icon: TrendingUp },
+  improving: { label: "Improving", icon: TrendingUp },
+  stable: { label: "Stable", icon: Minus },
+  declining: { label: "Declining", icon: TrendingUp },
 };
 
 export function TrendAnalysis({ models }: TrendAnalysisProps) {
@@ -55,8 +49,8 @@ export function TrendAnalysis({ models }: TrendAnalysisProps) {
   if (!models.length) {
     return (
       <section className="ops-card">
-        <PanelHeader label="Trend Analysis" icon={Waypoints} tone="info" />
-        <div className="py-8 text-center text-text-tertiary body-xs">No trend data.</div>
+        <PanelHeader label="Trend analysis" icon={Waypoints} tone="info" />
+        <div className="py-8 text-center body-sm text-text-muted">No trend data.</div>
       </section>
     );
   }
@@ -64,10 +58,10 @@ export function TrendAnalysis({ models }: TrendAnalysisProps) {
   return (
     <section className="ops-card">
       <PanelHeader
-        label="Trend Analysis"
+        label="Trend analysis"
         icon={Waypoints}
         tone="info"
-        meta={<span className="metric-xs">{models.length} models tracked</span>}
+        meta={<span>{models.length} models tracked</span>}
       />
 
       <div className="panel-pad grid grid-cols-2 lg:grid-cols-4 gap-2">
@@ -77,21 +71,17 @@ export function TrendAnalysis({ models }: TrendAnalysisProps) {
           const Icon = cfg.icon;
 
           return (
-            <div key={grade} className="p-2.5 rounded-lg border border-[--border-subtle] bg-[--surface-recessed] min-w-0">
-              <div className="flex items-center gap-1.5 mb-2">
-                <div className={cn("w-5 h-5 rounded flex items-center justify-center", cfg.bg)}>
-                  <Icon className={cn("w-3 h-3", grade === "declining" && "rotate-180", cfg.color)} />
-                </div>
-                <span className={cn("text-xs font-bold uppercase tracking-[0.08em] font-mono", cfg.color)}>
-                  {cfg.label}
-                </span>
-                <span className="text-[11px] font-mono text-[--text-tertiary] ml-auto">{items.length}</span>
+            <div key={grade} className="min-w-0 rounded-md border border-border-subtle bg-surface-recessed p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <Icon className={cn("h-4 w-4 text-text-muted", grade === "declining" && "rotate-180")} aria-hidden="true" />
+                <span className="text-sm font-medium text-text-primary">{cfg.label}</span>
+                <span className="ml-auto font-mono text-xs text-text-muted">{items.length}</span>
               </div>
 
               {items.length === 0 ? (
                 <div className="flex items-center gap-1.5 py-1">
-                  <CheckCircle2 className="w-3 h-3 text-[--status-healthy]" />
-                  <span className="text-xs font-mono text-[--text-tertiary]">All clear</span>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
+                  <span className="body-sm text-text-muted">All clear</span>
                 </div>
               ) : (
                 <div className="space-y-0.5 animate-stagger">
@@ -112,8 +102,8 @@ function TrendRow({ model, grade }: { model: NIMModel; grade: TrendGrade }) {
   const recent = model.reliabilityHistory.slice(-8).map((p) => p.score);
 
   return (
-    <div className="flex items-center gap-2 py-0.5 px-1 rounded hover:bg-[--surface-elevated] transition-colors group min-w-0">
-      <span className="body-xs text-text-primary truncate flex-1 group-hover:underline">{model.name}</span>
+    <div className="flex items-center gap-2 py-0.5 px-1 rounded hover:bg-surface-elevated transition-colors group min-w-0">
+      <span className="body-sm flex-1 truncate text-text-primary group-hover:underline">{model.name}</span>
       <HorizontalSparkline
         data={recent}
         color={GRADE_STROKE[grade]}
@@ -123,7 +113,7 @@ function TrendRow({ model, grade }: { model: NIMModel; grade: TrendGrade }) {
         strokeWidth={1.5}
         className="shrink-0"
       />
-      <span className="metric-xs text-text-tertiary tabular-nums w-9 shrink-0 text-right">{model.reliability}%</span>
+      <span className="metric-xs w-9 shrink-0 text-right tabular-nums text-text-muted">{model.reliability}%</span>
     </div>
   );
 }

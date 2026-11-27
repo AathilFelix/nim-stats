@@ -72,14 +72,14 @@ export function DiscoverView({ models }: { models: NIMModel[] }) {
   return (
     <section className="ops-card">
       <PanelHeader
-        label="Model Registry"
+        label="Model registry"
         icon={ActiveIcon}
         tone="info"
-        meta={<span className="metric-xs text-text-secondary">{ranked.length} endpoints</span>}
+        meta={<span>{ranked.length} endpoints</span>}
       />
 
       {/* Category selector + sort direction */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 border-b border-border-subtle">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle px-4 py-3 md:px-6">
         <nav className="flex flex-wrap items-center gap-1" aria-label="Ranking categories">
           {CATEGORIES.map((cat) => {
             const Icon = CATEGORY_ICONS[cat.id];
@@ -103,28 +103,28 @@ export function DiscoverView({ models }: { models: NIMModel[] }) {
         <button
           onClick={() => setReversed((v) => !v)}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 metric-xs transition-colors",
-            reversed
-              ? "text-status-warn bg-status-warn/10"
-              : "text-text-tertiary hover:text-text-secondary hover:bg-surface-recessed",
+            "btn-quiet",
+            reversed && "bg-chip text-text-primary",
           )}
+          aria-pressed={reversed}
           title="Reverse ranking order"
         >
-          <ArrowDownUp className="h-3 w-3" />
+          <ArrowDownUp aria-hidden="true" />
           {reversed ? "Worst first" : "Best first"}
         </button>
       </div>
 
       {/* Registry table + detail rail */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]">
-        {/* Table */}
-        <div className="min-w-0 lg:border-r border-border-subtle">
+        {/* Table. Scrolls inside its own container if a column ever outgrows it. */}
+        <div className="min-w-0 overflow-x-auto border-border-subtle lg:border-r">
+         <div className="min-w-[320px]">
           <div className="ops-table-header grid-cols-[28px_minmax(0,1fr)_64px_52px_56px_92px] hidden sm:grid">
             <span>#</span>
             <span>Model</span>
-            <span className={cn("text-right", highlight === "throughput" && "text-text-accent")}>Tok/s</span>
-            <span className={cn("text-right", highlight === "reliability" && "text-text-accent")}>Rel</span>
-            <span className={cn("text-right", highlight === "congestion" && "text-text-accent")}>Cong</span>
+            <span className={cn("text-right", highlight === "throughput" && "text-text-primary")}>Tok/s</span>
+            <span className={cn("text-right", highlight === "reliability" && "text-text-primary")}>Rel</span>
+            <span className={cn("text-right", highlight === "congestion" && "text-text-primary")}>Cong</span>
             <span className="text-right">24h</span>
           </div>
 
@@ -140,11 +140,12 @@ export function DiscoverView({ models }: { models: NIMModel[] }) {
               />
             ))}
           </div>
+         </div>
         </div>
 
         {/* Detail / comparison rail */}
-        <aside className="min-w-0 bg-surface-recessed/40">
-          <div className="p-3.5 lg:sticky lg:top-16">
+        <aside className="min-w-0 bg-surface-recessed">
+          <div className="panel-pad lg:sticky lg:top-20">
             {selectedIds[0] ? (
               comparisonModels ? (
                 <ComparisonPanel models={comparisonModels} onClear={() => setSelectedIds([null, null])} />
@@ -183,20 +184,20 @@ function RegistryRow({
       className={cn(
         "ops-table-row w-full text-left grid-cols-[28px_minmax(0,1fr)_auto]",
         "sm:grid-cols-[28px_minmax(0,1fr)_64px_52px_56px_92px]",
-        selected && "bg-surface-elevated border-l-text-accent",
+        selected && "bg-surface-elevated",
       )}
     >
-      <span className={cn("metric-xs text-right tabular-nums", rank <= 3 ? "text-text-accent" : "text-text-quaternary")}>
+      <span className={cn("metric-xs text-right tabular-nums", rank <= 3 ? "text-text-primary" : "text-text-muted")}>
         {rank}
       </span>
 
       <span className="flex items-center gap-2 min-w-0">
         <StatusDot status={model.status} size={7} />
         <span className="min-w-0">
-          <span className="block truncate text-[0.82rem] font-medium text-text-primary leading-tight">
+          <span className="block truncate body-sm font-medium text-text-primary">
             {model.name}
           </span>
-          <span className="block truncate label-xs text-text-quaternary mt-0.5">{model.provider}</span>
+          <span className="mt-0.5 block truncate label-xs text-text-muted">{model.provider}</span>
         </span>
       </span>
 
@@ -210,10 +211,10 @@ function RegistryRow({
 
       {/* Mobile headline metric */}
       <span className="flex sm:hidden items-baseline gap-1 justify-end">
-        <span className="metric-sm font-semibold text-text-primary">
+        <span className="metric-sm font-medium text-text-primary">
           {highlight === "throughput" ? formatTput(model.throughput, 0) : highlight === "reliability" ? model.reliability : model.congestion}
         </span>
-        <span className="label-xs text-text-quaternary">
+        <span className="label-xs text-text-muted">
           {highlight === "throughput" ? "t/s" : "%"}
         </span>
       </span>
@@ -226,10 +227,11 @@ function Cell({ value, active, warn, className }: { value: string; active?: bool
     <span
       className={cn(
         "items-center justify-end metric-sm tabular-nums",
-        warn ? "text-status-critical" : active ? "text-text-primary font-semibold" : "text-text-secondary",
+        active || warn ? "font-medium text-text-primary" : "text-text-muted",
         className,
       )}
     >
+      {warn && <StatusDot status="busy" size={8} className="mr-1.5 self-center" />}
       {value}
     </span>
   );
@@ -239,12 +241,12 @@ function ModelDetail({ model }: { model: NIMModel }) {
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-3">
-        <span className="section-label">Endpoint Detail</span>
+        <h3 className="text-base font-medium text-text-primary">Endpoint detail</h3>
         <span className="status-chip status-chip--neutral">{model.provider}</span>
       </div>
       <div className="flex items-center gap-2 mb-3">
         <StatusDot status={model.status} size={8} />
-        <span className="heading-md truncate text-text-primary">{model.name}</span>
+        <span className="truncate font-mono text-lg text-text-primary">{model.name}</span>
       </div>
       <div className="grid grid-cols-2 gap-2 mb-3">
         <DetailTile label="Throughput" value={formatTput(model.throughput)} unit={model.throughput > 0 ? "tok/s" : ""} />
@@ -256,8 +258,8 @@ function ModelDetail({ model }: { model: NIMModel }) {
         <DetailTile label="Uptime" value={model.uptime.toFixed(2)} unit="%" />
         <DetailTile label="Timeouts" value={`${model.timeoutRate}`} unit="%" warn={model.timeoutRate > 3} />
       </div>
-      <p className="flex items-center gap-1.5 body-xs text-text-tertiary">
-        <GitCompare className="h-3 w-3" />
+      <p className="flex items-center gap-1.5 body-sm text-text-muted">
+        <GitCompare className="h-3.5 w-3.5" aria-hidden="true" />
         Select another endpoint to compare.
       </p>
     </div>
@@ -268,10 +270,13 @@ function DetailTile({ label, value, unit, warn }: { label: string; value: string
   return (
     <div className="hud-block">
       <span className="flex items-baseline gap-1">
-        <span className={cn("metric-md", warn ? "text-status-critical" : "text-text-primary")}>{value}</span>
-        <span className="label-xs text-text-quaternary">{unit}</span>
+        <span className="metric-md text-text-primary">{value}</span>
+        <span className="label-xs text-text-muted">{unit}</span>
       </span>
-      <span className="label-xs text-text-tertiary">{label}</span>
+      <span className="flex items-center gap-1.5 label-sm text-text-muted">
+        {warn && <StatusDot status="busy" size={8} />}
+        {label}
+      </span>
     </div>
   );
 }
@@ -280,10 +285,10 @@ function EmptyPrompt() {
   return (
     <div className="flex flex-col items-center justify-center py-10 text-center">
       <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-lg border border-border-base bg-surface-recessed">
-        <GitCompare className="h-4 w-4 text-text-tertiary" />
+        <GitCompare className="h-4 w-4 text-text-muted" aria-hidden="true" />
       </div>
-      <p className="body-sm font-medium text-text-secondary mb-1">Inspect an endpoint</p>
-      <p className="body-xs text-text-tertiary leading-relaxed max-w-[200px]">
+      <p className="mb-1 body-sm font-medium text-text-primary">Inspect an endpoint</p>
+      <p className="max-w-[220px] body-sm text-text-muted">
         Select a row for full telemetry, or pick two to compare side by side.
       </p>
     </div>

@@ -25,18 +25,23 @@ export function CatalogFunnel({ catalog, healthy, className = "" }: Props) {
 
   return (
     <div className={className}>
-      <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
+      <p className="mb-1 label-sm text-text-secondary">Catalog</p>
+      <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 body-xs text-text-tertiary">
         {steps.map((s, i) => (
           <li key={s.label} className="flex items-center gap-2">
-            {i > 0 && <span aria-hidden="true">→</span>}
+            {i > 0 && (
+              <span aria-hidden="true" className="text-text-quaternary">
+                →
+              </span>
+            )}
             <span>
-              <span className="font-mono tabular-nums text-text-secondary">{s.n}</span> {s.label}
+              <span className="metric-xs text-text-primary">{s.n}</span> {s.label}
             </span>
           </li>
         ))}
       </ol>
       {notCallable > 0 && (
-        <p className="mt-1.5 body-xs text-text-tertiary">
+        <p className="mt-1.5 max-w-[65ch] body-xs text-text-tertiary">
           {notCallable} listed {notCallable === 1 ? "model doesn’t" : "models don’t"} answer chat requests (not
           deployed, retired, or preview-only) and {notCallable === 1 ? "isn’t" : "aren’t"} measured.
         </p>

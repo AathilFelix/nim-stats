@@ -1,7 +1,6 @@
 "use client";
 
 import type { StatusKey } from "@/lib/design-tokens";
-import { STATUS_TEXT } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -26,32 +25,17 @@ export function DividerDot({ className }: { className?: string }) {
 
 /* ─────────────────────────────────────────────────────────────────── */
 /*  OPS SURFACE CARD                                                    */
-/*  The new monolith container — dark recessed surface, bracket option */
+/*  The flat hairline panel                                             */
 /* ─────────────────────────────────────────────────────────────────── */
 
 export function SurfaceCard({
   children,
   className,
-  bracketed = false,
-  scanline = false,
 }: {
   children: React.ReactNode;
   className?: string;
-  bracketed?: boolean;
-  scanline?: boolean;
 }) {
-  return (
-    <div
-      className={cn(
-        "ops-card",
-        bracketed && "ops-card--bracketed",
-        scanline && "ops-scanline",
-        className
-      )}
-    >
-      {children}
-    </div>
-  );
+  return <div className={cn("ops-card", className)}>{children}</div>;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -110,21 +94,14 @@ export function MetricBlock({
 }) {
   return (
     <div className={cn("hud-block", className)}>
-      <span
-        className={cn(
-          "metric-value text-xl tabular-nums",
-          STATUS_TEXT[status === "healthy" ? "healthy" : status],
-          status === "jammed" && "text-[--status-critical]"
-        )}
-      >
-        {typeof value === "number" ? value.toLocaleString("en-US", { maximumFractionDigits: 1 }) : value}
-        {unit && (
-          <span className="text-xs ml-1 opacity-65 font-normal">{unit}</span>
-        )}
+      <span className="metric-value flex items-center gap-2 text-xl tabular-nums text-text-primary">
+        <StatusDot status={status} size={8} />
+        <span>
+          {typeof value === "number" ? value.toLocaleString("en-US", { maximumFractionDigits: 1 }) : value}
+          {unit && <span className="ml-1 text-xs font-normal text-text-muted">{unit}</span>}
+        </span>
       </span>
-      <span className="text-xs font-medium text-[--text-tertiary] tracking-[0.05em] uppercase">
-        {label}
-      </span>
+      <span className="body-sm text-text-muted">{label}</span>
       {showBar && barFraction !== undefined && (
         <div className="severity-bar mt-1">
           <span
@@ -146,15 +123,9 @@ export function MetricBlock({
 export function MiniStatRow({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-0.5">
-      <span className="text-xs uppercase tracking-[0.08em] text-[--text-tertiary] data-text shrink-0">
-        {label}
-      </span>
-      <span
-        className={cn(
-          "cell-metric text-sm tabular-nums tracking-tight",
-          warn ? "text-[--status-critical] font-semibold" : "text-[--text-primary]"
-        )}
-      >
+      <span className="body-sm shrink-0 text-text-muted">{label}</span>
+      <span className="cell-metric flex items-center gap-2 text-sm tabular-nums text-text-primary">
+        {warn && <StatusDot status="busy" size={8} />}
         {value}
       </span>
     </div>
@@ -170,30 +141,22 @@ export function EmptyState({ message = "No data", status = "healthy" as StatusKe
     <div className="empty-state">
       <div className="flex items-center gap-2">
         <StatusDot status={status} size={6} />
-        <span className="data-text text-sm text-[--text-tertiary]">{message}</span>
+        <span className="data-text text-sm text-text-muted">{message}</span>
       </div>
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
-/*  GRADE BADGE — bracket-style inline grade indicator                  */
+/*  GRADE BADGE — inline grade indicator                                 */
 /* ─────────────────────────────────────────────────────────────────── */
 
 export function GradeBadge({ grade }: { grade: string }) {
-  const colorMap: Record<string, string> = {
-    A: "color-[--status-healthy]",
-    B: "color-[--status-warn]",
-    C: "color-[--status-info]",
-    D: "color-[--status-critical]",
-  };
-
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center w-5 h-5 rounded text-sm font-bold font-mono shrink-0 border",
-        colorMap[grade] || "color-[--text-tertiary]",
-        grade === "A" && "bg-[--status-healthy]/[0.08] border-[--status-healthy]/[0.20]"
+        "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-xs border border-transparent bg-chip font-mono text-sm text-text-primary",
+        grade === "A" && "border-primary bg-accent-soft",
       )}
     >
       {grade}
@@ -206,15 +169,11 @@ export function GradeBadge({ grade }: { grade: string }) {
 /* ─────────────────────────────────────────────────────────────────── */
 
 export function SeverityBadge({ severity }: { severity: "critical" | "warning" | "info" }) {
-  const map: Record<string, string> = {
-    critical: "status-chip--critical",
-    warning: "status-chip--degraded",
-    info: "status-chip--info",
-  };
+  const word = { critical: "Critical", warning: "Warning", info: "Info" }[severity];
   return (
-    <span className={cn("status-chip", map[severity])}>
-      <StatusDot status={severity === "critical" ? "jammed" : severity === "warning" ? "busy" : "healthy"} size={5} />
-      {severity.toUpperCase()}
+    <span className="status-chip">
+      <StatusDot status={severity === "critical" ? "jammed" : severity === "warning" ? "busy" : "healthy"} size={8} />
+      {word}
     </span>
   );
 }
@@ -226,12 +185,11 @@ export function SeverityBadge({ severity }: { severity: "critical" | "warning" |
 export function HUDPill({ label, value, status = "healthy" }: { label: string; value: string | number; status?: StatusKey }) {
   return (
     <div className="hud-block">
-      <span className={cn("metric-value text-base tabular-nums", STATUS_TEXT[status === "healthy" ? "healthy" : status])}>
+      <span className="metric-value flex items-center gap-2 text-base tabular-nums text-text-primary">
+        <StatusDot status={status} size={8} />
         {typeof value === "number" ? value.toLocaleString("en-US", { maximumFractionDigits: 1 }) : value}
       </span>
-      <span className="text-xs font-medium text-[--text-tertiary] tracking-[0.06em] uppercase">
-        {label}
-      </span>
+      <span className="body-sm text-text-muted">{label}</span>
     </div>
   );
 }
@@ -240,22 +198,11 @@ export function HUDPill({ label, value, status = "healthy" }: { label: string; v
 /*  STATUS PILL — fleet health badge                                     */
 /* ─────────────────────────────────────────────────────────────────── */
 
-export function StatusPill({ label, status, size = 7 }: { label: string; status: StatusKey; size?: number }) {
-  const chipVar: Record<StatusKey, string> = {
-    healthy: "status-chip--healthy",
-    busy: "status-chip--degraded",
-    jammed: "status-chip--critical",
-  };
-  const staticText: Record<StatusKey, string> = {
-    healthy: "text-[--status-healthy]",
-    busy: "text-[--status-warn]",
-    jammed: "text-[--status-critical]",
-  };
-
+export function StatusPill({ label, status, size = 8 }: { label: string; status: StatusKey; size?: number }) {
   return (
-    <span className={cn("status-chip", chipVar[status])}>
+    <span className="status-chip">
       <StatusDot status={status} size={size} />
-      <span className={cn("text-xs font-semibold tracking-[0.06em]", staticText[status])}>{label}</span>
+      {label}
     </span>
   );
 }

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, JetBrains_Mono as JetBrainsMono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { WebMcpTools } from "@/components/agent/webmcp";
 import { JsonLd } from "@/components/site/json-ld";
 import { ThemeProvider } from "@/components/theme/theme-provider";
@@ -7,20 +7,21 @@ import { ThemeScript } from "@/components/theme/theme-script";
 import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-// Geist — Vercel's technical grotesque, for all UI text. Instrument-grade,
-// engineered feel that suits an AI-infrastructure operations console.
+// Geist and Geist Mono at 400 and 500 only: the whole type scale lives on those
+// two weights (see DESIGN.md). Both are self-hosted by next/font, so the mono is
+// the same face on every platform (no system-stack width variance). Latin subset;
+// every character the app renders is Latin.
 const geist = Geist({
   variable: "--ff-sans",
   subsets: ["latin"],
+  weight: ["400", "500"],
   display: "swap",
 });
 
-// JetBrains Mono — every number, code, and machine-readable label. Tabular
-// figures keep metrics aligned column-to-column across the fleet.
-const jetbrains = JetBrainsMono({
+const geistMono = Geist_Mono({
   variable: "--ff-mono",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500"],
   display: "swap",
 });
 
@@ -58,7 +59,15 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
   // Served from public/ as a static asset, so browsers fetching it never wake the
   // Worker. As app/favicon.ico it was a route: ~190 Worker invocations a day.
-  icons: { icon: "/favicon.ico" },
+  // The logo mark (circle, diamond, triangle) on a dark tile. SVG for modern browsers,
+  // a 16/32/48 ICO as the fallback, and a 180px PNG for iOS home screens.
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "48x48" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
     type: "website",
     url: SITE_URL,
@@ -82,10 +91,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geist.variable} ${jetbrains.variable} dark h-full antialiased`}
+      className={`${geist.variable} ${geistMono.variable} dark h-full antialiased`}
+      data-theme="dark"
       suppressHydrationWarning
     >
-      <body className="ops-grid min-h-full flex flex-col font-sans antialiased">
+      <body className="min-h-full flex flex-col font-sans antialiased">
         {/* Dark-first, no flash: apply the persisted theme before first paint. */}
         <ThemeScript />
         <JsonLd />

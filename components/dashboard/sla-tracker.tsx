@@ -1,14 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ShieldCheck } from "lucide-react";
-import { PanelHeader } from "@/components/discover/ops-primitives";
 import { useReliability } from "@/lib/client/use-reliability";
 import { usePreferences } from "@/lib/client/preferences";
 import { slaBudget, fmtDuration } from "@/lib/reliability-format";
 import type { ModelReliability, SlaWindow } from "@/lib/reliability-types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { StatusGlyph, type GlyphState } from "./status-glyph";
+import { Seg } from "@/components/ui/seg";
 
 type WindowKey = "d1" | "d7" | "d30";
 const WINDOWS: { key: WindowKey; label: string; days: number }[] = [
@@ -24,11 +23,11 @@ interface Row {
   budget: ReturnType<typeof slaBudget>;
 }
 
-function verdict(budget: Row["budget"]): { label: string; tone: string } {
-  if (budget.passing == null || budget.budgetUsedPct == null) return { label: "NO DATA", tone: "text-text-quaternary" };
-  if (!budget.passing) return { label: "BREACH", tone: "text-status-critical" };
-  if (budget.budgetUsedPct >= 75) return { label: "AT RISK", tone: "text-status-warn" };
-  return { label: "PASS", tone: "text-status-healthy" };
+function verdict(budget: Row["budget"]): { label: string; glyph: GlyphState } {
+  if (budget.passing == null || budget.budgetUsedPct == null) return { label: "No data", glyph: "neutral" };
+  if (!budget.passing) return { label: "Breach", glyph: "jammed" };
+  if (budget.budgetUsedPct >= 75) return { label: "At risk", glyph: "busy" };
+  return { label: "Pass", glyph: "healthy" };
 }
 
 // A breaching model can burn many multiples of its tiny error budget (e.g. 13%
@@ -41,7 +40,7 @@ function fmtBudgetUsed(pct: number | null): string {
 }
 
 export function SlaTracker() {
-  const { data, loading } = useReliability();
+  const { data, loading, error } = useReliability();
   const { prefs, setSlaTarget } = usePreferences();
   const [win, setWin] = useState<WindowKey>("d7");
 
@@ -68,109 +67,90 @@ export function SlaTracker() {
   const breaching = rows.filter((r) => r.budget.passing === false).length;
 
   return (
-    <section className="ops-card">
-      <PanelHeader
-        label="SLA Compliance"
-        icon={ShieldCheck}
-        tone={breaching > 0 ? "critical" : "healthy"}
-        meta={
-          <div className="flex items-center gap-2">
-            <Select value={String(target)} onValueChange={(v) => setSlaTarget(Number(v))}>
-              <SelectTrigger size="sm" aria-label="SLA target" className="min-w-[112px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TARGETS.map((t) => (
-                  <SelectItem key={t} value={String(t)}>{t}% target</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex items-center gap-0.5 rounded-md border border-border-subtle bg-surface-recessed p-0.5">
-              {WINDOWS.map((w) => (
-                <button
-                  key={w.key}
-                  type="button"
-                  onClick={() => setWin(w.key)}
-                  aria-pressed={win === w.key}
-                  className={cn(
-                    "rounded px-2 py-0.5 metric-xs transition-colors",
-                    win === w.key ? "bg-surface-elevated text-text-primary" : "text-text-tertiary hover:text-text-secondary",
-                  )}
-                >
-                  {w.label}
-                </button>
+    <section aria-label="SLA compliance" className="panel col-span-12 flex flex-col min-[1100px]:col-span-6">
+      <div className="hdiv">
+        <h2 className="heading-md">SLA compliance</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={String(target)} onValueChange={(v) => setSlaTarget(Number(v))}>
+            <SelectTrigger aria-label="SLA target" className="min-w-[132px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TARGETS.map((t) => (
+                <SelectItem key={t} value={String(t)}>{t}% target</SelectItem>
               ))}
-            </div>
-          </div>
-        }
-      />
-
-      <div className="flex items-center gap-4 border-b border-border-subtle px-4 py-2.5 sm:px-5">
-        <Stat label="Meeting SLA" value={`${passing}`} tone="text-status-healthy" />
-        <Stat label="Breaching" value={`${breaching}`} tone={breaching > 0 ? "text-status-critical" : "text-text-secondary"} />
-        <Stat label="Allowed downtime" value={fmtDuration(((100 - target) / 100) * windowDays * 24 * 60)} tone="text-text-secondary" />
+            </SelectContent>
+          </Select>
+          <Seg role="group" aria-label="SLA window">
+            {WINDOWS.map((w) => (
+              <button key={w.key} type="button" onClick={() => setWin(w.key)} aria-pressed={win === w.key}>
+                {w.label}
+              </button>
+            ))}
+          </Seg>
+        </div>
       </div>
 
-      <div className="max-h-[420px] overflow-y-auto no-scrollbar">
-        {loading && !data ? (
-          <p className="body-xs text-text-tertiary py-8 text-center">Loading SLA data…</p>
-        ) : rows.length === 0 ? (
-          <p className="body-xs text-text-tertiary py-8 text-center">No samples in this window yet.</p>
+      <dl className="flex flex-wrap gap-x-8 gap-y-3 border-b border-border-subtle px-4 py-4 md:px-6">
+        <Stat glyph="healthy" label="Meeting SLA" value={`${passing}`} />
+        <Stat glyph={breaching > 0 ? "jammed" : "neutral"} label="Breaching" value={`${breaching}`} />
+        <Stat label="Allowed downtime" value={fmtDuration(((100 - target) / 100) * windowDays * 24 * 60)} />
+      </dl>
+
+      {/* One fixed box for loading, loaded, error and empty (R10a). */}
+      <div
+        role="region"
+        tabIndex={0}
+        aria-label={`Uptime and error budget by endpoint against the ${target}% target. Scrollable.`}
+        aria-busy={loading && !data}
+        className="h-[420px] overflow-auto scroll-y-lane"
+      >
+        {!data || rows.length === 0 ? (
+          <p className="px-4 py-8 body-sm text-text-muted md:px-6" role={error && !data ? "alert" : undefined}>
+            {!data
+              ? loading ? "Loading SLA data…" : error ? "Couldn’t load SLA data." : "No SLA data yet."
+              : "No samples in this window yet."}
+          </p>
         ) : (
-          <table className="w-full">
+          <table className="dtable dtable--sm">
+            <caption className="sr-only">Uptime and error budget by endpoint against the {target}% target</caption>
             <thead>
-              <tr className="border-b border-border-subtle">
-                <th className="label-xs text-text-tertiary px-4 py-2 text-left sm:px-5">Model</th>
-                <th className="label-xs text-text-tertiary px-3 py-2 text-right">Uptime</th>
-                <th className="label-xs text-text-tertiary px-3 py-2 text-right hidden sm:table-cell">Downtime</th>
-                <th className="label-xs text-text-tertiary px-3 py-2 text-left hidden md:table-cell">Error budget</th>
-                <th className="label-xs text-text-tertiary px-3 py-2 text-right sm:px-5">Status</th>
+              <tr>
+                <th scope="col" className="sticky top-0 z-[1]">Model</th>
+                <th scope="col" className="r sticky top-0 z-[1]">Uptime</th>
+                <th scope="col" className="r sticky top-0 z-[1] max-sm:hidden">Downtime</th>
+                <th scope="col" className="sticky top-0 z-[1] max-md:hidden">Error budget</th>
+                <th scope="col" className="sticky top-0 z-[1]">Status</th>
               </tr>
             </thead>
             <tbody>
               {rows.map(({ model, win: w, budget }) => {
                 const v = verdict(budget);
                 const used = Math.min(100, budget.budgetUsedPct ?? 0);
-                const over = (budget.budgetUsedPct ?? 0) > 100;
                 return (
-                  <tr key={model.id} className="border-b border-border-subtle/60 last:border-0">
-                    <td className="px-4 py-2.5 sm:px-5">
-                      <p className="body-sm font-medium text-text-primary truncate max-w-[180px]" title={model.name}>{model.name}</p>
-                      <p className="metric-xs text-text-quaternary">{model.provider}</p>
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <span className={cn("metric-sm", budget.passing ? "text-text-secondary" : "text-status-critical")}>
-                        {w.uptime != null ? `${w.uptime.toFixed(2)}%` : "—"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right hidden sm:table-cell">
-                      <span className="metric-xs text-text-tertiary">
+                  <tr key={model.id}>
+                    <th scope="row" className="nm max-w-[150px] sm:max-w-[220px]">
+                      <span className="block sm:truncate" title={model.name}>{model.name}</span>
+                      <span className="mt-0.5 block font-sans body-sm text-text-muted">{model.provider}</span>
+                    </th>
+                    <td className="r num">{w.uptime != null ? `${w.uptime.toFixed(2)}%` : "—"}</td>
+                    <td className="r max-sm:hidden">
+                      <span className="font-mono text-xs">
                         {fmtDuration(budget.actualDowntimeMin)}
-                        <span className="text-text-quaternary"> / {fmtDuration(budget.allowedDowntimeMin)}</span>
+                        <span className="text-text-muted"> / {fmtDuration(budget.allowedDowntimeMin)}</span>
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 hidden md:table-cell">
-                      <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-border-subtle">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${used}%`,
-                              backgroundColor: over
-                                ? "var(--status-critical)"
-                                : used >= 75
-                                  ? "var(--status-warn)"
-                                  : "var(--status-healthy)",
-                            }}
-                          />
-                        </div>
-                        <span className={cn("metric-xs w-12", over ? "text-status-critical" : "text-text-quaternary")}>
-                          {fmtBudgetUsed(budget.budgetUsedPct)}
-                        </span>
-                      </div>
+                    <td className="max-md:hidden">
+                      <span className="mbar">
+                        <i style={{ "--w": `${used}%` } as React.CSSProperties} />
+                        <span className="w-12 text-right font-mono text-xs text-text-primary">{fmtBudgetUsed(budget.budgetUsedPct)}</span>
+                      </span>
                     </td>
-                    <td className="px-4 py-2.5 text-right sm:px-5">
-                      <span className={cn("metric-xs font-semibold", v.tone)}>{v.label}</span>
+                    <td>
+                      <span className="inline-flex items-center gap-2 text-text-primary">
+                        <StatusGlyph state={v.glyph} />
+                        {v.label}
+                      </span>
                     </td>
                   </tr>
                 );
@@ -183,11 +163,14 @@ export function SlaTracker() {
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone: string }) {
+function Stat({ label, value, glyph }: { label: string; value: string; glyph?: GlyphState }) {
   return (
-    <div className="flex flex-col">
-      <span className={cn("metric-md", tone)}>{value}</span>
-      <span className="label-xs text-text-tertiary">{label}</span>
+    <div>
+      <dt className="flex items-center gap-2 body-sm text-text-muted">
+        {glyph && <StatusGlyph state={glyph} />}
+        {label}
+      </dt>
+      <dd className="metric-lg text-text-primary">{value}</dd>
     </div>
   );
 }

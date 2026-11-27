@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Award, Trophy } from "lucide-react";
 import type { NIMModel } from "../dashboard/mock-data";
-import { RankBadge } from "./discover-primitives";
+import { RankBadge, GradeBadge } from "./discover-primitives";
 import { PanelHeader } from "./ops-primitives";
 import { cn, svgPoint } from "@/lib/utils";
 
@@ -22,13 +22,6 @@ function letterGrade(s: number): string {
   return "D";
 }
 
-const gradeColor: Record<string, string> = {
-  A: "text-[--status-healthy] bg-[--status-healthy]/[0.08] border-[--status-healthy]/[0.20]",
-  B: "text-[--status-warn] bg-[--status-warn]/[0.08] border-[--status-warn]/[0.20]",
-  C: "text-[--status-info] bg-[--status-info]/[0.08] border-[--status-info]/[0.20]",
-  D: "text-[--status-critical] bg-[--status-critical]/[0.08] border-[--status-critical]/[0.20]",
-};
-
 export function UseCaseRankings({ models }: UseCaseRankingsProps) {
   const ranked = useMemo(
     () => [...models].sort((a, b) => score(b) - score(a)),
@@ -41,8 +34,8 @@ export function UseCaseRankings({ models }: UseCaseRankingsProps) {
   if (!models.length) {
     return (
       <section className="ops-card">
-        <PanelHeader label="Overall Rankings" icon={Trophy} tone="info" />
-        <div className="py-8 text-center text-text-tertiary body-xs">No models.</div>
+        <PanelHeader label="Overall rankings" icon={Trophy} tone="info" />
+        <div className="py-8 text-center body-sm text-text-muted">No models.</div>
       </section>
     );
   }
@@ -50,16 +43,16 @@ export function UseCaseRankings({ models }: UseCaseRankingsProps) {
   return (
     <section className="ops-card">
       <PanelHeader
-        label="Overall Rankings"
+        label="Overall rankings"
         icon={Trophy}
         tone="info"
-        meta={<span className="metric-xs">{ranked.length} ranked · throughput · reliability · congestion</span>}
+        meta={<span>{ranked.length} ranked by throughput, reliability and congestion</span>}
       />
 
       <div className="panel-pad">
       {/* Podium — top 3 */}
       {top3.length >= 1 && (
-        <div className="flex items-end justify-center gap-2 mb-4">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-center">
           {/* 2nd place */}
           {top3[1] && (
             <PodiumSlot model={top3[1]} rank={2} topScore={topScore} />
@@ -74,31 +67,25 @@ export function UseCaseRankings({ models }: UseCaseRankingsProps) {
       )}
 
       {/* Divider */}
-      <div className="h-px bg-[--border-subtle] mb-3" />
+      <div className="mb-3 h-px bg-border-subtle" />
 
       {/* Leaderboard list */}
       <div className="animate-stagger">
         {ranked.map((model, idx) => (
           <div
             key={model.id}
-            className="flex items-center gap-2.5 py-2 px-2 rounded-lg transition-colors duration-150 hover:bg-[--surface-recessed] border-l-2 border-transparent hover:border-l-[--text-accent]"
-            style={{ animationDelay: `${idx * 40}ms` }}
+            className="flex items-center gap-3 rounded-md px-2 py-2 transition-colors duration-150 hover:bg-surface-recessed"
           >
             <RankBadge rank={idx + 1} />
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-[--text-primary] truncate">{model.name}</div>
-              <div className="text-[10px] font-mono text-[--text-tertiary]">{model.provider}</div>
+              <div className="truncate font-mono text-sm text-text-primary">{model.name}</div>
+              <div className="body-xs text-text-muted">{model.provider}</div>
             </div>
             <InlineSparkline data={model.throughputHistory} />
-            <span className="text-sm font-mono tabular-nums text-[--text-primary] font-semibold w-10 text-right">
+            <span className="w-10 text-right font-mono text-sm tabular-nums text-text-primary">
               {score(model).toFixed(0)}
             </span>
-            <span className={cn(
-              "text-xs font-bold font-mono px-1.5 py-0.5 rounded border w-5 text-center",
-              gradeColor[letterGrade(score(model))],
-            )}>
-              {letterGrade(score(model))}
-            </span>
+            <GradeBadge grade={letterGrade(score(model))} />
           </div>
         ))}
       </div>
@@ -121,37 +108,29 @@ function PodiumSlot({
   return (
     <div
       className={cn(
-        "flex-1 text-center rounded-xl border p-3 transition-all duration-200",
-        highlight
-          ? "border-[--text-accent]/20 bg-gradient-to-b from-[--text-accent]/[0.05] to-transparent"
-          : "border-[--border-subtle] bg-[--surface-recessed]",
+        "min-w-0 flex-1 rounded-lg border p-3 text-center",
+        highlight ? "border-text-primary bg-surface-elevated max-sm:order-first sm:min-h-[120px]" : "border-border-subtle bg-surface-recessed",
+        !highlight && (rank === 2 ? "sm:min-h-[100px]" : "sm:min-h-[85px]"),
       )}
-      style={{ minHeight: highlight ? 120 : rank === 2 ? 100 : 85 }}
     >
       <div className="flex items-center justify-center gap-1 mb-1">
-        <Award className={cn(
-          "w-3.5 h-3.5",
-          rank === 1 ? "text-[--text-accent]" : rank === 2 ? "text-[--text-secondary]" : "text-[--text-tertiary]",
-        )} />
-        <span className={cn(
-          "text-xs font-bold uppercase tracking-[0.08em] font-mono",
-          rank === 1 ? "text-[--text-accent]" : "text-[--text-tertiary]",
-        )}>
-          {rank === 1 ? "Best Overall" : rank === 2 ? "Runner Up" : "Third"}
+        <Award className="h-4 w-4 text-text-muted" aria-hidden="true" />
+        <span className={cn("body-sm", rank === 1 ? "font-medium text-text-primary" : "text-text-muted")}>
+          {rank === 1 ? "Best overall" : rank === 2 ? "Runner up" : "Third"}
         </span>
       </div>
-      <div className="text-base font-semibold text-[--text-primary] truncate mb-0.5">{model.name}</div>
-      <div className="text-xs font-mono text-[--text-tertiary] mb-2">{model.provider}</div>
-      <div className="h-1.5 w-full bg-[--border-subtle] rounded-full overflow-hidden mb-1">
+      <div className="mb-0.5 truncate font-mono text-sm text-text-primary">{model.name}</div>
+      <div className="mb-2 body-xs text-text-muted">{model.provider}</div>
+      <div className="mb-1 h-1 w-full overflow-hidden rounded-full bg-border-subtle">
         <div
-          className="h-full rounded-full transition-all duration-500"
+          className="h-full rounded-full"
           style={{
             width: `${pct}%`,
-            background: highlight ? "var(--text-accent)" : "var(--text-tertiary)",
+            background: highlight ? "var(--text-primary)" : "var(--text-muted)",
           }}
         />
       </div>
-      <div className="text-xs font-mono tabular-nums text-[--text-tertiary]">{s.toFixed(0)} pts</div>
+      <div className="font-mono text-xs tabular-nums text-text-muted">{s.toFixed(0)} pts</div>
     </div>
   );
 }
@@ -174,7 +153,7 @@ function InlineSparkline({ data }: { data: number[] }) {
       <polyline
         points={points}
         fill="none"
-        stroke="var(--text-tertiary)"
+        stroke="var(--text-muted)"
         strokeWidth="1.2"
         strokeLinecap="round"
         strokeLinejoin="round"

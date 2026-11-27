@@ -31,21 +31,22 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        // One consistent type scale for every dropdown: 0.8rem Geist, tabular.
-        "group flex w-fit items-center justify-between gap-2 whitespace-nowrap rounded-lg border border-border-subtle bg-surface-recessed",
-        "font-sans text-[0.8rem] text-text-secondary transition-colors outline-none",
-        "data-[size=default]:h-9 data-[size=default]:px-3 data-[size=sm]:h-8 data-[size=sm]:px-2.5 data-[size=sm]:text-[0.72rem]",
-        "hover:border-border-base data-[state=open]:border-border-strong",
-        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-base",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        "data-[placeholder]:text-text-quaternary [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:h-3.5 [&_svg:not([class*='size-'])]:w-3.5",
+        // One control look for every dropdown: the outline-button family (hairline,
+        // radius 6, 14/500 ink), 36px tall, 32px for size="sm". Focus uses the global
+        // 2px ink outline; do not add outline-none (it removes the focus-visible ring).
+        "group flex w-fit items-center justify-between gap-2 whitespace-nowrap rounded-sm border border-btn-line bg-btn-bg",
+        "press font-sans text-sm font-medium text-text-primary",
+        "data-[size=default]:h-9 data-[size=default]:px-3 data-[size=sm]:h-8 data-[size=sm]:px-2.5",
+        "hover:bg-chip data-[state=open]:bg-chip",
+                "disabled:cursor-not-allowed disabled:opacity-50",
+        "data-[placeholder]:text-text-muted [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:h-4 [&_svg:not([class*='size-'])]:w-4",
         className,
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDown className="h-3.5 w-3.5 text-text-quaternary transition-transform group-data-[state=open]:rotate-180" />
+        <ChevronDown className="sel-chev h-4 w-4 text-text-muted group-data-[state=open]:rotate-180" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   )
@@ -62,8 +63,7 @@ function SelectContent({
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          "relative z-50 max-h-[var(--radix-select-content-available-height)] min-w-[8rem] origin-[var(--radix-select-content-transform-origin)] overflow-hidden rounded-lg border border-border-base bg-surface-overlay text-text-secondary shadow-[0_12px_36px_rgba(0,0,0,0.45)]",
-          "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          "relative z-50 max-h-[var(--radix-select-content-available-height)] min-w-[8rem] origin-[var(--radix-select-content-transform-origin)] overflow-hidden rounded-md border border-border-base bg-surface-overlay text-text-primary shadow-(--shadow-float)",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
           className,
@@ -91,7 +91,7 @@ function SelectLabel({ className, ...props }: React.ComponentProps<typeof Select
   return (
     <SelectPrimitive.Label
       data-slot="select-label"
-      className={cn("px-2 py-1.5 text-[0.64rem] font-semibold uppercase tracking-[0.1em] text-text-quaternary", className)}
+      className={cn("px-2 py-1.5 body-sm text-text-muted", className)}
       {...props}
     />
   )
@@ -106,17 +106,16 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex w-full cursor-default select-none items-center gap-2 rounded-md py-1.5 pl-2 pr-7 text-[0.8rem] text-text-secondary outline-none",
-        "data-[highlighted]:bg-surface-recessed data-[highlighted]:text-text-primary",
-        "data-[state=checked]:text-text-primary",
+        "relative flex min-h-9 w-full cursor-default select-none items-center gap-2 rounded-sm py-1.5 pl-2 pr-8 text-sm text-text-primary outline-none",
+        "data-[highlighted]:bg-chip data-[highlighted]:text-text-primary",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,
       )}
       {...props}
     >
-      <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
+      <span className="absolute right-2 flex h-4 w-4 items-center justify-center">
         <SelectPrimitive.ItemIndicator>
-          <Check className="h-3.5 w-3.5 text-text-accent" />
+          <Check className="h-4 w-4 text-text-primary" />
         </SelectPrimitive.ItemIndicator>
       </span>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
@@ -138,10 +137,10 @@ function SelectScrollUpButton(props: React.ComponentProps<typeof SelectPrimitive
   return (
     <SelectPrimitive.ScrollUpButton
       data-slot="select-scroll-up-button"
-      className="flex cursor-default items-center justify-center py-1 text-text-quaternary"
+      className="flex cursor-default items-center justify-center py-1 text-text-muted"
       {...props}
     >
-      <ChevronUp className="h-3.5 w-3.5" />
+      <ChevronUp className="h-4 w-4" />
     </SelectPrimitive.ScrollUpButton>
   )
 }
@@ -150,10 +149,10 @@ function SelectScrollDownButton(props: React.ComponentProps<typeof SelectPrimiti
   return (
     <SelectPrimitive.ScrollDownButton
       data-slot="select-scroll-down-button"
-      className="flex cursor-default items-center justify-center py-1 text-text-quaternary"
+      className="flex cursor-default items-center justify-center py-1 text-text-muted"
       {...props}
     >
-      <ChevronDown className="h-3.5 w-3.5" />
+      <ChevronDown className="h-4 w-4" />
     </SelectPrimitive.ScrollDownButton>
   )
 }
