@@ -5,7 +5,6 @@ import { Activity } from "lucide-react";
 import type { NIMModel } from "../dashboard/mock-data";
 import { StatusDot, FleetBar } from "./discover-primitives";
 import { Vital, Delta } from "./ops-primitives";
-import { cn } from "@/lib/utils";
 
 interface Props {
   models: NIMModel[];
@@ -67,9 +66,9 @@ export function FleetIntelligence({ models }: Props) {
   }, [models]);
 
   const verdict =
-    f.jammed > 0 ? { label: "Fleet Degraded", tone: "critical" as const, status: "jammed" as const }
-    : f.busy > 0 ? { label: "Fleet Strained", tone: "warn" as const, status: "busy" as const }
-    : { label: "Fleet Nominal", tone: "healthy" as const, status: "healthy" as const };
+    f.jammed > 0 ? { label: "Fleet degraded", tone: "critical" as const, status: "jammed" as const }
+    : f.busy > 0 ? { label: "Fleet strained", tone: "warn" as const, status: "busy" as const }
+    : { label: "Fleet nominal", tone: "healthy" as const, status: "healthy" as const };
 
   const relTone = f.avgReliability >= 99 ? "healthy" : f.avgReliability >= 97 ? "warn" : "critical";
   const congTone = f.avgCongestion < 35 ? "healthy" : f.avgCongestion < 60 ? "warn" : "critical";
@@ -81,17 +80,8 @@ export function FleetIntelligence({ models }: Props) {
         <div className="flex items-center gap-3">
           <StatusDot status={verdict.status} size={11} />
           <div className="flex flex-col">
-            <span
-              className={cn(
-                "heading-md leading-tight",
-                verdict.tone === "healthy" && "text-status-healthy",
-                verdict.tone === "warn" && "text-status-warn",
-                verdict.tone === "critical" && "text-status-critical",
-              )}
-            >
-              {verdict.label}
-            </span>
-            <span className="body-xs text-text-tertiary mt-0.5">
+            <span className="heading-md leading-tight text-text-primary">{verdict.label}</span>
+            <span className="body-sm mt-0.5 text-text-muted">
               {f.healthy} of {f.total} endpoints operational
               {f.degraded > 0 ? ` · ${f.degraded} degraded` : ""}
             </span>
@@ -106,8 +96,8 @@ export function FleetIntelligence({ models }: Props) {
             <Legend tone="critical" value={f.jammed} />
           </div>
           <span className="hidden items-center gap-1.5 lg:inline-flex pl-1">
-            <Activity className="h-3 w-3 text-text-quaternary" />
-            <span className="label-xs text-text-quaternary">LIVE</span>
+            <Activity className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
+            <span className="label-sm text-text-muted">Live</span>
           </span>
         </div>
       </div>
@@ -126,7 +116,7 @@ export function FleetIntelligence({ models }: Props) {
         </div>
         <div className="p-4 sm:p-5">
           <Vital
-            label="P95 Latency"
+            label="P95 latency"
             value={Math.round(f.avgP95)}
             unit="ms"
             tone="neutral"
@@ -159,11 +149,8 @@ export function FleetIntelligence({ models }: Props) {
 
 function Legend({ tone, value }: { tone: "healthy" | "warn" | "critical"; value: number }) {
   return (
-    <span className="flex items-center gap-1.5 metric-xs text-text-tertiary">
-      <span
-        className="h-1.5 w-1.5 rounded-full"
-        style={{ background: `var(--status-${tone === "warn" ? "warn" : tone})` }}
-      />
+    <span className="flex items-center gap-1.5 metric-xs text-text-primary">
+      <StatusDot status={tone === "healthy" ? "healthy" : tone === "warn" ? "busy" : "jammed"} size={8} />
       {value}
     </span>
   );

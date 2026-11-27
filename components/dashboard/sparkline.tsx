@@ -1,17 +1,13 @@
-"use client";
-
-import { useId } from "react";
 import { svgPoint } from "@/lib/utils";
 
 interface SparklineProps {
   data: number[];
+  /** Stroke colour; defaults to the muted ink (a single series is neutral). */
   color?: string;
   height?: number;
 }
 
-export function Sparkline({ data, color = "#10b981", height = 24 }: SparklineProps) {
-  const uid = useId();
-
+export function Sparkline({ data, color = "var(--text-muted)", height = 24 }: SparklineProps) {
   if (data.length < 2) return null;
 
   const width = 80;
@@ -38,7 +34,7 @@ export function Sparkline({ data, color = "#10b981", height = 24 }: SparklinePro
         points={points}
         fill="none"
         stroke={color}
-        strokeWidth="1"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

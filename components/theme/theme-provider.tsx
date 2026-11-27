@@ -20,6 +20,9 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+// Latest switch, so a second toggle inside the window restarts the two frames.
+let switchId = 0;
+
 // Dark-first: default to dark unless the visitor explicitly chose light.
 // (The no-flash ThemeScript applies this same rule before paint.)
 function getInitialTheme(): Theme {
@@ -32,10 +35,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
+    const changing = !root.classList.contains(theme);
+    // M11: one clean cut. While the class flips, every transition is suppressed
+    // for two frames so nothing changes colour at a different moment from
+    // anything else (the toggle's own glyph cross-fade is exempt, see globals.css).
+    const id = changing ? ++switchId : switchId;
+    if (changing) root.classList.add("theme-switching");
     root.classList.remove("dark", "light");
     root.classList.add(theme);
     root.setAttribute("data-theme", theme);
     window.localStorage.setItem(STORAGE_KEY, theme);
+    if (changing) {
+      void getComputedStyle(root).color; // apply the cut before transitions come back
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (id === switchId) root.classList.remove("theme-switching");
+        }),
+      );
+    }
   }, [theme]);
 
   const toggle = useMemo(

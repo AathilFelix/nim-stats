@@ -1,45 +1,64 @@
 "use client";
 
 import { useMemo } from "react";
-import { Clock } from "lucide-react";
-import { PanelHeader } from "@/components/discover/ops-primitives";
 import { useReliability } from "@/lib/client/use-reliability";
-import { latencyColor } from "@/lib/reliability-format";
 import type { HourBucket } from "@/lib/reliability-types";
+import { LATENCY_STEPS, latencyLevel } from "./heat-scale";
 
 const HOUR_TICKS = [0, 3, 6, 9, 12, 15, 18, 21];
+
+const hh = (h: number) => String(h).padStart(2, "0");
+
+/** Scale for the latency ramp: five labelled steps plus the empty cell. */
+export function LatencyLegend() {
+  return (
+    <div className="heat-lat flex flex-wrap items-center gap-x-4 gap-y-2 body-sm text-text-muted">
+      <span className="flex items-center gap-2">
+        <i className="heat size-3.5" data-lv="0" aria-hidden="true" />
+        No data
+      </span>
+      {LATENCY_STEPS.map((s) => (
+        <span key={s.level} className="flex items-center gap-2">
+          <i className="heat size-3.5" data-lv={s.level} aria-hidden="true" />
+          {s.label}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 /** Single-model 24-hour latency strip — used in the detail drawer. */
 export function HourStrip({ hours }: { hours: HourBucket[] }) {
   const hasData = hours.some((h) => h.total > 0);
   return (
-    <div className="space-y-1.5">
-      <div className="flex gap-[2px]">
+    <div className="heat-lat space-y-2">
+      <div className="flex gap-[2px]" role="img" aria-label="Average first token for each hour of the day, UTC. Stronger means slower.">
         {hours.map((h) => (
           <span
             key={h.hour}
             title={
               h.total > 0
-                ? `${String(h.hour).padStart(2, "0")}:00 UTC · ${h.avgTtft ?? "—"}ms TTFT · ${h.uptime?.toFixed(0)}% ok (${h.total})`
-                : `${String(h.hour).padStart(2, "0")}:00 UTC · no data`
+                ? `${hh(h.hour)}:00 UTC: ${h.avgTtft ?? "—"} ms first token, ${h.uptime?.toFixed(0)}% ok (${h.total} probes)`
+                : `${hh(h.hour)}:00 UTC: no data`
             }
-            className="h-5 flex-1 rounded-[2px] ring-1 ring-inset ring-border-subtle/50"
-            style={{ backgroundColor: latencyColor(h.total > 0 ? h.avgTtft : null) }}
+            className="heat h-6 flex-1"
+            data-lv={latencyLevel(h.total > 0 ? h.avgTtft : null)}
           />
         ))}
       </div>
-      <div className="flex justify-between">
+      <div className="flex justify-between body-xs text-text-muted">
         {[0, 6, 12, 18, 23].map((t) => (
-          <span key={t} className="metric-xs text-text-quaternary">{String(t).padStart(2, "0")}</span>
+          <span key={t}>{hh(t)}</span>
         ))}
       </div>
-      {!hasData && <p className="metric-xs text-text-quaternary">No hourly samples yet.</p>}
+      <LatencyLegend />
+      {!hasData && <p className="body-sm text-text-muted">No hourly samples yet.</p>}
     </div>
   );
 }
 
 export function LatencyHeatmap() {
-  const { data, loading } = useReliability();
+  const { data, loading, error } = useReliability();
 
   // Every model that has at least one hour of samples, alphabetical.
   const rows = useMemo(() => {
@@ -49,67 +68,67 @@ export function LatencyHeatmap() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
+  // One box for loading, loaded, error and empty (R10a): the axis and legend are
+  // always drawn and the rows live in a fixed-height scroller, so only what is
+  // inside it changes.
+  const note = !data ? (loading ? "Loading latency history…" : error ? "Couldn’t load latency history." : "No hourly data yet.") : rows.length === 0 ? "No hourly data yet." : null;
+
   return (
-    <section className="ops-card">
-      <PanelHeader
-        label="Time-of-Day Latency"
-        icon={Clock}
-        tone="warn"
-        meta={<span className="metric-xs text-text-quaternary">{rows.length} models</span>}
-      />
-      <div className="p-4 sm:p-5">
+    <section aria-label="Latency by hour" className="panel col-span-12">
+      <div className="hdiv">
+        <h2 className="heading-md">Latency by hour</h2>
+        <span className="body-sm text-text-muted">Average first token, UTC</span>
+      </div>
+      <div className="heat-lat panel-pad" aria-busy={loading && !data}>
         {/* Hour axis */}
-        <div className="mb-1.5 flex items-center gap-2 pl-[120px]">
-          <div className="grid flex-1 grid-cols-[repeat(24,minmax(0,1fr))] gap-[2px]">
+        <div className="mb-2 grid grid-cols-[6rem_1fr] gap-2 md:grid-cols-[12rem_1fr]" aria-hidden="true">
+          <span />
+          <div className="grid grid-cols-[repeat(24,minmax(0,1fr))] gap-[2px]">
             {Array.from({ length: 24 }, (_, h) => (
-              <span key={h} className="metric-xs text-center text-text-quaternary leading-none">
-                {HOUR_TICKS.includes(h) ? h : ""}
+              <span key={h} className="flex justify-center whitespace-nowrap body-xs leading-none text-text-muted">
+                {HOUR_TICKS.includes(h) ? hh(h) : ""}
               </span>
             ))}
           </div>
         </div>
 
-        {loading && !data ? (
-          <p className="body-xs text-text-tertiary py-6 text-center">Loading latency history…</p>
-        ) : rows.length === 0 ? (
-          <p className="body-xs text-text-tertiary py-6 text-center">No hourly data yet.</p>
-        ) : (
-          <div className="max-h-[560px] space-y-[2px] overflow-y-auto no-scrollbar">
-            {rows.map((m) => (
-              <div key={m.id} className="flex items-center gap-2">
-                <span className="w-[112px] shrink-0 truncate body-xs text-text-secondary" title={m.name}>
-                  {m.name}
-                </span>
-                <div className="grid flex-1 grid-cols-[repeat(24,minmax(0,1fr))] gap-[2px]">
-                  {m.hours.map((h) => (
-                    <span
-                      key={h.hour}
-                      title={
-                        h.total > 0
-                          ? `${m.name} · ${String(h.hour).padStart(2, "0")}:00 UTC · ${h.avgTtft ?? "—"}ms · ${h.uptime?.toFixed(0)}% ok`
-                          : `${m.name} · ${String(h.hour).padStart(2, "0")}:00 UTC · no data`
-                      }
-                      className="h-4 rounded-[2px] ring-1 ring-inset ring-border-subtle/40"
-                      style={{ backgroundColor: latencyColor(h.total > 0 ? h.avgTtft : null) }}
-                    />
-                  ))}
+        <div
+          role="region"
+          tabIndex={0}
+          aria-label="Average first token by endpoint and hour of day, UTC. Stronger means slower. Scrollable."
+          className="h-[560px] overflow-y-auto scroll-y-lane"
+        >
+          {note ? (
+            <p className="body-sm text-text-muted" role={error && !data ? "alert" : undefined}>{note}</p>
+          ) : (
+            <div className="space-y-[2px]">
+              {rows.map((m) => (
+                <div key={m.id} className="grid grid-cols-[6rem_1fr] items-center gap-2 md:grid-cols-[12rem_1fr]">
+                  <span className="truncate metric-xs text-text-primary" title={m.name}>
+                    {m.name}
+                  </span>
+                  <div className="grid grid-cols-[repeat(24,minmax(0,1fr))] gap-[2px]">
+                    {m.hours.map((h) => (
+                      <span
+                        key={h.hour}
+                        title={
+                          h.total > 0
+                            ? `${m.name}, ${hh(h.hour)}:00 UTC: ${h.avgTtft ?? "—"} ms first token, ${h.uptime?.toFixed(0)}% ok`
+                            : `${m.name}, ${hh(h.hour)}:00 UTC: no data`
+                        }
+                        className="heat h-5"
+                        data-lv={latencyLevel(h.total > 0 ? h.avgTtft : null)}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
 
-        {/* Legend */}
-        <div className="mt-3 flex items-center gap-2">
-          <span className="metric-xs text-text-quaternary">Faster</span>
-          {[150, 400, 700, 1100, 2000].map((ms) => (
-            <span
-              key={ms}
-              className="h-3 w-3 rounded-[2px] ring-1 ring-inset ring-border-subtle/50"
-              style={{ backgroundColor: latencyColor(ms) }}
-            />
-          ))}
-          <span className="metric-xs text-text-quaternary">Slower · TTFT by hour (UTC)</span>
+        <div className="mt-4">
+          <LatencyLegend />
         </div>
       </div>
     </section>

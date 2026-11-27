@@ -18,19 +18,19 @@ export interface DiscoverCategoryDef {
 export const CATEGORIES: DiscoverCategoryDef[] = [
   {
     id: "fastest",
-    label: "Fastest Right Now",
+    label: "Fastest right now",
     sort: (models) =>
       [...models].sort((a, b) => b.throughput - a.throughput),
   },
   {
     id: "most-reliable",
-    label: "Most Reliable",
+    label: "Most reliable",
     sort: (models) =>
       [...models].sort((a, b) => b.reliability - a.reliability),
   },
   {
     id: "least-congested",
-    label: "Least Congested",
+    label: "Least congested",
     sort: (models) =>
       [...models].sort((a, b) => a.congestion - b.congestion),
   },
@@ -42,13 +42,13 @@ export const CATEGORIES: DiscoverCategoryDef[] = [
   // icon/highlight maps stay intact for that rebuild.
   {
     id: "trending-degradation",
-    label: "Trending Degradation",
+    label: "Trending degradation",
     sort: (models) =>
       [...models].sort((a, b) => degradationTrend(b) - degradationTrend(a)),
   },
   {
     id: "emerging-standouts",
-    label: "Emerging Standouts",
+    label: "Emerging standouts",
     sort: (models) => {
       const scored = models.map((m) => ({
         model: m,

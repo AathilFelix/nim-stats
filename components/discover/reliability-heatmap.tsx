@@ -13,16 +13,13 @@ interface ReliabilityHeatmapProps {
 // model so every row lines up into a grid (Penpot: "ReliabilityHeatmap").
 const COLS = 12;
 
-type Band = { fg: string; alpha: number };
-
-// Score → status color + background alpha. Bands mirror the Penpot design:
-// bright green for near-perfect, green for healthy, amber for wobbly, red for
-// unreliable. Colors are the theme-aware status tokens (dark + light).
-function band(score: number): Band {
-  if (score >= 98) return { fg: "var(--status-healthy)", alpha: 0.16 };
-  if (score >= 94) return { fg: "var(--status-healthy)", alpha: 0.09 };
-  if (score >= 90) return { fg: "var(--status-warn)", alpha: 0.14 };
-  return { fg: "var(--status-critical)", alpha: 0.14 };
+// Score -> level for `.score-cell` in globals.css: faint emerald tints with ink
+// text, and a hatch under 90 so the worst cells never rely on a hue.
+function level(score: number): string {
+  if (score >= 98) return "4";
+  if (score >= 94) return "3";
+  if (score >= 90) return "2";
+  return "bad";
 }
 
 type Cell = { key: string; score: number | null };
@@ -50,8 +47,8 @@ export function ReliabilityHeatmap({ models }: ReliabilityHeatmapProps) {
   if (!models.length) {
     return (
       <section className="ops-card">
-        <PanelHeader label="Reliability Matrix" icon={Grid2x2} tone="info" />
-        <div className="py-8 text-center text-text-tertiary body-xs">No data.</div>
+        <PanelHeader label="Reliability matrix" icon={Grid2x2} tone="info" />
+        <div className="py-8 text-center body-sm text-text-muted">No data.</div>
       </section>
     );
   }
@@ -59,41 +56,32 @@ export function ReliabilityHeatmap({ models }: ReliabilityHeatmapProps) {
   return (
     <section className="ops-card">
       <PanelHeader
-        label="Reliability Matrix"
+        label="Reliability matrix"
         icon={Grid2x2}
         tone="info"
-        meta={<span className="metric-xs">recent · by model</span>}
+        meta={<span>Recent, by model</span>}
       />
 
       <div className="panel-pad space-y-1.5">
         {rows.map(({ model, cells }) => (
           <div key={model.id} className="flex items-center gap-1.5">
             {/* Model name — row label */}
-            <span className="w-32 shrink-0 truncate font-mono text-[11px] text-text-secondary">
+            <span className="w-24 shrink-0 truncate font-mono text-xs text-text-primary sm:w-32" title={model.name}>
               {model.name}
             </span>
 
             {/* Score cells — the matrix body */}
-            <div className="grid min-w-0 flex-1 grid-cols-12 gap-1">
+            <div className="grid min-w-0 flex-1 grid-cols-12 gap-0.5 sm:gap-1">
               {cells.map((c) => {
                 if (c.score == null) {
-                  return (
-                    <div
-                      key={c.key}
-                      className="h-7 rounded-[5px] bg-[--border-subtle]"
-                    />
-                  );
+                  return <div key={c.key} className="score-cell h-7" data-lv="0" />;
                 }
-                const { fg, alpha } = band(c.score);
                 return (
                   <div
                     key={c.key}
-                    className="flex h-7 items-center justify-center rounded-[5px] font-mono text-[11px] tabular-nums"
-                    style={{
-                      color: fg,
-                      background: `color-mix(in srgb, ${fg} ${alpha * 100}%, transparent)`,
-                    }}
-                    title={`${model.name} · ${c.score}%`}
+                    className="score-cell h-7 font-mono text-xs tabular-nums text-text-primary"
+                    data-lv={level(c.score)}
+                    title={`${model.name}: ${c.score}%`}
                   >
                     {c.score}
                   </div>
@@ -102,6 +90,7 @@ export function ReliabilityHeatmap({ models }: ReliabilityHeatmapProps) {
             </div>
           </div>
         ))}
+        <p className="pt-2 body-sm text-text-muted">Reliability score for each recent probe window. Hatched cells are under 90.</p>
       </div>
     </section>
   );

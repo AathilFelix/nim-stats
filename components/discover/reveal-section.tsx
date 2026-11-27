@@ -1,19 +1,16 @@
-"use client";
-
-import { useReveal } from "@/lib/hooks/use-reveal";
+import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function RevealSection({ children, className }: { children: React.ReactNode; className?: string }) {
-  const { ref, visible } = useReveal();
+/**
+ * A page section that enters once on load: opacity and 6px of rise, 360ms
+ * ease-out, staggered by `step` (capped at 4, 45ms each). It is a CSS animation on
+ * server-rendered markup, so the content is visible without JavaScript, and
+ * `prefers-reduced-motion` places it at its final state (see `.reveal` in
+ * globals.css).
+ */
+export function RevealSection({ children, className, step = 1 }: { children: ReactNode; className?: string; step?: number }) {
   return (
-    <div
-      ref={ref}
-      className={cn(
-        "transition-all duration-500",
-        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4",
-        className,
-      )}
-    >
+    <div className={cn("reveal", className)} style={{ "--i": step } as CSSProperties}>
       {children}
     </div>
   );

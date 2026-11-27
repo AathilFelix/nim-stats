@@ -1,50 +1,37 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "./theme-provider";
-import { Sun, Moon } from "lucide-react";
-import { useEffect, useState } from "react";
 
+// false on the server and the client's first render (they match), true after
+// hydration. useSyncExternalStore avoids a setState-in-effect for the mounted flag.
+const subscribe = () => () => {};
+function useHydrated(): boolean {
+  return useSyncExternalStore(subscribe, () => true, () => false);
+}
+
+/**
+ * 36px outline icon button. The icon names the action: sun in dark (switch to
+ * light), moon in light. Which glyph shows is pure CSS off the theme class that
+ * ThemeScript sets before first paint, so nothing waits on hydration but the
+ * accessible label.
+ */
 export function ThemeToggle() {
   const { theme, toggle } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return (
-      <button
-        aria-label="Toggle theme"
-        className="relative inline-flex h-6 w-10 items-center rounded-md border border-border-base bg-surface-recessed"
-      >
-        <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-zinc-200 translate-x-6" />
-      </button>
-    );
-  }
-
+  const hydrated = useHydrated();
   const isDark = theme === "dark";
 
   return (
     <button
+      type="button"
       onClick={toggle}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      title={isDark ? "Light mode" : "Dark mode"}
-      className="relative inline-flex h-6 w-10 items-center rounded-md border border-border-base bg-surface-recessed transition-colors duration-150 hover:border-border-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={hydrated ? (isDark ? "Switch to light mode" : "Switch to dark mode") : "Toggle theme"}
+      title={hydrated ? (isDark ? "Light mode" : "Dark mode") : undefined}
+      className="theme-toggle btn btn-outline btn-icon shrink-0"
     >
-      <span
-        className="inline-flex h-4 w-4 items-center justify-center rounded transition-transform duration-150"
-        style={{
-          transform: isDark ? "translateX(2px)" : "translateX(22px)",
-          backgroundColor: isDark ? "#18181b" : "#ffffff",
-        }}
-      >
-        {isDark ? (
-          <Moon className="h-3 w-3 text-zinc-400" aria-hidden="true" />
-        ) : (
-          <Sun className="h-3 w-3 text-amber-500" aria-hidden="true" />
-        )}
-      </span>
+      <Sun className="theme-glyph--sun" strokeWidth={1.8} aria-hidden="true" />
+      <Moon className="theme-glyph--moon" strokeWidth={1.8} aria-hidden="true" />
     </button>
   );
 }

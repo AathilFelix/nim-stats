@@ -32,17 +32,17 @@ export function RankCard({ model, rank, headlineMetric, selected, onSelect }: Ra
       <div className="flex items-center gap-1.5 mb-2.5 pr-8">
         <StatusDot status={model.status} size={5} />
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-[--text-primary] truncate leading-tight">{model.name}</div>
-          <div className="text-[10px] font-mono text-[--text-tertiary] mt-0.5 tracking-wider uppercase">{model.provider}</div>
+          <div className="truncate font-mono text-sm leading-tight text-text-primary">{model.name}</div>
+          <div className="mt-0.5 body-xs text-text-muted">{model.provider}</div>
         </div>
       </div>
 
       {/* Headline metric */}
       <div className="flex items-baseline gap-1 mb-2">
-        <span className="metric-xl text-[--text-primary] leading-none">
+        <span className="metric-xl leading-none text-text-primary">
           {headlineMetric.value}
         </span>
-        <span className="text-xs font-bold uppercase tracking-[0.06em] text-[--text-tertiary] font-mono">
+        <span className="body-sm text-text-muted">
           {headlineMetric.label}
         </span>
       </div>
@@ -63,9 +63,9 @@ export function RankCard({ model, rank, headlineMetric, selected, onSelect }: Ra
 
       {/* Mini stats */}
       <div className="space-y-0.5">
-        <MiniStat label="Rel" value={`${model.reliability}%`} />
-        <MiniStat label="Cong" value={`${model.congestion}%`} warn={model.congestion > 50} />
-        <MiniStat label="TTFT" value={`${model.ttft}ms`} />
+        <MiniStat label="Reliability" value={`${model.reliability}%`} />
+        <MiniStat label="Congestion" value={`${model.congestion}%`} warn={model.congestion > 50} />
+        <MiniStat label="First token" value={`${model.ttft}ms`} />
       </div>
     </button>
   );
@@ -74,8 +74,9 @@ export function RankCard({ model, rank, headlineMetric, selected, onSelect }: Ra
 function MiniStat({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-2">
-      <span className="text-[10px] uppercase tracking-[0.06em] text-[--text-tertiary] shrink-0">{label}</span>
-      <span className={`text-xs font-mono tabular-nums ${warn ? "text-[--status-critical] font-semibold" : "text-[--text-primary]"}`}>
+      <span className="shrink-0 body-xs text-text-muted">{label}</span>
+      <span className={`flex items-center gap-1.5 font-mono text-xs tabular-nums text-text-primary ${warn ? "font-medium" : ""}`}>
+        {warn && <StatusDot status="busy" size={8} />}
         {value}
       </span>
     </div>

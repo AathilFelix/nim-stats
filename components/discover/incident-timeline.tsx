@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { AlertOctagon, AlertTriangle, Info, CheckCircle2, Siren } from "lucide-react";
+import { CheckCircle2, Siren } from "lucide-react";
 import type { NIMModel } from "../dashboard/mock-data";
-import { SeverityLine } from "./discover-primitives";
+import { SeverityLine, StatusDot } from "./discover-primitives";
 import { PanelHeader } from "./ops-primitives";
-import { cn } from "@/lib/utils";
 
 type Severity = "critical" | "warning" | "info";
 
@@ -19,22 +18,10 @@ interface TimelineItem {
   message: string;
 }
 
-function severityIcon(severity: Severity): React.ElementType {
-  if (severity === "critical") return AlertOctagon;
-  if (severity === "warning") return AlertTriangle;
-  return Info;
-}
-
-function severityColor(severity: Severity): string {
-  if (severity === "critical") return "text-[--status-critical]";
-  if (severity === "warning") return "text-[--status-warn]";
-  return "text-[--status-info]";
-}
-
 function formatAge(iso: string): string {
   const age = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(age / 60000);
-  if (mins < 1) return "< 1m ago";
+  if (mins < 1) return "Under 1m ago";
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
@@ -77,11 +64,11 @@ export function IncidentTimeline({ models }: { models: NIMModel[] }) {
   if (!items.length) {
     return (
       <section className="ops-card">
-        <PanelHeader label="Incident Timeline" icon={Siren} tone="healthy" />
+        <PanelHeader label="Incident timeline" icon={Siren} tone="healthy" />
         <div className="flex flex-col items-center justify-center py-10 text-center">
-          <CheckCircle2 className="w-8 h-8 text-status-healthy mb-2" />
-          <p className="body-sm font-medium text-status-healthy mb-1">All systems nominal</p>
-          <p className="body-xs text-text-tertiary">No active incidents detected.</p>
+          <CheckCircle2 className="mb-2 h-8 w-8 text-text-muted" aria-hidden="true" />
+          <p className="mb-1 body-sm font-medium text-text-primary">All systems nominal</p>
+          <p className="body-sm text-text-muted">No active incidents detected.</p>
         </div>
       </section>
     );
@@ -90,30 +77,29 @@ export function IncidentTimeline({ models }: { models: NIMModel[] }) {
   return (
     <section className="ops-card">
       <PanelHeader
-        label="Incident Timeline"
+        label="Incident timeline"
         icon={Siren}
         tone="critical"
-        meta={<span className="status-chip status-chip--critical">{items.length} active</span>}
+        meta={<span className="status-chip">{items.length} active</span>}
       />
 
       <div className="panel-pad space-y-1">
         {items.map((item) => {
-          const Icon = severityIcon(item.severity);
           return (
             <SeverityLine key={item.id} severity={item.severity}>
               <div
-                className="flex items-center gap-2.5 py-2.5 px-3 transition-colors duration-150 hover:bg-[--surface-recessed] rounded-r-lg"
+                className="flex items-center gap-3 rounded-r-lg px-3 py-3 transition-colors duration-150 hover:bg-surface-recessed"
                 style={{ opacity: ageOpacity(item.time) }}
                 suppressHydrationWarning
               >
-                <Icon className={cn("w-3.5 h-3.5 shrink-0", severityColor(item.severity))} />
+                <StatusDot status={item.severity === "critical" ? "jammed" : "busy"} size={10} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-[--text-primary] truncate">{item.message}</div>
-                  <div className="text-[10px] font-mono text-[--text-tertiary] mt-0.5">
+                  <div className="truncate body-sm text-text-primary">{item.message}</div>
+                  <div className="mt-0.5 truncate font-mono text-xs text-text-muted">
                     {item.title} &middot; {item.provider}
                   </div>
                 </div>
-                <span className="text-xs font-mono text-[--text-tertiary] shrink-0" suppressHydrationWarning>
+                <span className="shrink-0 font-mono text-xs text-text-muted" suppressHydrationWarning>
                   {formatAge(item.time)}
                 </span>
               </div>

@@ -1,18 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarDays } from "lucide-react";
-import { PanelHeader } from "@/components/discover/ops-primitives";
 import { useReliability, findModelReliability } from "@/lib/client/use-reliability";
 import { usePreferences } from "@/lib/client/preferences";
-import {
-  buildCalendar,
-  toWeekColumns,
-  uptimeFill,
-  type CalendarCell,
-} from "@/lib/reliability-format";
+import { buildCalendar, toWeekColumns, type CalendarCell } from "@/lib/reliability-format";
 import type { DayUptime } from "@/lib/reliability-types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UPTIME_STEPS, uptimeLevel } from "./heat-scale";
 
 export interface ModelLite {
   id: string;
@@ -21,11 +15,45 @@ export interface ModelLite {
   status: string;
 }
 
-const WEEKDAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
+const WEEKDAY_ROWS: Record<number, string> = { 1: "Mon", 3: "Wed", 5: "Fri" };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** Reusable 90-day grid for a single model — used standalone and in the drawer. */
-export function CalendarGrid({ days, totalDays = 90 }: { days: DayUptime[]; totalDays?: number }) {
-  const cells = useMemo(() => buildCalendar(days, totalDays), [days, totalDays]);
+const monthOf = (col: (CalendarCell | null)[]) => {
+  const first = col.find((c): c is CalendarCell => c != null);
+  return first ? Number(first.date.slice(5, 7)) - 1 : -1;
+};
+
+const dayLabel = (iso: string) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
+function Swatch({ level, label }: { level: string; label: string }) {
+  return (
+    <span className="flex items-center gap-2">
+      <i className="heat size-3.5" data-lv={level} aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
+
+export type CalendarState = "loaded" | "loading" | "error";
+
+const STATE_NOTE: Record<Exclude<CalendarState, "loaded">, string> = {
+  loading: "Loading reliability history…",
+  error: "Couldn’t load reliability history.",
+};
+
+/**
+ * Reusable 90-day grid for a single model, used standalone and in the drawer.
+ * The box is the same in every state (R10a): loading and error draw the same
+ * 13-week grid of empty cells, so only the note line changes. Cell size is fixed
+ * per breakpoint (`.cal`), so the height never depends on data or width.
+ * `labelled` adds "uptime, 90 days" to the figure; the drawer already has that
+ * in its heading, so it passes false.
+ */
+export function CalendarGrid({
+  days, totalDays = 90, state = "loaded", labelled = true,
+}: { days: DayUptime[]; totalDays?: number; state?: CalendarState; labelled?: boolean }) {
+  const cells = useMemo(() => buildCalendar(state === "loaded" ? days : [], totalDays), [days, totalDays, state]);
   const columns = useMemo(() => toWeekColumns(cells), [cells]);
 
   const withData = cells.filter((c) => c.total > 0);
@@ -38,67 +66,85 @@ export function CalendarGrid({ days, totalDays = 90 }: { days: DayUptime[]; tota
     null,
   );
 
+  // Month name above the first week of each month. A label is skipped when it
+  // would sit within two columns of the next one or run off the right edge.
+  const monthLabels = columns.map((col, ci) => {
+    const m = monthOf(col);
+    const prev = ci > 0 ? monthOf(columns[ci - 1]) : -1;
+    if (m === prev || m < 0 || ci > columns.length - 2) return null;
+    const next = columns.findIndex((c, i) => i > ci && monthOf(c) !== m);
+    if (ci === 0 && next !== -1 && next - ci < 3) return null;
+    return MONTHS[m];
+  });
+
+  const summary =
+    state !== "loaded"
+      ? STATE_NOTE[state]
+      : overall != null
+        ? `${overall.toFixed(2)}% uptime over ${totalDays} days, ${withData.length} measured${worst?.uptime != null ? `, worst ${worst.uptime.toFixed(1)}% on ${dayLabel(worst.date)}` : ""}`
+        : `No uptime measured in the last ${totalDays} days`;
+
+  const note =
+    state !== "loaded"
+      ? STATE_NOTE[state]
+      : `${withData.length} day${withData.length === 1 ? "" : "s"} measured${worst?.uptime != null ? `. Worst ${worst.uptime.toFixed(1)}% on ${dayLabel(worst.date)}.` : ""}`;
+
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="metric-xl text-text-primary">
-            {overall != null ? overall.toFixed(2) : "—"}
-            <span className="metric-xs text-text-tertiary ml-1">% uptime · {totalDays}d</span>
-          </p>
-          <p className="metric-xs text-text-tertiary mt-0.5">
-            {withData.length} day{withData.length === 1 ? "" : "s"} measured
-            {worst?.uptime != null && (
-              <span className="text-text-quaternary"> · worst {worst.uptime.toFixed(1)}% on {worst.date.slice(5)}</span>
-            )}
-          </p>
-        </div>
+    <div className="heat-up cal flex h-full flex-col gap-4" aria-busy={state === "loading"}>
+      <div>
+        <p className="metric-xl text-text-primary">
+          {overall != null ? overall.toFixed(2) : "—"}
+          <small className="body-sm ml-1 tracking-normal text-text-muted">{labelled ? `% uptime, ${totalDays} days` : "%"}</small>
+        </p>
+        <p className="mt-1 truncate body-sm text-text-muted" role={state === "error" ? "alert" : undefined}>{note}</p>
       </div>
 
       <div className="overflow-x-auto pb-1">
-        <div className="flex gap-[3px]">
-          {/* weekday gutter */}
-          <div className="mr-1 flex flex-col gap-[3px]">
-            {WEEKDAY_LABELS.map((l, i) => (
-              <span key={i} className="h-[11px] w-7 metric-xs leading-[11px] text-text-quaternary">
-                {l}
+        <div
+          role="img"
+          aria-label={summary}
+          className="grid justify-start gap-1"
+          style={{ gridTemplateColumns: `auto repeat(${columns.length}, var(--cell))`, gridTemplateRows: "16px" }}
+        >
+          {monthLabels.map((label, ci) =>
+            label ? (
+              <span key={`m${ci}`} className="body-xs whitespace-nowrap leading-4 text-text-muted" style={{ gridRow: 1, gridColumn: ci + 2 }}>
+                {label}
               </span>
-            ))}
-          </div>
-          {columns.map((col, ci) => (
-            <div key={ci} className="flex flex-col gap-[3px]">
-              {Array.from({ length: 7 }, (_, ri) => {
-                const cell = col[ri];
-                if (!cell) return <span key={ri} className="h-[11px] w-[11px]" />;
-                const tip =
-                  cell.total > 0
-                    ? `${cell.date} · ${cell.uptime?.toFixed(2)}% (${cell.ok}/${cell.total})`
-                    : `${cell.date} · no data`;
-                return (
-                  <span
-                    key={ri}
-                    title={tip}
-                    className="h-[11px] w-[11px] rounded-[2px] ring-1 ring-inset ring-border-subtle/60"
-                    style={{ backgroundColor: uptimeFill(cell.uptime, cell.total) }}
-                  />
-                );
-              })}
-            </div>
+            ) : null,
+          )}
+          {Object.entries(WEEKDAY_ROWS).map(([row, label]) => (
+            <span key={label} className="body-xs mr-2 flex items-center leading-none text-text-muted" style={{ gridRow: Number(row) + 2, gridColumn: 1 }}>
+              {label}
+            </span>
           ))}
+          {columns.map((col, ci) =>
+            Array.from({ length: 7 }, (_, ri) => {
+              const cell = col[ri];
+              if (!cell) return null;
+              const tip =
+                cell.total > 0
+                  ? `${dayLabel(cell.date)}: ${cell.uptime?.toFixed(2)}% (${cell.ok} of ${cell.total} probes)`
+                  : `${dayLabel(cell.date)}: no data`;
+              return (
+                <span
+                  key={`${ci}-${ri}`}
+                  title={tip}
+                  className="heat"
+                  data-lv={uptimeLevel(cell.uptime, cell.total)}
+                  style={{ gridRow: ri + 2, gridColumn: ci + 2 }}
+                />
+              );
+            }),
+          )}
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-2">
-        <span className="metric-xs text-text-quaternary">Less</span>
-        {[null, 90, 95, 99, 99.95].map((u, i) => (
-          <span
-            key={i}
-            className="h-[11px] w-[11px] rounded-[2px] ring-1 ring-inset ring-border-subtle/60"
-            style={{ backgroundColor: uptimeFill(u, u == null ? 0 : 10) }}
-          />
+      <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 body-sm text-text-muted">
+        <Swatch level="0" label="No data" />
+        {UPTIME_STEPS.map((s) => (
+          <Swatch key={s.level} level={s.level} label={s.label} />
         ))}
-        <span className="metric-xs text-text-quaternary">More</span>
       </div>
     </div>
   );
@@ -106,7 +152,7 @@ export function CalendarGrid({ days, totalDays = 90 }: { days: DayUptime[]; tota
 
 export function UptimeCalendar({ models }: { models: ModelLite[] }) {
   const { prefs } = usePreferences();
-  const { data, loading } = useReliability();
+  const { data, loading, error } = useReliability();
 
   const sorted = useMemo(() => [...models].sort((a, b) => a.name.localeCompare(b.name)), [models]);
   const defaultId = useMemo(() => {
@@ -120,30 +166,22 @@ export function UptimeCalendar({ models }: { models: ModelLite[] }) {
   const days = rel?.days ?? [];
 
   return (
-    <section className="ops-card">
-      <PanelHeader
-        label="Uptime Calendar"
-        icon={CalendarDays}
-        tone="healthy"
-        meta={
-          <Select value={activeId} onValueChange={setSelectedId}>
-            <SelectTrigger size="sm" aria-label="Select model for uptime calendar" className="max-w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {sorted.map((m) => (
-                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
-      />
-      <div className="panel-pad p-4 sm:p-5">
-        {loading && !data ? (
-          <p className="body-xs text-text-tertiary py-6 text-center">Loading reliability history…</p>
-        ) : (
-          <CalendarGrid days={days} />
-        )}
+    <section aria-label="Uptime calendar" className="panel col-span-12 flex flex-col min-[1100px]:col-span-6">
+      <div className="hdiv">
+        <h2 className="heading-md">Uptime calendar</h2>
+        <Select value={activeId} onValueChange={setSelectedId}>
+          <SelectTrigger aria-label="Select model for uptime calendar" className="max-w-[240px] max-md:max-w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {sorted.map((m) => (
+              <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="panel-pad flex-1">
+        <CalendarGrid days={days} state={data ? "loaded" : loading ? "loading" : error ? "error" : "loaded"} />
       </div>
     </section>
   );

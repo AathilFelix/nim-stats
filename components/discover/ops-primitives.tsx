@@ -6,11 +6,13 @@ import { cn } from "@/lib/utils";
 
 export type Tone = "healthy" | "warn" | "critical" | "info" | "neutral";
 
+// Status colour never sets text (R16): every tone reads as ink. The sparkline
+// stroke (TONE_VAR) and the state shapes carry the colour.
 const TONE_TEXT: Record<Tone, string> = {
-  healthy: "text-status-healthy",
-  warn: "text-status-warn",
-  critical: "text-status-critical",
-  info: "text-status-info",
+  healthy: "text-text-primary",
+  warn: "text-text-primary",
+  critical: "text-text-primary",
+  info: "text-text-primary",
   neutral: "text-text-primary",
 };
 
@@ -30,23 +32,23 @@ export function PanelHeader({
   label,
   meta,
   icon: Icon,
-  tone = "neutral",
   className,
 }: {
   label: string;
   meta?: ReactNode;
   icon?: React.ElementType;
+  /** Accepted for call-site compatibility; headers no longer tint by tone. */
   tone?: Tone;
   className?: string;
 }) {
   return (
     <div className={cn("hdiv", className)}>
-      <div className="flex items-center gap-2.5 min-w-0">
-        {Icon && <Icon className={cn("h-3.5 w-3.5 shrink-0", TONE_TEXT[tone === "neutral" ? "info" : tone])} />}
-        <span className="section-label truncate">{label}</span>
+      <div className="flex min-w-0 items-center gap-2.5">
+        {Icon && <Icon className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />}
+        <h2 className="heading-md truncate">{label}</h2>
       </div>
       {meta != null && (
-        <div className="label-xs text-text-tertiary shrink-0 flex items-center gap-2">{meta}</div>
+        <div className="body-sm flex min-w-0 flex-wrap items-center gap-2 text-text-muted">{meta}</div>
       )}
     </div>
   );
@@ -59,7 +61,7 @@ export function PanelHeader({
 export function Delta({
   value,
   unit,
-  /** Which direction is "good" — colors the arrow accordingly. */
+  /** Which direction is "good"; announced to screen readers, never coloured. */
   goodWhen = "up",
   className,
 }: {
@@ -70,15 +72,17 @@ export function Delta({
 }) {
   const flat = Math.abs(value) < 0.05;
   const up = value > 0;
+  const arrow = flat ? "—" : up ? "↑" : "↓";
+  // Direction is the arrow plus a word for screen readers; whether it is good
+  // or bad is the reader's call, so nothing is coloured.
   const good = flat ? null : goodWhen === "up" ? up : !up;
-  const arrow = flat ? "—" : up ? "▲" : "▼";
-  const tone = good == null ? "text-text-tertiary" : good ? "text-status-healthy" : "text-status-critical";
 
   return (
-    <span className={cn("metric-xs inline-flex items-center gap-0.5", tone, className)}>
-      <span className="text-[0.6rem] leading-none">{arrow}</span>
+    <span className={cn("metric-xs inline-flex items-center gap-1 text-text-muted", className)}>
+      <span aria-hidden="true">{arrow}</span>
       {Math.abs(value).toFixed(Math.abs(value) >= 10 ? 0 : 1)}
       {unit}
+      <span className="sr-only">{good == null ? "no change" : good ? "better" : "worse"}</span>
     </span>
   );
 }
@@ -110,12 +114,12 @@ export function Vital({
   return (
     <div className={cn("flex flex-col gap-2 min-w-0", className)}>
       <div className="flex items-center justify-between gap-2">
-        <span className="label-xs text-text-tertiary truncate">{label}</span>
+        <span className="body-sm truncate text-text-muted">{label}</span>
         {delta}
       </div>
       <div className="flex items-baseline gap-1">
         <span className={cn("metric-xl", TONE_TEXT[tone])}>{display}</span>
-        {unit && <span className="metric-xs text-text-tertiary">{unit}</span>}
+        {unit && <span className="body-sm text-text-muted">{unit}</span>}
       </div>
       {data && data.length > 1 && (
         <HorizontalSparkline

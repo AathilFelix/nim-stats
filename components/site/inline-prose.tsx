@@ -17,7 +17,7 @@ export function InlineProse({ text }: { text: string }) {
                 key={i}
                 href={token.href}
                 {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                className="text-text-secondary underline underline-offset-2 transition-colors hover:text-text-primary"
+                className="text-text-primary underline underline-offset-[3px]"
               >
                 {token.value}
               </a>
@@ -25,13 +25,13 @@ export function InlineProse({ text }: { text: string }) {
           }
           case "strong":
             return (
-              <strong key={i} className="font-semibold text-text-primary">
+              <strong key={i} className="font-medium text-text-primary">
                 {token.value}
               </strong>
             );
           case "code":
             return (
-              <code key={i} className="rounded bg-surface-recessed px-1.5 py-0.5 font-mono text-[0.9em] text-text-secondary">
+              <code key={i} className="rounded-xs bg-chip px-1.5 py-0.5 font-mono text-[length:max(0.875em,12px)] text-text-primary">
                 {token.value}
               </code>
             );

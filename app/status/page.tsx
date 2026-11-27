@@ -5,7 +5,9 @@ import { getCatalogFunnel, getDashboardModels } from "@/lib/dashboard-data";
 import { CatalogFunnel } from "@/components/dashboard/catalog-funnel";
 import { computeFleetState } from "@/lib/operational-engine";
 import { TimeAgo } from "@/components/dashboard/time-ago";
+import { StatusGlyph, type GlyphState } from "@/components/dashboard/status-glyph";
 import { SITE_NAME } from "@/lib/site";
+import { CLIENT_REFRESH_MS } from "@/lib/config/cadence";
 
 // See /discover for why every indexable page carries its own title.
 export const metadata: Metadata = {
@@ -19,10 +21,11 @@ export const metadata: Metadata = {
 // net (see app/page.tsx for the full rationale).
 export const revalidate = 1800;
 
-const STATUS_COLOR: Record<string, string> = {
-  healthy: "var(--status-healthy)",
-  busy: "var(--status-warn)",
-  jammed: "var(--status-critical)",
+// State shapes carry the colour; every word on this page is ink or muted.
+const STATUS_GLYPH: Record<string, GlyphState> = {
+  healthy: "healthy",
+  busy: "busy",
+  jammed: "jammed",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -59,32 +62,21 @@ export default async function StatusPage() {
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span
-                  className="inline-block w-2 h-2 rounded-full"
-                  style={{ backgroundColor: STATUS_COLOR[overallStatus] }}
-                  aria-hidden="true"
-                />
-                <span className="label-sm text-text-tertiary">NIM Stats · Public Status</span>
+                <StatusGlyph state={STATUS_GLYPH[overallStatus]} />
+                <span className="label-sm text-text-muted">NIM Stats, public status</span>
               </div>
-              <h1 className="heading-lg text-text-primary">NVIDIA NIM Endpoint Status</h1>
-              <p className="mt-1 body-sm text-text-secondary max-w-lg">
+              <h1 className="heading-lg text-text-primary">NVIDIA NIM endpoint status</h1>
+              <p className="mt-1 max-w-lg body-sm text-text-muted">
                 Live health of free NVIDIA NIM chat-completion endpoints, probed continuously.
                 Not affiliated with NVIDIA.
               </p>
             </div>
             <div className="flex flex-col items-end gap-1">
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 label-sm font-medium"
-                style={{
-                  backgroundColor: `color-mix(in srgb, ${STATUS_COLOR[overallStatus]} 10%, transparent)`,
-                  borderColor: `color-mix(in srgb, ${STATUS_COLOR[overallStatus]} 25%, transparent)`,
-                  color: STATUS_COLOR[overallStatus],
-                }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: STATUS_COLOR[overallStatus] }} aria-hidden="true" />
+              <span className="stc">
+                <StatusGlyph state={STATUS_GLYPH[overallStatus]} />
                 {overallStatus === "healthy" ? "All systems operational" : overallStatus === "busy" ? "Partial degradation" : "Service disruption"}
               </span>
-              <p className="metric-xs text-text-quaternary">
+              <p className="body-sm text-text-muted">
                 Updated {lastProbe ? <TimeAgo date={lastProbe} /> : "—"}
               </p>
             </div>
@@ -95,17 +87,20 @@ export default async function StatusPage() {
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 space-y-8">
         {/* Fleet summary */}
         <section>
-          <h2 className="section-label mb-4">Fleet Overview</h2>
+          <h2 className="section-label mb-4">Fleet overview</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Total endpoints", value: `${models.length}`, color: "text-text-primary" },
-              { label: "Operational", value: `${healthy}`, color: "text-status-healthy" },
-              { label: "Degraded", value: `${busy}`, color: "text-status-warn" },
-              { label: "Disrupted", value: `${jammed}`, color: "text-status-critical" },
+              { label: "Total endpoints", value: `${models.length}`, glyph: null },
+              { label: "Operational", value: `${healthy}`, glyph: "healthy" as GlyphState },
+              { label: "Degraded", value: `${busy}`, glyph: "busy" as GlyphState },
+              { label: "Disrupted", value: `${jammed}`, glyph: "jammed" as GlyphState },
             ].map((s) => (
               <div key={s.label} className="rounded-lg border border-border-base bg-surface-card p-4">
-                <p className={`metric-xl font-semibold ${s.color}`}>{s.value}</p>
-                <p className="label-xs text-text-tertiary mt-0.5">{s.label}</p>
+                <p className="metric-xl text-text-primary">{s.value}</p>
+                <p className="mt-0.5 flex items-center gap-2 body-sm text-text-muted">
+                  {s.glyph && <StatusGlyph state={s.glyph} />}
+                  {s.label}
+                </p>
               </div>
             ))}
           </div>
@@ -113,23 +108,23 @@ export default async function StatusPage() {
           {/* Health bar */}
           <div className="mt-4 space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="label-xs text-text-tertiary">Fleet health</span>
-              <span className="metric-xs text-text-secondary">{healthyPct}% operational</span>
+              <span className="body-sm text-text-muted">Fleet health</span>
+              <span className="metric-xs text-text-primary">{healthyPct}% operational</span>
             </div>
             <div className="h-2 rounded-full bg-border-subtle overflow-hidden flex">
-              <div className="h-full bg-status-healthy transition-all" style={{ width: `${(healthy / models.length) * 100}%` }} />
-              <div className="h-full bg-status-warn transition-all" style={{ width: `${(busy / models.length) * 100}%` }} />
-              <div className="h-full bg-status-critical transition-all" style={{ width: `${(jammed / models.length) * 100}%` }} />
+              <div className="h-full bg-status-healthy" style={{ width: `${(healthy / models.length) * 100}%` }} />
+              <div className="h-full bg-status-warn" style={{ width: `${(busy / models.length) * 100}%` }} />
+              <div className="h-full bg-status-critical" style={{ width: `${(jammed / models.length) * 100}%` }} />
             </div>
             <div className="flex items-center gap-4">
               {[
-                { color: "bg-status-healthy", label: "Operational" },
-                { color: "bg-status-warn", label: "Degraded" },
-                { color: "bg-status-critical", label: "Disrupted" },
+                { glyph: "healthy" as GlyphState, label: "Operational" },
+                { glyph: "busy" as GlyphState, label: "Degraded" },
+                { glyph: "jammed" as GlyphState, label: "Disrupted" },
               ].map((l) => (
-                <div key={l.label} className="flex items-center gap-1.5">
-                  <span className={`h-2 w-2 rounded-full ${l.color}`} />
-                  <span className="label-xs text-text-quaternary">{l.label}</span>
+                <div key={l.label} className="flex items-center gap-2">
+                  <StatusGlyph state={l.glyph} />
+                  <span className="body-sm text-text-muted">{l.label}</span>
                 </div>
               ))}
             </div>
@@ -140,35 +135,27 @@ export default async function StatusPage() {
 
         {/* Per-model status */}
         <section>
-          <h2 className="section-label mb-4">Endpoint Status</h2>
+          <h2 className="section-label mb-4">Endpoint status</h2>
           <div className="rounded-lg border border-border-base overflow-hidden divide-y divide-border-subtle">
             {models.map((m) => {
-              const color = STATUS_COLOR[m.status] ?? "var(--text-tertiary)";
               const label = STATUS_LABEL[m.status] ?? m.status;
               return (
                 <div key={m.id} className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-card hover:bg-surface-recessed transition-colors">
                   <div className="min-w-0">
-                    <p className="body-sm font-semibold text-text-primary truncate">{m.name}</p>
-                    <p className="metric-xs text-text-quaternary">{m.provider}</p>
+                    <p className="truncate font-mono text-sm text-text-primary">{m.name}</p>
+                    <p className="body-sm text-text-muted">{m.provider}</p>
                   </div>
                   <div className="flex items-center gap-4 shrink-0">
                     {m.ttft > 0 && (
-                      <span className="metric-xs text-text-tertiary hidden sm:block">
-                        {m.ttft}ms TTFT
+                      <span className="metric-xs hidden text-text-muted sm:block">
+                        {m.ttft} ms first token
                       </span>
                     )}
-                    <span className="metric-xs text-text-tertiary hidden sm:block">
+                    <span className="metric-xs hidden text-text-muted sm:block">
                       {m.uptime.toFixed(1)}% uptime
                     </span>
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 label-xs font-medium"
-                      style={{
-                        backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`,
-                        borderColor: `color-mix(in srgb, ${color} 25%, transparent)`,
-                        color,
-                      }}
-                    >
-                      <span className="w-1 h-1 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
+                    <span className="stc">
+                      <StatusGlyph state={STATUS_GLYPH[m.status] ?? "neutral"} />
                       {label}
                     </span>
                   </div>
@@ -181,16 +168,16 @@ export default async function StatusPage() {
         {/* Fleet state note */}
         {fleetState && (
           <section className="rounded-lg border border-border-subtle bg-surface-card px-4 py-4">
-            <p className="label-xs text-text-tertiary uppercase tracking-wider mb-1">Fleet assessment</p>
-            <p className="body-sm text-text-secondary">{(fleetState as { summary?: string }).summary ?? "Fleet is being monitored."}</p>
+            <p className="mb-1 body-sm text-text-muted">Fleet assessment</p>
+            <p className="body-sm text-text-primary">{(fleetState as { summary?: string }).summary ?? "Fleet is being monitored."}</p>
           </section>
         )}
       </main>
 
       <footer className="border-t border-border-subtle mt-8">
         <div className="mx-auto max-w-4xl px-4 py-5 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="body-xs text-text-quaternary">
-            Data refreshes every 30s · Probe cycle every ~10 min · Not affiliated with NVIDIA
+          <p className="body-xs text-text-muted">
+            Data refreshes every {CLIENT_REFRESH_MS >= 60_000 ? `${Math.round(CLIENT_REFRESH_MS / 60_000)} min` : `${Math.round(CLIENT_REFRESH_MS / 1000)} s`} · Probe cycle every ~10 min · Not affiliated with NVIDIA
           </p>
           <BuiltBy />
           <Link

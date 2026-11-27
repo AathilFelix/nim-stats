@@ -1,22 +1,56 @@
 import { ImageResponse } from "next/og";
+import geist400 from "@fontsource/geist/files/geist-latin-400-normal.woff?inline";
+import geist500 from "@fontsource/geist/files/geist-latin-500-normal.woff?inline";
 
 // Social link-preview card (1200×630) shown when nimstats.aathil.com is shared
 // on X, Slack, etc. Statically generated at build (no request-time data), so it
-// adds nothing to runtime cost. Hand-built in the app's dark palette — Satori
-// only supports inline styles + flexbox, so every multi-child box sets display:flex.
+// adds nothing to runtime cost. Hand-built in the app's dark palette (DESIGN.md):
+// flat #1c1c1c, white ink, one muted grey, hairline outlines, and the three state
+// shapes. No glow, no gradient. Satori only supports inline styles + flexbox, so
+// every multi-child box sets display:flex.
+//
+// Font: Satori reads TTF/OTF/WOFF but not WOFF2 (what next/font self-hosts), so the
+// card loads Geist 400 and 500 as WOFF from @fontsource/geist (about 17 kB each,
+// latin only), inlined as data URIs at build time and decoded here. Workers'
+// fetch() can't read data: URLs, hence the manual base64 decode.
+
+function dataUriToBuffer(uri: string): ArrayBuffer {
+  const bin = atob(uri.slice(uri.indexOf(",") + 1));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
 export const alt = "NIM Stats — real-time status & reliability for free NVIDIA NIM endpoints";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const BG = "#08090b";
-const TEXT = "#eef0f3";
-const SUBTLE = "#a4a9b4";
-const MUTED = "#6b7080";
-const INDIGO = "#6e7bff";
-const GREEN = "#2fd98a";
-const BORDER = "#232631";
+const BG = "#1c1c1c";
+const TEXT = "#ffffff";
+const MUTED = "#9a9a9a";
+const BORDER = "#3a3a3a";
+// State shape colours (dark theme): answering, busy, not responding.
+const HEALTHY = "#34d399";
+const BUSY = "#f59e0b";
+const JAMMED = "#f87171";
 
 const MODELS = ["Llama", "Mistral", "Gemma", "Qwen", "DeepSeek", "Phi"];
+
+function Shapes() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <svg width="28" height="28" viewBox="0 0 12 12">
+        <circle cx="6" cy="6" r="5.2" fill={HEALTHY} />
+      </svg>
+      <svg width="28" height="28" viewBox="0 0 12 12">
+        <path d="M6 .4 11.6 6 6 11.6.4 6z" fill={BUSY} />
+      </svg>
+      <svg width="28" height="28" viewBox="0 0 12 12">
+        <path d="M6 .8 11.7 11.2H.3z" fill={JAMMED} />
+      </svg>
+    </div>
+  );
+}
 
 export default async function OpengraphImage() {
   return new ImageResponse(
@@ -30,64 +64,55 @@ export default async function OpengraphImage() {
           justifyContent: "space-between",
           padding: 72,
           backgroundColor: BG,
-          backgroundImage:
-            "radial-gradient(900px 520px at 10% -10%, rgba(110,123,255,0.20), transparent 60%), radial-gradient(700px 500px at 100% 110%, rgba(47,217,138,0.10), transparent 55%)",
           color: TEXT,
-          fontFamily: "sans-serif",
+          fontFamily: "Geist",
         }}
       >
-        {/* top: live badge */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div
-            style={{
-              width: 16,
-              height: 16,
-              borderRadius: 999,
-              backgroundColor: GREEN,
-              boxShadow: `0 0 22px 5px rgba(47,217,138,0.65)`,
-            }}
-          />
-          <div style={{ fontSize: 24, letterSpacing: 3, color: MUTED, textTransform: "uppercase" }}>
-            Live · probed every 10 minutes
-          </div>
+        {/* top: state shapes + cadence */}
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <Shapes />
+          <div style={{ display: "flex", fontSize: 26, color: MUTED }}>Probed every 10 minutes</div>
         </div>
 
         {/* middle: title + tagline */}
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ fontSize: 108, fontWeight: 700, letterSpacing: -3, lineHeight: 1, color: TEXT }}>
+          <div style={{ display: "flex", fontSize: 112, fontWeight: 500, letterSpacing: -3, lineHeight: 1, color: TEXT }}>
             NIM Stats
           </div>
-          <div style={{ display: "flex", marginTop: 24, fontSize: 36, lineHeight: 1.3, color: SUBTLE, maxWidth: 940 }}>
-            Real-time status &amp; reliability for every free NVIDIA NIM endpoint — throughput, latency, uptime &amp; congestion.
+          <div style={{ display: "flex", marginTop: 28, fontSize: 36, lineHeight: 1.35, color: MUTED, maxWidth: 940 }}>
+            Real-time status &amp; reliability for every free NVIDIA NIM endpoint: throughput, latency, uptime and congestion.
           </div>
         </div>
 
         {/* bottom: model chips + domain */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", gap: 14 }}>
+          <div style={{ display: "flex", gap: 12 }}>
             {MODELS.map((m) => (
               <div
                 key={m}
                 style={{
                   display: "flex",
-                  padding: "10px 20px",
+                  padding: "8px 18px",
                   borderRadius: 999,
                   border: `1px solid ${BORDER}`,
-                  backgroundColor: "rgba(255,255,255,0.02)",
                   fontSize: 24,
-                  color: SUBTLE,
+                  color: MUTED,
                 }}
               >
                 {m}
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", fontSize: 28, fontWeight: 600, color: INDIGO }}>
-            nimstats.aathil.com
-          </div>
+          <div style={{ display: "flex", fontSize: 28, fontWeight: 500, color: TEXT }}>nimstats.aathil.com</div>
         </div>
       </div>
     ),
-    { ...size },
+    {
+      ...size,
+      fonts: [
+        { name: "Geist", data: dataUriToBuffer(geist400), weight: 400, style: "normal" },
+        { name: "Geist", data: dataUriToBuffer(geist500), weight: 500, style: "normal" },
+      ],
+    },
   );
 }

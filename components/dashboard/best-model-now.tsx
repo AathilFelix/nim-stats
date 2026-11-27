@@ -1,106 +1,153 @@
 "use client";
 
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { TickMark } from "@/components/ui/tick-mark";
 import type { BestModelResult } from "@/lib/operational-types";
-import { statusColor } from "@/lib/design-tokens";
+import { Tick } from "@/components/ui/tick";
 
 interface Props {
   recommendation: BestModelResult | null;
-  models: Array<Record<string, unknown>>;
 }
 
-interface MetricProps {
-  label: string;
-  value: string;
+type CopyState = "idle" | "copied" | "failed";
+
+async function writeClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Insecure context or denied permission: fall back to a transient textarea.
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
 }
 
-function humanize(v: string): string {
-  return v.replace(/_/g, " ");
-}
+function CopyId({ id }: { id: string }) {
+  const [state, setState] = useState<CopyState>("idle");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-function Metric({ label, value }: MetricProps) {
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+
+  async function copy() {
+    const ok = await writeClipboard(id);
+    setState(ok ? "copied" : "failed");
+    // A second click restarts the clock instead of stacking.
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setState("idle"), 2000);
+  }
+
   return (
-    <div className="min-w-0">
-      <p className="label-xs text-text-tertiary mb-0.5 truncate">{label}</p>
-      <p className="metric-sm font-semibold text-text-primary break-words">{value}</p>
-    </div>
+    <>
+      {/* The three labels share one grid cell, so the button is as wide as the
+          widest and the id beside it never moves (R10). */}
+      <button type="button" onClick={copy} className="btn btn-feat shrink-0">
+        <span className="lbl-stack">
+          <span className="lbl" data-on={state === "idle"} aria-hidden={state !== "idle"}>Copy id</span>
+          <span className="lbl" data-on={state === "copied"} aria-hidden={state !== "copied"}>
+            <TickMark />
+            Copied
+          </span>
+          <span className="lbl" data-on={state === "failed"} aria-hidden={state !== "failed"}>Failed</span>
+        </span>
+      </button>
+      <span role="status" className="sr-only">
+        {state === "copied" ? `Copied ${id}` : state === "failed" ? "Could not copy" : ""}
+      </span>
+    </>
   );
 }
 
+const asNumber = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+/**
+ * "Call this now": the one inverted card (emerald in dark, ink in light). The
+ * endpoint id sits in a code block with a Copy id button, then the two numbers
+ * that justify the pick and a reason line built from the engine's own reasons.
+ * When nothing qualifies the card keeps its size and says so.
+ */
 export function BestModelNow({ recommendation }: Props) {
   const m = recommendation?.model;
-  // `findBestModel` signals "nothing qualified" with an empty object, not null —
-  // truthy, so it used to fall through and render undefined metrics (crashing on
-  // `humanize(undefined)`). Treat an empty model as no recommendation.
-  if (!m || Object.keys(m).length === 0) {
-    return (
-      <section className="ops-card p-5">
-        <p className="body-sm text-text-tertiary">
-          No models currently meet operational thresholds
-        </p>
-      </section>
-    );
-  }
+  // `findBestModel` signals "nothing qualified" with an empty object, not null:
+  // truthy, so it has to be checked by key count.
+  const model = m && Object.keys(m).length > 0 ? m : null;
 
-  const status = m.status as "healthy" | "busy" | "jammed";
-  const color = statusColor(status);
+  const id = model && typeof model.id === "string" ? model.id : null;
+  const ttft = model ? asNumber(model.ttft) : null;
+  const throughput = model ? asNumber(model.throughput) : null;
+  const uptime = model ? asNumber(model.uptime) : null;
   const reasons = recommendation?.reasons ?? [];
 
+  const reason = id
+    ? [
+        ...reasons.slice(0, 2).map((r) => `${r}.`),
+        uptime != null ? `Uptime ${uptime}% on recent probes.` : null,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : "No endpoint currently meets the thresholds for routing. This updates after the next probe.";
+
   return (
-    <section className="ops-card overflow-hidden">
-      <div className="flex items-start justify-between p-4 border-b border-border-subtle">
-        <div>
-          <p className="section-label">Recommended Now</p>
-          <h2 className="heading-md mt-1.5 text-text-primary">
-            {m.name as string}
-          </h2>
-          <p className="metric-sm text-text-tertiary mt-1">{m.provider as string}</p>
-        </div>
-        <span
-          className="inline-flex items-center px-2 py-0.5 rounded-sm border label-xs"
-          style={{
-            borderColor: `${color}40`,
-            color,
-            backgroundColor: `${color}15`,
-          }}
-        >
-          {status}
-        </span>
-      </div>
+    <aside
+      aria-label="Recommended endpoint"
+      className="reveal panel panel-featured col-span-12 flex flex-col gap-4 p-4 md:p-6 min-[1100px]:col-span-4"
+      style={{ "--i": 1 } as CSSProperties}
+    >
+      <h2 className="heading-md">Call this now</h2>
 
-      <div className="p-4 space-y-3">
-        {reasons.length > 0 && (
-          <div>
-            <p className="label-sm text-text-tertiary mb-2">Why this model</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {reasons.map((r, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-sm min-w-0"
-                  style={{
-                    backgroundColor: 'var(--surface-recessed)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <span className="h-1 w-1 rounded-full shrink-0 bg-status-healthy" aria-hidden="true" />
-                  <span className="body-sm leading-tight text-text-secondary min-w-0">{r}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className="code-block">
+        {id ? (
+          <>
+            <Tick value={id} variant="fade">
+              <code className="code [overflow-wrap:anywhere]">{id}</code>
+            </Tick>
+            <CopyId id={id} />
+          </>
+        ) : (
+          <>
+            <span className="body-sm opacity-80">No endpoint qualifies</span>
+            <button type="button" disabled className="btn btn-feat shrink-0 opacity-40">
+              Copy id
+            </button>
+          </>
         )}
-
-        <div
-          className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3"
-          style={{ borderTop: '1px solid var(--border-subtle)' }}
-        >
-          <Metric label="TTFT" value={`${m.ttft}ms`} />
-          <Metric label="Throughput" value={(m.throughput as number) > 0 ? `${m.throughput} tok/s` : "—"} />
-          <Metric label="Uptime" value={`${m.uptime}%`} />
-          <Metric label="Volatility" value={humanize((m.volatility as { measure: string })?.measure ?? "—")} />
-          <Metric label="Queue" value={humanize(m.queuePressure as string)} />
-          <Metric label="Reliability" value={`${(m.sessionReliability as { score: number })?.score ?? "—"}`} />
-        </div>
       </div>
-    </section>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Figure value={ttft != null && ttft > 0 ? String(Math.round(ttft)) : "—"} unit="ms" caption="first token" />
+        <Figure
+          value={throughput != null && throughput > 0 ? throughput.toFixed(1) : "—"}
+          unit="tok/s"
+          caption="throughput"
+        />
+      </div>
+
+      <p className="feat-mute mt-auto body-sm">{reason}</p>
+    </aside>
+  );
+}
+
+function Figure({ value, unit, caption }: { value: string; unit: string; caption: string }) {
+  return (
+    <div>
+      <p className="metric-xl">
+        <Tick value={value} />
+        {value !== "—" && <small className="feat-mute body-sm ml-1 tracking-normal">{unit}</small>}
+      </p>
+      <p className="feat-mute body-sm">{caption}</p>
+    </div>
   );
 }

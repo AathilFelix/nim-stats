@@ -37,7 +37,7 @@ export default function NotFound() {
     <div className="min-h-screen bg-surface-base text-text-primary">
       <NavBar />
 
-      <main style={{ paddingTop: "calc(3.5rem + var(--safe-top))" }}>
+      <main>
         <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
           <div className="mb-2 flex items-center gap-2">
             <span className="status-led status-led--warn" style={{ width: 6, height: 6 }} aria-hidden="true" />
@@ -59,7 +59,7 @@ export default function NotFound() {
                     href={d.href}
                     className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 bg-surface-card px-4 py-3 transition-colors hover:bg-surface-recessed"
                   >
-                    <span className="body-sm font-semibold text-text-primary">{d.label}</span>
+                    <span className="body-sm font-medium text-text-primary">{d.label}</span>
                     <span className="body-xs text-text-tertiary">{d.note}</span>
                   </Link>
                 </li>

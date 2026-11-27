@@ -1,46 +1,101 @@
 "use client";
 
+import { useState, type CSSProperties } from "react";
 import { Star } from "lucide-react";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { StatusPill } from "@/components/dashboard/status-pill";
+import { Tick } from "@/components/ui/tick";
+import { StatusPill, STATUS_WORD, humanize } from "@/components/dashboard/status-pill";
+import { StatusGlyph, type GlyphState } from "@/components/dashboard/status-glyph";
 import { Sparkline } from "@/components/dashboard/sparkline";
 import { TimeAgo } from "@/components/dashboard/time-ago";
-import { cn } from "@/lib/utils";
+import { cn, formatTput } from "@/lib/utils";
 import type { NIMModel } from "./mock-data";
-import { formatTput } from "@/lib/utils";
 
 interface ModelTableProps {
   models: NIMModel[];
-  /** Set of favorited model ids — renders a leading star column when provided. */
+  /** Set of favorited model ids — renders a leading pin column when provided. */
   favorites?: Set<string>;
   onToggleFavorite?: (id: string) => void;
   /** Open a detail view for a model (row / name click). */
   onSelect?: (model: NIMModel) => void;
   /** Skip the built-in status sort (caller already ordered the rows). */
   presorted?: boolean;
+  /** Also show the operational columns (congestion, session, P95 …). md and up. */
+  advanced?: boolean;
+  /**
+   * Rows of height to keep while a filter narrows the list, so the footer line
+   * under the table does not jump (R10). Omit for a table that sizes to its rows.
+   */
+  reserveRows?: number;
 }
 
-const COLS = [
-  { label: "Model", sticky: true },
-  { label: "Provider", hideSm: true },
-  { label: "Status" },
-  { label: "TTFT" },
-  { label: "Throughput" },
-  { label: "Congestion" },
-  { label: "Uptime" },
-  { label: "Session Rel.", hideSm: true },
-  { label: "Volatility", hideSm: true },
-  { label: "Timeout", hideSm: true },
-  { label: "P95", hideSm: true },
-  { label: "P99", hideSm: true },
-  { label: "Recovery", hideSm: true },
-  { label: "Queue", hideSm: true },
-  { label: "Routing", hideSm: true },
-  { label: "24h", hideMd: true },
-  { label: "Checked", hideSm: true },
+// Columns behind the "All metrics" toggle, in their original order.
+const ADVANCED_COLS = [
+  "Congestion", "Session reliability", "Volatility", "Timeout", "P95", "P99",
+  "Recovery", "Queue", "Routing", "Trend",
 ];
 
-export function ModelTable({ models, favorites, onToggleFavorite, onSelect, presorted }: ModelTableProps) {
+// Each state-word column keeps its meaning in the word; the shape carries the tone.
+const SESSION: Record<string, GlyphState> = { stable: "healthy", moderate_interruption_risk: "busy" };
+const VOLATILITY: Record<string, GlyphState> = { stable: "healthy", fluctuating: "busy" };
+const PRESSURE: Record<string, GlyphState> = { low: "healthy", elevated: "busy" };
+const ROUTING: Record<string, GlyphState> = { high_confidence: "healthy", moderate_confidence: "busy" };
+const tone = (map: Record<string, GlyphState>, key: string | undefined): GlyphState => map[key ?? ""] ?? "neutral";
+
+const ms = (v: number) => (v > 0 ? <>{v}<span className="u">ms</span></> : "—");
+// A table numeral that changed since the last render gets the colour-neutral wash.
+const mt = (v: number) => (v > 0 ? <><Tick value={v} variant="wash" /><span className="u">ms</span></> : "—");
+
+function Word({ glyph, children }: { glyph: GlyphState; children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-text-primary">
+      <StatusGlyph state={glyph} />
+      {children}
+    </span>
+  );
+}
+
+function PinButton({ model, pinned, onToggle, className }: {
+  model: NIMModel; pinned: boolean; onToggle: (id: string) => void; className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle(model.id);
+      }}
+      aria-pressed={pinned}
+      aria-label={pinned ? `Unpin ${model.name}` : `Pin ${model.name}`}
+      title={pinned ? "Unpin from watchlist" : "Pin to watchlist"}
+      className={cn(
+        "press grid h-8 w-8 shrink-0 place-items-center rounded-sm hover:bg-chip",
+        pinned ? "text-text-primary" : "text-text-muted hover:text-text-primary",
+        className,
+      )}
+    >
+      <Star className="h-4 w-4" fill={pinned ? "currentColor" : "none"} strokeWidth={1.75} />
+    </button>
+  );
+}
+
+export function ModelTable({ models, favorites, onToggleFavorite, onSelect, presorted, advanced = false, reserveRows }: ModelTableProps) {
+  // M12: rows whose id was not in the previous render fade in (160ms, no travel);
+  // rows that leave just go. Never on first paint, and never when only the order or
+  // the values changed. Derived during render so the class is on the row's first paint.
+  const ids = models.map((m) => m.id).join("\n");
+  const [seen, setSeen] = useState<{ ids: string; all: Set<string>; fresh: Set<string> }>(() => ({
+    ids,
+    all: new Set(models.map((m) => m.id)),
+    fresh: new Set(),
+  }));
+  if (seen.ids !== ids) {
+    setSeen({
+      ids,
+      all: new Set(models.map((m) => m.id)),
+      fresh: new Set(models.filter((m) => !seen.all.has(m.id)).map((m) => m.id)),
+    });
+  }
+
   const sorted = presorted
     ? models
     : [...models].sort((a, b) => {
@@ -50,217 +105,138 @@ export function ModelTable({ models, favorites, onToggleFavorite, onSelect, pres
 
   const showStar = !!onToggleFavorite;
   const selectable = !!onSelect;
-
-  const sRelColor = (s: { state: string } | undefined) => {
-    switch (s?.state) {
-      case "stable": return "text-status-healthy";
-      case "moderate_interruption_risk": return "text-status-warn";
-      default: return "text-status-critical";
-    }
-  };
-
-  const volColor = (m: string | undefined) => {
-    switch (m) {
-      case "stable": return "text-status-healthy";
-      case "fluctuating": return "text-status-warn";
-      default: return "text-status-critical";
-    }
-  };
-
-  const pressureColor = (p: string | undefined) => {
-    switch (p) {
-      case "low": return "text-status-healthy";
-      case "elevated": return "text-status-warn";
-      default: return "text-status-critical";
-    }
-  };
-
-  const routingColor = (r: string | undefined) => {
-    switch (r) {
-      case "high_confidence": return "text-status-healthy";
-      case "moderate_confidence": return "text-status-warn";
-      default: return "text-status-critical";
-    }
-  };
+  // Throughput bars scale to the fastest endpoint in view.
+  const maxTput = sorted.reduce((m, x) => Math.max(m, x.throughput), 0);
 
   return (
-    <div className="rounded-lg border border-border-base overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableCaption className="sr-only">
-            NVIDIA NIM endpoint status and reliability metrics
-          </TableCaption>
-          <TableHeader>
-            <TableRow className="border-border-base">
+    <div className={reserveRows ? "dtable-reserve" : undefined} style={reserveRows ? ({ "--rows": reserveRows } as CSSProperties) : undefined}>
+      <div className="scroll-x-lane">
+        <table className="dtable">
+          <caption className="sr-only">NVIDIA NIM endpoint status and reliability metrics</caption>
+          <thead>
+            <tr>
               {showStar && (
-                <TableHead scope="col" className="label-xs text-text-tertiary h-10 w-9 px-2 sticky left-0 z-10 bg-surface-card" />
+                <th scope="col" className="stick left-0 w-10 min-w-10 max-md:hidden md:w-14 md:min-w-14">
+                  <span className="sr-only">Pinned</span>
+                </th>
               )}
-              {COLS.map((col) => (
-                <TableHead
-                  key={col.label}
-                  scope="col"
-                  className={cn(
-                    "label-xs text-text-tertiary h-10 px-3 whitespace-nowrap",
-                    col.sticky && cn("sticky z-10 bg-surface-card", showStar ? "left-9" : "left-0"),
-                    col.hideSm && "hidden md:table-cell",
-                    col.hideMd && "hidden lg:table-cell",
-                  )}
-                >
-                  {col.label}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+              <th scope="col" className={cn("stick max-md:w-full", showStar ? "max-md:pl-4 md:left-14" : "left-0")}>Model</th>
+              <th scope="col" className="col-provider max-md:hidden">Provider</th>
+              <th scope="col" className="col-status max-md:hidden">Status</th>
+              <th scope="col" className="r">First token</th>
+              <th scope="col" className="r">Throughput</th>
+              <th scope="col" className="r max-md:hidden">Up, 24 h</th>
+              {advanced &&
+                ADVANCED_COLS.map((label) => (
+                  <th key={label} scope="col" className="max-md:hidden">{label}</th>
+                ))}
+              <th scope="col" className="r max-md:hidden">Checked</th>
+            </tr>
+          </thead>
+          <tbody>
             {sorted.map((model) => {
               const sRel = model.sessionReliability as { score: number; state: string };
               const vol = model.volatility as { measure: string; score: number };
-              const tRate = model.timeoutRate as number;
-              const p95 = model.p95Latency as number;
-              const p99 = model.p99Latency as number;
               const fav = favorites?.has(model.id) ?? false;
+              const word = STATUS_WORD[model.status];
               return (
-                <TableRow
+                <tr
                   key={model.id}
-                  className={cn(
-                    "border-border-subtle transition-colors",
-                    "active:bg-surface-elevated",
-                    selectable && "cursor-pointer",
-                    model.status === "jammed" && "hover:bg-red-500/[0.03]",
-                    model.status !== "jammed" && "hover:bg-surface-recessed",
-                  )}
+                  className={cn("active:bg-surface-recessed", selectable && "cursor-pointer", seen.fresh.has(model.id) && "row-new")}
                   onClick={selectable ? () => onSelect!(model) : undefined}
                 >
                   {showStar && (
-                    <TableCell className="px-2 py-2.5 w-9 sticky left-0 z-10 bg-surface-card">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleFavorite!(model.id);
-                        }}
-                        aria-pressed={fav}
-                        aria-label={fav ? `Unpin ${model.name}` : `Pin ${model.name}`}
-                        title={fav ? "Unpin from watchlist" : "Pin to watchlist"}
-                        className="flex items-center justify-center rounded p-1 text-text-quaternary transition-colors hover:text-status-warn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <Star
-                          className={cn("h-3.5 w-3.5", fav && "text-status-warn")}
-                          fill={fav ? "currentColor" : "none"}
-                          strokeWidth={fav ? 1 : 1.6}
-                        />
-                      </button>
-                    </TableCell>
+                    <td className="stick left-0 w-10 min-w-10 max-md:hidden md:w-14 md:min-w-14">
+                      <PinButton model={model} pinned={fav} onToggle={onToggleFavorite!} />
+                    </td>
                   )}
-                  <TableCell className={cn("px-3 py-2.5 sticky z-10 bg-surface-card", showStar ? "left-9" : "left-0")}>
+                  <th scope="row" className={cn("nm stick", showStar ? "max-md:pl-4 md:left-14" : "left-0")}>
                     {selectable ? (
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onSelect!(model); }}
-                        className="body-md font-semibold text-text-primary whitespace-nowrap text-left hover:text-text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                        className="rounded-xs text-left underline-offset-[3px] hover:underline"
                       >
                         {model.name}
                       </button>
                     ) : (
-                      <p className="body-md font-semibold text-text-primary whitespace-nowrap">{model.name}</p>
+                      model.name
                     )}
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5 hidden md:table-cell">
-                    <span className="body-sm text-text-tertiary">{model.provider}</span>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5">
-                    <StatusPill status={model.status} size="sm" />
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5">
-                    <span className={`metric-sm ${model.ttft > 1000 ? "text-status-critical" : model.ttft > 500 ? "text-status-warn" : "text-text-secondary"}`}>
-                      {model.ttft}<span className="text-text-tertiary metric-xs ml-0.5">ms</span>
+                    {/* Below md the provider and state fold under the name. */}
+                    <small className="mt-1 flex items-center gap-2 body-sm text-text-muted md:hidden">
+                      <StatusGlyph state={model.status} />
+                      <span className="min-w-0">{model.provider}, {word.toLowerCase()}</span>
+                      {showStar && <PinButton model={model} pinned={fav} onToggle={onToggleFavorite!} className="ml-auto -my-1 -mr-2" />}
+                    </small>
+                  </th>
+                  <td className="col-provider max-md:hidden">{model.provider}</td>
+                  <td className="col-status max-md:hidden">
+                    <Tick value={model.status} variant="fade">
+                      <StatusPill status={model.status} size="sm" />
+                    </Tick>
+                  </td>
+                  <td className="r num">{mt(model.ttft)}</td>
+                  <td className="r num">
+                    <span className="mbar">
+                      {model.throughput > 0 && maxTput > 0 && (
+                        <i className="max-md:hidden" style={{ "--w": `${Math.min(100, (model.throughput / maxTput) * 100)}%` } as React.CSSProperties} />
+                      )}
+                      <span className="min-w-[76px] text-right max-md:min-w-0">
+                        {model.throughput > 0 ? <Tick value={formatTput(model.throughput)} variant="wash" /> : formatTput(model.throughput)}
+                        {model.throughput > 0 && <span className="u">tok/s</span>}
+                      </span>
                     </span>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5">
-                    <span className="metric-sm text-text-secondary">
-                      {formatTput(model.throughput)}{model.throughput > 0 && <span className="text-text-tertiary metric-xs ml-0.5">tok/s</span>}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-12 h-1 bg-border-subtle rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-(--status-healthy)"
-                          style={{
-                            width: `${model.congestion}%`,
-                            backgroundColor: model.congestion > 80 ? "var(--status-critical)" : model.congestion > 50 ? "var(--status-warn)" : "var(--status-healthy)",
-                          }}
-                        />
-                      </div>
-                      <span className="body-sm text-text-tertiary w-7">{model.congestion}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5">
-                    <span className="metric-sm text-text-secondary">{model.uptime.toFixed(2)}%</span>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5 hidden md:table-cell">
-                    <span className={`body-sm font-semibold ${sRelColor(sRel)}`}>
-                      {sRel?.score ?? "—"}
-                      <span className="metric-xs text-text-tertiary ml-0.5">{(sRel?.state ?? "").replace(/_/g, " ")}</span>
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5 hidden md:table-cell">
-                    <span className={`body-sm font-medium ${volColor(vol?.measure)}`}>{vol?.measure ?? "—"}</span>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5 hidden md:table-cell">
-                    <span className={`metric-sm ${tRate > 5 ? "text-status-critical" : tRate > 2 ? "text-status-warn" : "text-text-secondary"}`}>
-                      {tRate.toFixed(1)}%
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5 hidden md:table-cell">
-                    <span className={`body-sm ${p95 > 500 ? "text-status-critical" : p95 > 300 ? "text-status-warn" : "text-text-secondary"}`}>
-                      {p95}<span className="metric-xs text-text-tertiary ml-0.5">ms</span>
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5 hidden md:table-cell">
-                    <span className={`body-sm ${p99 > 1000 ? "text-status-critical" : "text-text-secondary"}`}>
-                      {p99}<span className="metric-xs text-text-tertiary ml-0.5">ms</span>
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5 hidden md:table-cell">
-                    <span className="body-sm text-text-tertiary italic">{model.recovery as string}</span>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5 hidden md:table-cell">
-                    <span className={`body-sm font-medium ${pressureColor(model.queuePressure as string)}`}>
-                      {model.queuePressure as string}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5 hidden md:table-cell">
-                    <span className={`body-sm font-medium ${routingColor(model.routingConfidence as string)}`}>
-                      {(model.routingConfidence as string).replace(/_/g, " ")}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5 hidden lg:table-cell">
-                    <Sparkline
-                      data={model.throughputHistory}
-                      color={
-                        model.status === "healthy"
-                          ? "var(--status-healthy)"
-                          : model.status === "busy"
-                            ? "var(--status-warn)"
-                            : "var(--status-critical)"
-                      }
-                      height={24}
-                    />
-                  </TableCell>
-                  <TableCell className="px-3 py-2.5 text-right hidden md:table-cell">
-                    <TimeAgo date={model.lastChecked} className="metric-xs text-text-tertiary" />
-                  </TableCell>
-                </TableRow>
+                  </td>
+                  <td className="r num max-md:hidden">
+                    <Tick value={model.uptime.toFixed(2)} variant="wash" />%
+                  </td>
+                  {advanced && (
+                    <>
+                      <td className="max-md:hidden">
+                        <span className="mbar justify-start text-text-primary">
+                          <i style={{ "--w": `${Math.min(100, model.congestion)}%` } as React.CSSProperties} />
+                          <span className="min-w-[3ch] text-right font-mono text-sm">{model.congestion}%</span>
+                        </span>
+                      </td>
+                      <td className="max-md:hidden">
+                        <Word glyph={tone(SESSION, sRel?.state)}>
+                          <span className="font-mono text-sm">{sRel?.score ?? "—"}</span>
+                          <span className="text-text-muted">{humanize(sRel?.state)}</span>
+                        </Word>
+                      </td>
+                      <td className="max-md:hidden">
+                        <Word glyph={tone(VOLATILITY, vol?.measure)}>{humanize(vol?.measure)}</Word>
+                      </td>
+                      <td className="num max-md:hidden">{model.timeoutRate.toFixed(1)}%</td>
+                      <td className="num max-md:hidden">{ms(model.p95Latency)}</td>
+                      <td className="num max-md:hidden">{ms(model.p99Latency)}</td>
+                      <td className="max-md:hidden">{humanize(model.recovery as string)}</td>
+                      <td className="max-md:hidden">
+                        <Word glyph={tone(PRESSURE, model.queuePressure as string)}>{humanize(model.queuePressure as string)}</Word>
+                      </td>
+                      <td className="max-md:hidden">
+                        <Word glyph={tone(ROUTING, model.routingConfidence as string)}>
+                          {humanize(model.routingConfidence as string)}
+                        </Word>
+                      </td>
+                      <td className="max-md:hidden">
+                        <Sparkline data={model.throughputHistory} height={24} />
+                      </td>
+                    </>
+                  )}
+                  <td className="r max-md:hidden">
+                    <TimeAgo date={model.lastChecked} />
+                  </td>
+                </tr>
               );
             })}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </div>
       {sorted.length === 0 && (
-        <div className="flex items-center justify-center gap-2 py-10">
-          <span className="status-led status-led--warn" style={{ width: 6, height: 6 }} aria-hidden="true" />
-          <p className="body-sm text-text-tertiary">No models match the current filters.</p>
+        <div className="flex items-center justify-center gap-2 px-4 py-10">
+          <StatusGlyph state="neutral" />
+          <p className="body-sm text-text-muted">No endpoints match the current filters.</p>
         </div>
       )}
     </div>

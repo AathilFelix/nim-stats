@@ -1,46 +1,40 @@
-"use client";
+import type { StatusKey } from "@/lib/design-tokens";
+import { StatusGlyph, type GlyphState } from "@/components/dashboard/status-glyph";
 
-import { type StatusKey } from "@/lib/design-tokens";
-import { cn } from "@/lib/utils";
-
-// Theme-aware: resolve to the live status CSS variables so pills track both
-// the dark and light palettes.
-const STATUS_VAR: Record<StatusKey, string> = {
-  healthy: "var(--status-healthy)",
-  busy: "var(--status-warn)",
-  jammed: "var(--status-critical)",
+const GLYPH: Record<StatusKey, GlyphState> = {
+  healthy: "healthy",
+  busy: "busy",
+  jammed: "jammed",
 };
 
-export function StatusPill({ status, size = "md" }: StatusPillProps) {
-  const color = STATUS_VAR[status];
-  const sizeClasses = size === "sm" ? "px-2 py-0.5 gap-1" : "px-2.5 py-1 gap-1.5";
-  const dotSize = size === "sm" ? "w-1 h-1" : "w-1.5 h-1.5";
+/** The word for each state, shared with the table's folded mobile line. */
+export const STATUS_WORD: Record<StatusKey, string> = {
+  healthy: "Answering",
+  busy: "Busy",
+  jammed: "Not responding",
+};
 
-  return (
-    <span
-      role="status"
-      aria-label={`${status} status`}
-      className={cn(
-        "inline-flex items-center rounded-full label-xs border",
-        sizeClasses,
-      )}
-      style={{
-        backgroundColor: `color-mix(in srgb, ${color} 11%, transparent)`,
-        borderColor: `color-mix(in srgb, ${color} 26%, transparent)`,
-        color,
-      }}
-    >
-      <span
-        className={cn("rounded-full shrink-0", dotSize)}
-        style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }}
-        aria-hidden="true"
-      />
-      {status}
-    </span>
-  );
+/** "avoid_for_production" -> "Avoid for production" (sentence case, no underscores). */
+export function humanize(value: string | undefined | null): string {
+  const t = (value ?? "").replace(/_/g, " ").trim();
+  return t ? t[0].toUpperCase() + t.slice(1) : "—";
 }
 
 interface StatusPillProps {
   status: StatusKey;
+  /** `sm` sits in table rows; `md` is the same pill with a larger shape (drawer header). */
   size?: "sm" | "md";
+}
+
+/**
+ * State as shape plus an ink word on the chip fill (circle answering, diamond
+ * busy, triangle not responding). The colour sits on the shape only (R16).
+ */
+export function StatusPill({ status, size = "md" }: StatusPillProps) {
+  return (
+    <span className="stc">
+      <StatusGlyph state={GLYPH[status]} size={size === "sm" ? 12 : 14} />
+      {STATUS_WORD[status]}
+    </span>
+  );
 }

@@ -75,8 +75,8 @@ export function ProviderIntelligence({ models }: { models: NIMModel[] }) {
   if (!providers.length) {
     return (
       <section className="ops-card">
-        <PanelHeader label="Provider Intelligence" icon={Server} tone="info" />
-        <div className="py-8 text-center text-text-tertiary body-xs">No provider data.</div>
+        <PanelHeader label="Provider intelligence" icon={Server} tone="info" />
+        <div className="py-8 text-center body-sm text-text-muted">No provider data.</div>
       </section>
     );
   }
@@ -84,52 +84,56 @@ export function ProviderIntelligence({ models }: { models: NIMModel[] }) {
   return (
     <section className="ops-card">
       <PanelHeader
-        label="Provider Intelligence"
+        label="Provider intelligence"
         icon={Server}
         tone="info"
         meta={
-          <span className="metric-xs">
-            {providers.length} providers · {models.length} models{totalDegraded > 0 ? ` · ${totalDegraded} degraded` : ""}
+          <span>
+            {providers.length} providers, {models.length} models{totalDegraded > 0 ? `, ${totalDegraded} degraded` : ""}
           </span>
         }
       />
 
       {/* Column header */}
-      <div className="grid grid-cols-[40px_1fr_40px_72px_72px_36px_48px_64px] gap-2 px-4 py-2 border-b border-border-subtle bg-surface-recessed">
+      <div className="overflow-x-auto">
+       <div className="min-w-[560px]">
+      <div className="grid grid-cols-[40px_1fr_40px_72px_72px_36px_48px_64px] gap-2 border-b border-border-subtle bg-surface-recessed px-4 py-3 body-sm text-text-muted md:px-6">
         <span />
-        <span className="text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Provider</span>
-        <span className="text-right text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">M</span>
-        <span className="text-right text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Congestion</span>
-        <span className="text-right text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Uptime</span>
-        <span className="text-center text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Deg</span>
-        <span className="text-center text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Route</span>
-        <span className="text-right text-xs font-bold uppercase tracking-[0.10em] text-[--text-tertiary] font-mono">Recovery</span>
+        <span>Provider</span>
+        <span className="text-right" title="Models">Models</span>
+        <span className="text-right">Congestion</span>
+        <span className="text-right">Uptime</span>
+        <span className="text-center" title="Degraded">Deg.</span>
+        <span className="text-center">Route</span>
+        <span className="text-right">Recovery</span>
       </div>
 
       {/* Rows */}
       <div className="divide-y divide-border-subtle">
         {providers.map((p) => (
-          <div key={p.name} className="grid grid-cols-[40px_1fr_40px_72px_72px_36px_48px_64px] gap-2 items-center px-4 py-2.5 transition-colors duration-150 hover:bg-surface-recessed border-l-2 border-transparent hover:border-l-[var(--text-accent)]">
+          <div key={p.name} className="grid grid-cols-[40px_1fr_40px_72px_72px_36px_48px_64px] items-center gap-2 px-4 py-3 transition-colors duration-150 hover:bg-surface-recessed md:px-6">
             <GradeBadge grade={p.grade} />
-            <span className="text-sm font-medium text-[--text-primary] truncate">{p.name}</span>
-            <span className="text-right text-sm font-mono tabular-nums text-[--text-primary]">{p.count}</span>
+            <span className="truncate text-sm text-text-primary">{p.name}</span>
+            <span className="text-right text-sm font-mono tabular-nums text-text-primary">{p.count}</span>
             <div>
-              <span className="text-sm font-mono tabular-nums text-[--text-primary]">{p.avgCongestion}%</span>
+              <span className="text-sm font-mono tabular-nums text-text-primary">{p.avgCongestion}%</span>
               <MiniBar value={p.avgCongestion} color={congColor(p.avgCongestion)} />
             </div>
             <div>
-              <span className="text-sm font-mono tabular-nums text-[--text-primary]">{p.avgUptime.toFixed(2)}%</span>
+              <span className="text-sm font-mono tabular-nums text-text-primary">{p.avgUptime.toFixed(2)}%</span>
               <MiniBar value={p.avgUptime} max={100} color={uptimeColor(p.avgUptime)} />
             </div>
-            <span className={`text-center text-sm font-mono tabular-nums ${p.degradedCount > 0 ? "text-[--status-critical] font-semibold" : "text-[--text-primary]"}`}>
+            <span className={`text-center text-sm font-mono tabular-nums text-text-primary ${p.degradedCount > 0 ? "font-medium" : ""}`}>
               {p.degradedCount}
             </span>
             <div className="flex justify-center">
               <SignalStrength level={p.routingLevel} />
             </div>
-            <span className="text-right text-sm font-mono tabular-nums text-[--text-primary]">{p.recoveryAvg}</span>
+            <span className="text-right text-sm font-mono tabular-nums text-text-primary">{p.recoveryAvg}</span>
           </div>
         ))}
+      </div>
+       </div>
       </div>
     </section>
   );
